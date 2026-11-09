@@ -676,7 +676,9 @@ export const mainMenuTemplate = async (
           label: t('main.menu.navigation.submenu.copy-current-url'),
           click() {
             const currentURL = win.webContents.getURL();
-            clipboard.writeText(currentURL);
+            clipboard
+              .writeText(currentURL)
+              .catch((error: unknown) => console.error(error));
           },
         },
         {
