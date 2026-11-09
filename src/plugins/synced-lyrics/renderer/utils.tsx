@@ -1,14 +1,6 @@
-import { romanize as romanizeThaiFrag } from '@dehoist/romanize-thai';
-import Sanscript from '@indic-transliteration/sanscript';
 import { sify, tify } from 'chinese-conv';
-import { romanize as esHangulRomanize } from 'es-hangul';
-import hanja from 'hanja';
-import Kuroshiro from 'kuroshiro';
-import KuromojiAnalyzer from 'kuroshiro-analyzer-kuromoji';
 import lazyVar from 'lazy-var';
-import { pinyin } from 'pinyin-pro';
 import { render } from 'solid-js/web';
-import { detect } from 'tinyld';
 
 import { waitForElement } from '@/utils/wait-for-element';
 
@@ -146,7 +138,14 @@ const shinjitai = [
 ].map((codePoint) => String.fromCodePoint(codePoint));
 const shinjitaiRegex = new RegExp(`[${shinjitai.join('')}]`);
 
+// The romanization libraries below take about 70 MB once loaded, so each one
+// loads on first use instead of with the page.
 const kuroshiro = lazyVar.lazy(async () => {
+  const [{ default: Kuroshiro }, { default: KuromojiAnalyzer }] =
+    await Promise.all([
+      import('kuroshiro'),
+      import('kuroshiro-analyzer-kuromoji'),
+    ]);
   const _kuroshiro = new Kuroshiro();
   await _kuroshiro.init(
     new KuromojiAnalyzer({
@@ -156,10 +155,11 @@ const kuroshiro = lazyVar.lazy(async () => {
   return _kuroshiro;
 });
 
+// Hiragana and katakana
+const kanaRegex = /[\u3040-\u30FF]/;
+
 const hasJapanese = (lines: string[]) =>
-  lines.some(
-    (line) => Kuroshiro.Util.hasKana(line) || shinjitaiRegex.test(line),
-  );
+  lines.some((line) => kanaRegex.test(line) || shinjitaiRegex.test(line));
 
 // tests for Hangul characters, sufficient for our use case
 const hasKorean = (lines: string[]) =>
@@ -184,10 +184,16 @@ export const romanizeJapanese = async (line: string) =>
     mode: 'spaced',
   }) ?? line;
 
-export const romanizeHangul = (line: string) =>
-  esHangulRomanize(hanja.translate(line, 'SUBSTITUTION'));
+export const romanizeHangul = async (line: string) => {
+  const [{ romanize }, { default: hanja }] = await Promise.all([
+    import('es-hangul'),
+    import('hanja'),
+  ]);
+  return romanize(hanja.translate(line, 'SUBSTITUTION'));
+};
 
-export const romanizeChinese = (line: string) => {
+export const romanizeChinese = async (line: string) => {
+  const { pinyin } = await import('pinyin-pro');
   return line.replaceAll(/[\u4E00-\u9FFF]+/g, (match) => {
     return pinyin(match, { separator: ' ' });
   });
@@ -197,7 +203,8 @@ const thaiSegmenter = Intl.Segmenter.supportedLocalesOf('th').includes('th')
   ? new Intl.Segmenter('th', { granularity: 'word' })
   : null;
 
-export const romanizeThai = (line: string) => {
+export const romanizeThai = async (line: string) => {
+  const { romanize: romanizeThaiFrag } = await import('@dehoist/romanize-thai');
   if (!thaiSegmenter) return romanizeThaiFrag(line);
 
   const segments = Array.from(thaiSegmenter.segment(line));
@@ -213,8 +220,10 @@ export const romanizeThai = (line: string) => {
   return latin;
 };
 
-export const romanizeBengali = (line: string) => {
+export const romanizeBengali = async (line: string) => {
   try {
+    const { default: Sanscript } =
+      await import('@indic-transliteration/sanscript');
     let out = Sanscript.t(line, 'bengali', 'iast');
     out = out.normalize('NFD');
     out = out.replace(/[\u0300-\u036f]/g, '');
@@ -225,8 +234,10 @@ export const romanizeBengali = (line: string) => {
   }
 };
 
-export const romanizeHindi = (line: string) => {
+export const romanizeHindi = async (line: string) => {
   try {
+    const { default: Sanscript } =
+      await import('@indic-transliteration/sanscript');
     let out = Sanscript.t(line, 'devanagari', 'iast');
     out = out.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // strip accents
     return out.replace(/[^a-zA-Z\s]/g, '') || line; // remove any remaining symbols
@@ -245,6 +256,7 @@ const handlers: Record<string, (line: string) => Promise<string> | string> = {
 };
 
 export const romanize = async (line: string) => {
+  const { detect } = await import('tinyld');
   const lang = detect(line);
 
   const handler = handlers[lang];
@@ -254,11 +266,11 @@ export const romanize = async (line: string) => {
 
   // fallback
   if (hasJapanese([line])) line = await romanizeJapanese(line);
-  if (hasKorean([line])) line = romanizeHangul(line);
-  if (hasChinese([line])) line = romanizeChinese(line);
-  if (hasThai([line])) line = romanizeThai(line);
-  if (hasBengali([line])) line = romanizeBengali(line);
-  if (hasHindi([line])) line = romanizeHindi(line);
+  if (hasKorean([line])) line = await romanizeHangul(line);
+  if (hasChinese([line])) line = await romanizeChinese(line);
+  if (hasThai([line])) line = await romanizeThai(line);
+  if (hasBengali([line])) line = await romanizeBengali(line);
+  if (hasHindi([line])) line = await romanizeHindi(line);
 
   return line;
 };

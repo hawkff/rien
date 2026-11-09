@@ -58,6 +58,21 @@ const ffmpeg = lazyVar.lazy(async () =>
 );
 const ffmpegMutex = new Mutex();
 
+// The loaded ffmpeg core holds tens of megabytes, so unload it once downloads
+// have been idle for a minute. The next conversion loads it again.
+const ffmpegIdleMs = 60_000;
+let ffmpegUnloadTimer: NodeJS.Timeout | undefined;
+const scheduleFfmpegUnload = () => {
+  ffmpegUnloadTimer = setTimeout(() => {
+    ffmpegMutex
+      .runExclusive(async () => {
+        const ffmpegInstance = await ffmpeg.get();
+        if (ffmpegInstance.isLoaded()) ffmpegInstance.exit();
+      })
+      .catch((error: unknown) => console.error(error));
+  }, ffmpegIdleMs);
+};
+
 // bgutils-js 4 no longer generates a PO token in one call. These are the steps
 // its old `BG.PoToken.generate` ran.
 const generatePoToken = async ({
@@ -595,6 +610,7 @@ async function iterableStreamToProcessedUint8Array(
   const safeVideoName = randomBytes(32).toString('hex');
 
   return await ffmpegMutex.runExclusive(async () => {
+    clearTimeout(ffmpegUnloadTimer);
     try {
       const ffmpegInstance = await ffmpeg.get();
       if (!ffmpegInstance.isLoaded()) {
@@ -649,6 +665,8 @@ async function iterableStreamToProcessedUint8Array(
       }
     } catch (error: unknown) {
       sendError(error as Error, safeVideoName);
+    } finally {
+      scheduleFfmpegUnload();
     }
     return null;
   });
