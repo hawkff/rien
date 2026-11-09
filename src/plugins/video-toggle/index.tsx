@@ -23,6 +23,7 @@ export default createPlugin({
   name: () => t('plugins.video-toggle.name'),
   description: () => t('plugins.video-toggle.description'),
   restartNeeded: true,
+  // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- the cast sets the config type that createPlugin infers
   config: {
     enabled: false,
     hideVideo: false,
@@ -160,7 +161,7 @@ export default createPlugin({
       const moveVolumeHud = (await window.mainConfig.plugins.isEnabled(
         'precise-volume',
       ))
-        ? (preciseVolumeMoveVolumeHud as (_: boolean) => void)
+        ? preciseVolumeMoveVolumeHud
         : () => {};
 
       const player = document.querySelector<

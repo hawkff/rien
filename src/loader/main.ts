@@ -90,6 +90,7 @@ export const forceUnloadMainPlugin = async (
       t('common.console.plugins.unload-failed', { pluginName: id }),
     );
     console.trace(err);
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- prefer-promise-reject-errors needs the Error type
     return Promise.reject(err as Error);
   }
 };
@@ -126,6 +127,7 @@ export const forceLoadMainPlugin = async (
       t('common.console.plugins.initialize-failed', { pluginName: id }),
     );
     console.trace(err);
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- prefer-promise-reject-errors needs the Error type
     return Promise.reject(err as Error);
   }
 };

@@ -187,7 +187,15 @@ export const PanelItem = (props: PanelItemProps) => {
   const [anchor, setAnchor] = createSignal<HTMLElement | null>(null);
   const [child, setChild] = createSignal<HTMLElement | null>(null);
 
-  const position = useFloating(anchor, toolTip, {
+  const position = useFloating({
+    elements: {
+      get reference() {
+        return anchor();
+      },
+      get floating() {
+        return toolTip();
+      },
+    },
     whileElementsMounted: autoUpdate,
     placement: 'bottom-start',
     strategy: 'fixed',

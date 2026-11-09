@@ -6,7 +6,7 @@ const domParser = new DOMParser();
  * @returns The DOM element
  */
 export const ElementFromHtml = (html: string): HTMLElement => {
-  return (domParser.parseFromString(html, 'text/html') as HTMLDocument).body
+  return (domParser.parseFromString(html, 'text/html')).body
     .firstElementChild as HTMLElement;
 };
 

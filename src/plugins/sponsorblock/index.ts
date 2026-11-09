@@ -38,7 +38,7 @@ export default createPlugin({
       'selfpromo',
       'music_offtopic',
     ],
-  } as SponsorBlockPluginConfig,
+  },
   async backend({ getConfig, ipc }) {
     const fetchSegments = async (
       apiURL: string,

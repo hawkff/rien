@@ -24,6 +24,7 @@ export default createPlugin({
   description: () => t('plugins.equalizer.description'),
   restartNeeded: false,
   addedVersion: '3.7.X',
+  // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- the cast sets the config type that createPlugin infers
   config: {
     enabled: false,
     filters: [],

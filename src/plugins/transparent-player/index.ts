@@ -26,7 +26,7 @@ export default createPlugin({
       enabled: defaultConfig.enabled,
       opacity: defaultConfig.opacity,
       type: defaultConfig.type,
-    } as TransparentPlayerConfig,
+    },
     async start({ getConfig }) {
       const config = await getConfig();
       this.props = config;

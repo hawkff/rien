@@ -96,7 +96,15 @@ export const Panel = (props: PanelProps) => {
 
   const [panel, setPanel] = createSignal<HTMLElement | null>(null);
 
-  const position = useFloating(() => elements.anchor, panel, {
+  const position = useFloating({
+    elements: {
+      get reference() {
+        return elements.anchor;
+      },
+      get floating() {
+        return panel();
+      },
+    },
     whileElementsMounted: autoUpdate,
     placement: local.placement as Placement,
     strategy: 'fixed',

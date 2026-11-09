@@ -32,7 +32,7 @@ export default createPlugin({
     'pip-size': [450, 275],
     'isInPiP': false,
     'useNativePiP': true,
-  } as PictureInPicturePluginConfig,
+  },
   stylesheets: [style],
   menu: onMenu,
 

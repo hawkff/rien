@@ -45,6 +45,7 @@ export default createPlugin({
   name: () => t('plugins.do-not-track.name'),
   description: () => t('plugins.do-not-track.description'),
   restartNeeded: false,
+  // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- the cast sets the config type that createPlugin infers
   config: {
     enabled: false,
     cache: true,

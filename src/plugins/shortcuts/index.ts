@@ -33,7 +33,7 @@ export default createPlugin({
       playPause: '',
       next: '',
     },
-  } as ShortcutsPluginConfig,
+  },
   menu: onMenu,
 
   backend: onMainLoad,

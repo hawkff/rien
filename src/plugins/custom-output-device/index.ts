@@ -20,7 +20,7 @@ export default createPlugin({
     enabled: false,
     output: 'default',
     devices: {},
-  } as CustomOutputPluginConfig,
+  },
   menu: ({ setConfig, getConfig, window }) => {
     const promptDeviceSelector = async () => {
       const options = await getConfig();

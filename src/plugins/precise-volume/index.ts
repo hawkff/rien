@@ -33,6 +33,7 @@ export default createPlugin({
   name: () => t('plugins.precise-volume.name'),
   description: () => t('plugins.precise-volume.description'),
   restartNeeded: true,
+  // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- the cast sets the config type that createPlugin infers
   config: {
     enabled: false,
     steps: 1,

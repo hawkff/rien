@@ -68,6 +68,7 @@ export default createPlugin({
   name: () => t('plugins.visualizer.name'),
   description: () => t('plugins.visualizer.description'),
   restartNeeded: false,
+  // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- the cast sets the config type that createPlugin infers
   config: {
     enabled: false,
     type: 'butterchurn',
@@ -154,6 +155,7 @@ export default createPlugin({
   },
 
   renderer: {
+    // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- the cast sets the type of this.props
     props: {
       visualizerInstance: null,
       audioContext: null,

@@ -3,7 +3,9 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Mutex } from 'async-mutex';
-import { BG, type BgConfig } from 'bgutils-js';
+import { BotGuardClient, getChallenge } from 'bgutils-js/botguard';
+import { buildURL, getHeaders } from 'bgutils-js/utils';
+import { WebPoMinter } from 'bgutils-js/webpo';
 import { app, type BrowserWindow, dialog, ipcMain } from 'electron';
 import is from 'electron-is';
 import filenamify from 'filenamify';
@@ -43,6 +45,7 @@ import { DefaultPresetList, type Preset, VideoFormatList } from '../types';
 import type { DownloaderPluginConfig } from '../index';
 import type { BackendContext } from '@/types/contexts';
 import type { GetPlayerResponse } from '@/types/get-player-response';
+import type { WebPoSignalOutput } from 'bgutils-js/shared-types';
 
 type CustomSongInfo = SongInfo & { trackId?: string };
 
@@ -54,6 +57,63 @@ const ffmpeg = lazyVar.lazy(async () =>
   }),
 );
 const ffmpegMutex = new Mutex();
+
+// bgutils-js 4 no longer generates a PO token in one call. These are the steps
+// its old `BG.PoToken.generate` ran.
+const generatePoToken = async ({
+  program,
+  globalName,
+  requestKey,
+  identifier,
+  fetch,
+}: {
+  program: string;
+  globalName: string;
+  requestKey: string;
+  identifier: string;
+  fetch: typeof globalThis.fetch;
+}) => {
+  const botGuard = await BotGuardClient.create({
+    program,
+    globalName,
+    globalObject: globalThis,
+  });
+  const webPoSignalOutput: WebPoSignalOutput = [];
+  const botGuardResponse = await botGuard.snapshot({ webPoSignalOutput });
+
+  const response = await fetch(buildURL('GenerateIT'), {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify([requestKey, botGuardResponse]),
+  });
+  if (!response.ok) {
+    throw new Error(`GenerateIT failed with status ${response.status}`);
+  }
+  const integrityTokenResponse: unknown = await response.json();
+  if (
+    !Array.isArray(integrityTokenResponse) ||
+    typeof integrityTokenResponse[0] !== 'string'
+  ) {
+    throw new Error('GenerateIT returned an unexpected response');
+  }
+  const [
+    integrityToken,
+    estimatedTtlSecs,
+    mintRefreshThreshold,
+    websafeFallbackToken,
+  ] = integrityTokenResponse as [string, number, number, string];
+
+  const minter = await WebPoMinter.create(
+    {
+      integrityToken,
+      estimatedTtlSecs,
+      mintRefreshThreshold,
+      websafeFallbackToken,
+    },
+    webPoSignalOutput,
+  );
+  return minter.mintAsWebsafeString(identifier);
+};
 
 Platform.shim.eval = (
   data: Types.BuildScriptResult,
@@ -170,6 +230,8 @@ export const onMainLoad = async ({
         width,
         height,
         console,
+        // BotGuard creates an iframe. happy-dom 21 blocks iframes by default.
+        settings: { enableIframePageLoading: true },
       });
       const document = window.document;
 
@@ -178,37 +240,43 @@ export const onMainLoad = async ({
         document,
       });
 
-      const bgConfig: BgConfig = {
-        fetch: getNetFetchAsFetch(),
-        globalObj: globalThis,
-        identifier: visitorData,
+      const netFetch = getNetFetchAsFetch();
+      // The plugin registers its IPC handlers after this, so a stalled
+      // request must not hold it up.
+      const fetch: typeof globalThis.fetch = (input, init) =>
+        netFetch(input, { ...init, signal: AbortSignal.timeout(15_000) });
+      const bgChallenge = await getChallenge({
         requestKey,
-      };
-
-      const bgChallenge = await BG.Challenge.create(bgConfig);
+        fetchFunction: fetch,
+      });
       const interpreterJavascript =
-        bgChallenge?.interpreterJavascript
-          .privateDoNotAccessOrElseSafeScriptWrappedValue;
+        bgChallenge.interpreterJavascript
+          ?.privateDoNotAccessOrElseSafeScriptWrappedValue;
 
-      if (interpreterJavascript) {
+      if (
+        interpreterJavascript &&
+        bgChallenge.program &&
+        bgChallenge.globalName
+      ) {
         // This is a workaround to run the interpreterJavascript code
         // Maybe there is a better way to do this (e.g. https://github.com/Siubaak/sval ?)
         // oxlint-disable-next-line typescript/no-implied-eval,typescript/no-unsafe-call
         new Function(interpreterJavascript)();
 
-        const poTokenResult = await BG.PoToken.generate({
+        yt.session.po_token = await generatePoToken({
           program: bgChallenge.program,
           globalName: bgChallenge.globalName,
-          bgConfig,
+          requestKey,
+          identifier: visitorData,
+          fetch,
         }).finally(() => {
           cleanUp(globalThis);
         });
-
-        yt.session.po_token = poTokenResult.poToken;
       } else {
         cleanUp(globalThis);
       }
-    } catch {
+    } catch (error: unknown) {
+      console.warn('Could not generate a PO token:', error);
       cleanUp(globalThis);
     }
   }

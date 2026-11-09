@@ -31,6 +31,7 @@ export default createPlugin({
   name: () => t('plugins.album-color-theme.name'),
   description: () => t('plugins.album-color-theme.description'),
   restartNeeded: false,
+  // oxlint-disable-next-line typescript/no-unnecessary-type-assertion -- the cast sets the config type that createPlugin infers
   config: {
     enabled: false,
     ratio: 0.5,

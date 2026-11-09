@@ -55,7 +55,7 @@ export default createPlugin({
     'hideGitHubButton': false,
     'hideDurationLeft': false,
     'statusDisplayType': StatusDisplayType.Details,
-  } as DiscordPluginConfig,
+  },
   menu: onMenu,
   backend,
 });

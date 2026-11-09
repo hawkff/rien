@@ -29,6 +29,11 @@ const resolveAlias = {
 // out of the bundle. Use Node's list instead.
 const nodeBuiltins = [...builtinModules, /^node:/];
 const bunBuiltinPackages = new Set(['undici', 'ws']);
+
+// fflate's Node build declares a top-level `require`, which clashes with the
+// `require` that electron-vite adds to ES chunks calling require(). The browser
+// build has the same synchronous API, which is all youtubei.js uses.
+const nodeAlias = { ...resolveAlias, fflate: 'fflate/browser' };
 const bundleBunBuiltinPackages = (): Plugin => ({
   name: 'bundle-bun-builtin-packages',
   // Runs after electron-vite adds its builtin list to `external`.
@@ -84,7 +89,7 @@ export default defineConfig(({ mode }) => {
       externalizeDeps: false,
     },
     resolve: {
-      alias: resolveAlias,
+      alias: nodeAlias,
       builtins: nodeBuiltins,
     },
   };
@@ -117,7 +122,7 @@ export default defineConfig(({ mode }) => {
       externalizeDeps: false,
     },
     resolve: {
-      alias: resolveAlias,
+      alias: nodeAlias,
       builtins: nodeBuiltins,
     },
   };

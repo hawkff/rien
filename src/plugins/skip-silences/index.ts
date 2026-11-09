@@ -15,7 +15,7 @@ export default createPlugin({
   config: {
     enabled: false,
     onlySkipBeginning: false,
-  } as SkipSilencesPluginConfig,
+  },
   renderer: {
     start: onRendererLoad,
     stop: onRendererUnload,
