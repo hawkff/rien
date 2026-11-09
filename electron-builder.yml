@@ -22,20 +22,6 @@ mac:
         - arm64
   icon: assets/generated/icons/mac/icon.icon
   compression: maximum
-win:
-  icon: assets/generated/icons/win/icon.ico
-  target:
-    - target: nsis-web
-      arch:
-        - x64
-        - arm64
-    - target: portable
-      arch:
-        - x64
-        - arm64
-  compression: maximum
-nsisWeb:
-  runAfterFinish: false
 linux:
   icon: assets/generated/icons/png
   category: AudioVideo
