@@ -8,7 +8,7 @@ import {
   type PreloadViteConfig,
   type RendererViteConfig,
 } from 'electron-vite';
-import { withFilter } from 'vite';
+import { type Plugin, withFilter } from 'vite';
 import Inspect from 'vite-plugin-inspect';
 import viteResolve from 'vite-plugin-resolve';
 import solidPlugin from 'vite-plugin-solid';
@@ -24,12 +24,32 @@ const resolveAlias = {
   '@assets': resolve(__dirname, './assets'),
 };
 
+// electron-vite and Vite take their builtin lists from the runtime running the
+// build. Bun counts ws and undici as builtins, so a Bun build would leave them
+// out of the bundle. Use Node's list instead.
+const nodeBuiltins = [...builtinModules, /^node:/];
+const bunBuiltinPackages = new Set(['undici', 'ws']);
+const bundleBunBuiltinPackages = (): Plugin => ({
+  name: 'bundle-bun-builtin-packages',
+  // Runs after electron-vite adds its builtin list to `external`.
+  enforce: 'post',
+  config(config) {
+    const options = config.build?.rolldownOptions;
+    if (options && Array.isArray(options.external)) {
+      options.external = options.external.filter(
+        (id) => typeof id !== 'string' || !bunBuiltinPackages.has(id),
+      );
+    }
+  },
+});
+
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development';
 
   const mainAndPreloadExcludes = ['electron', 'custom-electron-prompt', ...builtinModules];
   const mainConfig: MainViteConfig = {
     plugins: [
+      bundleBunBuiltinPackages(),
       pluginLoader('backend'),
       viteResolve({
         'virtual:i18n': i18nImporter(),
@@ -65,11 +85,13 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: resolveAlias,
+      builtins: nodeBuiltins,
     },
   };
 
   const preloadConfig: PreloadViteConfig = {
     plugins: [
+      bundleBunBuiltinPackages(),
       pluginLoader('preload'),
       viteResolve({
         'virtual:i18n': i18nImporter(),
@@ -96,6 +118,7 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: resolveAlias,
+      builtins: nodeBuiltins,
     },
   };
 

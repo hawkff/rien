@@ -20,6 +20,8 @@ export const i18nImporter = () => {
 
     return { name, path };
   });
+  // glob's order depends on the file system and the runtime.
+  plugins.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 
   const src = globalProject.createSourceFile(
     'vm:i18n',

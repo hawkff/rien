@@ -190,9 +190,16 @@
       {
         "type": "natural",
         "order": "asc",
+        "customGroups": [
+          {
+            "groupName": "bun-builtin-packages",
+            "modifiers": ["value"],
+            "elementNamePattern": "^(undici|ws)$"
+          }
+        ],
         "groups": [
           "builtin",
-          "external",
+          ["external", "bun-builtin-packages"],
           "internal",
           ["index", "sibling"],
           "parent",

@@ -1,0 +1,9 @@
+[install]
+# Skip package versions published in the last 6 hours.
+minimumReleaseAge = 21600
+# Save exact versions, like the rest of package.json.
+exact = true
+
+[run]
+# Run scripts and package binaries with Bun even when Node.js is installed.
+bun = true

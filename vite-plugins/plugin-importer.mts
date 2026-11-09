@@ -42,6 +42,8 @@ export const pluginVirtualModuleGenerator = (
 
     return { name, path };
   });
+  // glob's order depends on the file system and the runtime.
+  plugins.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 
   const src = globalProject.createSourceFile(
     'vm:pluginIndexes',

@@ -4,14 +4,7 @@ node_modules
 .vscode/settings.json
 .idea
 
-.pnp.*
-.pnpm-store
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
 .vite-inspect
 
 .DS_Store
+._*
