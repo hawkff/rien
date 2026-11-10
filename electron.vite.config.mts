@@ -150,7 +150,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       pluginLoader('renderer'),
       viteResolve({
-        'virtual:i18n': i18nImporter(),
+        'virtual:i18n': i18nImporter('renderer'),
         'virtual:plugins': pluginVirtualModuleGenerator('renderer'),
       }),
       withFilter(solidPlugin(), {

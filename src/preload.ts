@@ -5,6 +5,7 @@ import {
   webFrame,
 } from 'electron';
 import is from 'electron-is';
+import { languageResource } from 'virtual:i18n';
 
 import { loadI18n, setLanguage } from '@/i18n';
 
@@ -52,6 +53,7 @@ ipcRenderer.on('plugin:enable', async (_, id: string) => {
 
 contextBridge.exposeInMainWorld('mainConfig', config);
 contextBridge.exposeInMainWorld('electronIs', is);
+contextBridge.exposeInMainWorld('getLanguageResource', languageResource);
 contextBridge.exposeInMainWorld('ipcRenderer', {
   on: (
     channel: string,

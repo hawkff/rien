@@ -16,4 +16,7 @@ declare module 'virtual:i18n' {
   import type { LanguageResources } from '@/i18n/resources/@types';
 
   export const languageResources: () => Promise<LanguageResources>;
+  export const languageResource: (
+    name: string,
+  ) => Promise<LanguageResources[string]['translation'] | undefined>;
 }

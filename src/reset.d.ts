@@ -6,6 +6,7 @@ import type { VideoDataChanged } from '@/types/video-data-changed';
 import type { ipcRenderer as electronIpcRenderer } from 'electron';
 import type is from 'electron-is';
 import type { trustedTypes } from 'trusted-types';
+import type { languageResource } from 'virtual:i18n';
 
 declare global {
   interface Compressor {
@@ -23,6 +24,7 @@ declare global {
     ipcRenderer: typeof electronIpcRenderer;
     mainConfig: typeof config;
     electronIs: typeof is;
+    getLanguageResource: typeof languageResource;
     ELECTRON_RENDERER_URL: string | undefined;
     /**
      * Internal variable (Last interaction time)

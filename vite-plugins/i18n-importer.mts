@@ -12,7 +12,13 @@ const globalProject = new Project({
   skipFileDependencyResolution: true,
 });
 
-export const i18nImporter = () => {
+export const i18nImporter = (mode?: 'renderer') => {
+  // The page gets its languages from the preload script, so the translations
+  // stay out of the page's code.
+  if (mode === 'renderer') {
+    return 'export const languageResource = (name) => window.getLanguageResource(name);\n';
+  }
+
   const srcPath = resolve(__dirname, '..', 'src');
   const plugins = globSync(['src/i18n/resources/*.json']).map((path) => {
     const nameWithExt = basename(path);
@@ -41,6 +47,21 @@ export const i18nImporter = () => {
       writer.writeLine('  ]);');
       writer.writeLine('  return Object.assign({}, ...entries);');
       writer.writeLine('};');
+      writer.blankLine();
+
+      // Loads a single language, so a process only holds the ones it uses
+      writer.writeLine('const languageLoaders = {');
+      for (const { name, path } of plugins) {
+        const absolutePath = resolve(srcPath, '..', path).replace(
+          /\\/g,
+          '/',
+        );
+        writer.writeLine(`  "${name}": () => import('${absolutePath}'),`);
+      }
+      writer.writeLine('};');
+      writer.writeLine(
+        'export const languageResource = async (name) => Object.hasOwn(languageLoaders, name) ? (await languageLoaders[name]()).default : undefined;',
+      );
       writer.blankLine();
     },
     { overwrite: true },
