@@ -161,10 +161,11 @@ export default defineConfig(({ mode }) => {
     build: {
       lib: {
         entry: 'src/index.html',
-        formats: ['iife'],
+        formats: ['cjs'],
         name: 'renderer',
       },
       outDir: 'dist/renderer',
+      manifest: true,
       rolldownOptions: {
         external: rendererExcludes,
         input: './src/index.html',

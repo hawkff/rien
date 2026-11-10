@@ -1,5 +1,4 @@
-import { deepmerge } from 'deepmerge-ts';
-import { rendererPlugins } from 'virtual:plugins';
+import { rendererPlugin, rendererPluginIds } from 'virtual:plugins';
 
 import { t } from '@/i18n';
 import { LoggerPrefix, startPlugin, stopPlugin } from '@/utils';
@@ -43,9 +42,10 @@ export const forceUnloadRendererPlugin = async (id: string) => {
   unregisterStyleMap[id]?.forEach((unregister) => unregister());
 
   delete unregisterStyleMap[id];
+  // A plugin that never loaded has nothing to stop, and its code may not be in
+  // the page.
+  const plugin = loadedPluginMap[id];
   delete loadedPluginMap[id];
-
-  const plugin = (await rendererPlugins())[id];
   if (!plugin) return;
 
   const hasStopped = await stopPlugin(id, plugin, {
@@ -69,7 +69,9 @@ export const forceUnloadRendererPlugin = async (id: string) => {
 };
 
 export const forceLoadRendererPlugin = async (id: string) => {
-  const plugin = (await rendererPlugins())[id];
+  // Brings the plugin's code into the page if it is not there yet
+  await window.injectRendererPlugin?.(id);
+  const plugin = await rendererPlugin(id);
   if (!plugin) return;
 
   const hasEvaled = await startPlugin(id, plugin, {
@@ -113,17 +115,11 @@ export const forceLoadRendererPlugin = async (id: string) => {
 };
 
 export const loadAllRendererPlugins = async () => {
-  const pluginConfigs = window.mainConfig.plugins.getPlugins();
-
-  for (const [pluginId, pluginDef] of Object.entries(await rendererPlugins())) {
-    const config = deepmerge(pluginDef.config, pluginConfigs[pluginId] ?? {});
-
-    if (config.enabled) {
+  for (const pluginId of rendererPluginIds) {
+    if (await window.mainConfig.plugins.isEnabled(pluginId)) {
       await forceLoadRendererPlugin(pluginId);
-    } else {
-      if (loadedPluginMap[pluginId]) {
-        await forceUnloadRendererPlugin(pluginId);
-      }
+    } else if (loadedPluginMap[pluginId]) {
+      await forceUnloadRendererPlugin(pluginId);
     }
   }
 };

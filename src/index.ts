@@ -1,6 +1,4 @@
-import fs from 'node:fs';
 import path from 'node:path';
-import url from 'node:url';
 
 import ErrorHtmlAsset from '@assets/error.html?asset';
 import {
@@ -24,7 +22,6 @@ import electronDebug from 'electron-debug';
 import is from 'electron-is';
 import unhandled from 'electron-unhandled';
 import { deepEqual } from 'fast-equals';
-import { parse } from 'node-html-parser';
 import { languageResources } from 'virtual:i18n';
 import { allPlugins, mainPlugins } from 'virtual:plugins';
 
@@ -46,6 +43,10 @@ import {
   handleProtocol,
   setupProtocolHandler,
 } from '@/providers/protocol-handler';
+import {
+  getRendererPluginScripts,
+  getRendererScripts,
+} from '@/providers/renderer-scripts';
 import { setupSongInfo } from '@/providers/song-info';
 import { setUpTray } from '@/tray';
 import { LoggerPrefix } from '@/utils';
@@ -726,14 +727,12 @@ app.whenReady().then(async () => {
     }
   }
 
-  ipcMain.on('get-renderer-script', (event) => {
-    // Inject index.html file as string using insertAdjacentHTML
-    // In dev mode, get string from process.env.VITE_DEV_SERVER_URL, else use fs.readFileSync
+  ipcMain.on('get-renderer-scripts', (event, plugins: string[]) => {
+    // In dev mode, the page loads the renderer from the vite dev server
     if (is.dev() && process.env.ELECTRON_RENDERER_URL) {
       // HACK: to make vite work with electron renderer (supports hot reload)
-      event.returnValue = [
-        null,
-        `
+      event.returnValue = {
+        dev: `
         console.log('${LoggerPrefix}', 'Loading vite from dev server');
         (async () => {
           await new Promise((resolve) => {
@@ -755,24 +754,17 @@ app.whenReady().then(async () => {
         })();
         0
       `,
-      ];
+      };
     } else {
-      const rendererPath = path.join(__dirname, '..', 'renderer');
-      const indexHTML = parse(
-        fs.readFileSync(path.join(rendererPath, 'index.html'), 'utf-8'),
-      );
-      const scriptSrc = indexHTML.querySelector('script')!;
-      const scriptPath = path.join(
-        rendererPath,
-        scriptSrc.getAttribute('src')!,
-      );
-      const scriptString = fs.readFileSync(scriptPath, 'utf-8');
-      event.returnValue = [
-        url.pathToFileURL(scriptPath).toString(),
-        scriptString + ';0',
-      ];
+      event.returnValue = getRendererScripts(plugins);
     }
   });
+  ipcMain.on(
+    'get-renderer-plugin-scripts',
+    (event, id: string, loaded: string[]) => {
+      event.returnValue = getRendererPluginScripts(id, loaded);
+    },
+  );
 
   mainWindow = await createMainWindow();
   await setApplicationMenu(mainWindow);

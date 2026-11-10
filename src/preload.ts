@@ -1,3 +1,4 @@
+import { deepmerge } from 'deepmerge-ts';
 import {
   contextBridge,
   ipcRenderer,
@@ -6,6 +7,7 @@ import {
 } from 'electron';
 import is from 'electron-is';
 import { languageResource } from 'virtual:i18n';
+import { pluginStubs } from 'virtual:plugins';
 
 import { loadI18n, setLanguage } from '@/i18n';
 
@@ -15,6 +17,8 @@ import {
   forceUnloadPreloadPlugin,
   loadAllPreloadPlugins,
 } from './loader/preload';
+
+import type { RendererScript } from '@/providers/renderer-scripts';
 
 // @ts-expect-error dummy
 globalThis.customElements = { define() {} };
@@ -86,25 +90,85 @@ contextBridge.exposeInMainWorld(
   process.env.ELECTRON_RENDERER_URL,
 );
 
-const [path, script] = ipcRenderer.sendSync('get-renderer-script') as [
-  string | null,
-  string,
-];
+// Runs in the page first: a registry for the chunks of the page script. A
+// chunk runs when it is first required, like a CommonJS module.
+const installChunkRegistry = () => {
+  type Module = { exports: unknown };
+  type Definition = (
+    module: Module,
+    exports: unknown,
+    require: (name: string) => unknown,
+  ) => void;
+  const definitions = new Map<string, Definition>();
+  const modules = new Map<string, Module>();
+  const require = (name: string) => {
+    const file = name.startsWith('./') ? name.slice(2) : name;
+    let module = modules.get(file);
+    if (!module) {
+      const definition = definitions.get(file);
+      if (!definition) throw new Error(`The page chunk ${file} is not loaded`);
+      module = { exports: {} };
+      modules.set(file, module);
+      definition(module, module.exports, require);
+    }
+    return module.exports;
+  };
+  const define = (file: string, definition: Definition) => {
+    definitions.set(file, definition);
+  };
+  Object.assign(globalThis, { __pearChunks: { define, require } });
+};
+const chunkSource = ({ file, url, code }: RendererScript) => ({
+  url,
+  code: `__pearChunks.define(${JSON.stringify(file)}, function (module, exports, require) {\n${code}\n});`,
+});
+
+// Only the chunks of enabled plugins go into the page, so the code of
+// disabled plugins is never loaded there.
+const pluginConfigs = config.plugins.getPlugins();
+const enabledPlugins = Object.entries(pluginStubs)
+  .filter(
+    ([id, stub]) => deepmerge(stub.config, pluginConfigs[id] ?? {}).enabled,
+  )
+  .map(([id]) => id);
+const renderer = ipcRenderer.sendSync(
+  'get-renderer-scripts',
+  enabledPlugins,
+) as { dev: string } | { entry: string; scripts: RendererScript[] };
+const injected = new Set<string>();
+const injectPluginChunks = async (id: string) => {
+  if ('dev' in renderer) return;
+  const scripts = ipcRenderer.sendSync('get-renderer-plugin-scripts', id, [
+    ...injected,
+  ]) as RendererScript[];
+  if (scripts.length === 0) return;
+  await webFrame.executeJavaScriptInIsolatedWorld(0, scripts.map(chunkSource));
+  scripts.forEach(({ file }) => injected.add(file));
+};
+// One injection at a time, so a call never skips chunks that an earlier call
+// is still adding.
+let injection = Promise.resolve();
+contextBridge.exposeInMainWorld('injectRendererPlugin', (id: string) => {
+  const result = injection.then(() => injectPluginChunks(id));
+  injection = result.catch(() => {});
+  return result;
+});
+
 let blocked = true;
-if (path) {
+if ('dev' in renderer) {
+  webFrame.executeJavaScript(renderer.dev, true, () => (blocked = false));
+} else {
+  renderer.scripts.forEach(({ file }) => injected.add(file));
   webFrame.executeJavaScriptInIsolatedWorld(
     0,
     [
-      {
-        code: script,
-        url: path,
-      },
+      { code: `(${installChunkRegistry.toString()})();` },
+      ...renderer.scripts.map(chunkSource),
+      { code: `__pearChunks.require(${JSON.stringify(renderer.entry)});0` },
     ],
     true,
     () => (blocked = false),
   );
-} else {
-  webFrame.executeJavaScript(script, true, () => (blocked = false));
 }
 
 // HACK: Wait for the script to be executed

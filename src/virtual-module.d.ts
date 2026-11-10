@@ -6,6 +6,14 @@ declare module 'virtual:plugins' {
   export const mainPlugins: () => Promise<Record<string, Plugin>>;
   export const preloadPlugins: () => Promise<Record<string, Plugin>>;
   export const rendererPlugins: () => Promise<Record<string, Plugin>>;
+  // The page imports one plugin at a time
+  export const rendererPlugin: (id: string) => Promise<Plugin | undefined>;
+  export const rendererPluginIds: string[];
+  // The preload script reads the stubs synchronously
+  export const pluginStubs: Record<
+    string,
+    Omit<Plugin, 'backend' | 'preload' | 'renderer'>
+  >;
 
   export const allPlugins: () => Promise<
     Record<string, Omit<Plugin, 'backend' | 'preload' | 'renderer'>>

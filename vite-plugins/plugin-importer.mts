@@ -50,8 +50,9 @@ export const pluginVirtualModuleGenerator = (
     (writer) => {
       for (const { name, path } of plugins) {
         const absolutePath = resolve(srcPath, '..', path).replace(/\\/g, '/');
-        if (mode === 'main') {
-          // dynamic import (for main)
+        if (mode === 'main' || mode === 'renderer') {
+          // dynamic import (for main, and for the page, where each plugin
+          // becomes its own chunk that is only injected when it is enabled)
           writer.writeLine(
             `const ${kebabToCamel(name)}PluginImport = () => import('${absolutePath}');`,
           );
@@ -108,6 +109,36 @@ export const pluginVirtualModuleGenerator = (
       writer.writeLine(`  return await ${mode}PluginsCache;`);
       writer.writeLine('};');
       writer.blankLine();
+
+      if (mode === 'renderer') {
+        writer.writeLine('const rendererPluginLoaders = {');
+        for (const { name } of plugins) {
+          writer.writeLine(`  "${name}": ${kebabToCamel(name)}Plugin,`);
+        }
+        writer.writeLine('};');
+        writer.writeLine(
+          'export const rendererPluginIds = Object.keys(rendererPluginLoaders);',
+        );
+        writer.writeLine('export const rendererPlugin = async (id) => {');
+        writer.writeLine(
+          '  if (!Object.hasOwn(rendererPluginLoaders, id)) return undefined;',
+        );
+        writer.writeLine('  const plugin = await rendererPluginLoaders[id]();');
+        writer.writeLine(
+          '  return plugin.renderer && supportsPlatform(plugin) ? plugin : undefined;',
+        );
+        writer.writeLine('};');
+        writer.blankLine();
+      }
+
+      if (mode === 'preload') {
+        writer.writeLine('export const pluginStubs = {');
+        for (const { name } of plugins) {
+          writer.writeLine(`  "${name}": ${kebabToCamel(name)}PluginStubImport,`);
+        }
+        writer.writeLine('};');
+        writer.blankLine();
+      }
 
       // All plugins export (stub only) // Omit<Plugin, 'backend' | 'preload' | 'renderer'>
       writer.writeLine('let allPluginsCache = null;');

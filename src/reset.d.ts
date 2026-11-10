@@ -25,6 +25,7 @@ declare global {
     mainConfig: typeof config;
     electronIs: typeof is;
     getLanguageResource: typeof languageResource;
+    injectRendererPlugin?: (id: string) => Promise<void>;
     ELECTRON_RENDERER_URL: string | undefined;
     /**
      * Internal variable (Last interaction time)
