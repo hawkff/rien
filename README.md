@@ -139,6 +139,8 @@ bun install --frozen-lockfile
 bun run dev
 ```
 
+You also need [Rust](https://rustup.rs), because the app includes a native module written in Rust.
+
 Instead of installing Bun on your system, you can also use [devcontainers](https://containers.dev/). You can use devcontainers either as a development environment in VS Code, or as a way to easily build the project without installing dependencies on your host system.
 
 Note that this has it's own limitations (for example, GUI doesn't work on, at least some, Linux hosts).
@@ -265,8 +267,9 @@ export default createPlugin({
 
 1. Clone the repo
 2. Follow [this guide](https://bun.com/docs/installation) to install Bun
-3. Run `bun install --frozen-lockfile` to install dependencies
-4. Run `bun run dist:OS`
+3. Install Rust with [rustup](https://rustup.rs)
+4. Run `bun install --frozen-lockfile` to install dependencies
+5. Run `bun run dist:OS`
 
 - `bun run dist:linux` - Linux (amd64)
 - `bun run dist:linux:deb-arm64` - Linux (arm64 for Debian)
@@ -276,6 +279,7 @@ export default createPlugin({
 
 Builds the app for macOS and Linux
 using [electron-builder](https://github.com/electron-userland/electron-builder).
+To package for the other architecture, such as `dist:mac` on an Apple Silicon Mac, add its Rust target first: `rustup target add x86_64-apple-darwin`.
 
 ### Building in devcontainer
 
