@@ -174,11 +174,13 @@ const hasHindi = (lines: string[]) =>
 
 // The libraries below load on first use instead of with the page.
 export const romanizeHangul = async (line: string) => {
-  const [{ romanize }, { default: hanja }] = await Promise.all([
+  // hanja's main module keeps its functions on a default export, which a
+  // dynamic import wraps once more, so import the function's own module.
+  const [{ romanize }, { translate }] = await Promise.all([
     import('es-hangul'),
-    import('hanja'),
+    import('hanja/lib/translate'),
   ]);
-  return romanize(hanja.translate(line, 'SUBSTITUTION'));
+  return romanize(translate(line, 'SUBSTITUTION'));
 };
 
 export const romanizeChinese = async (line: string) => {
