@@ -1,9 +1,6 @@
 import path from 'node:path';
-import process from 'node:process';
 
 import { test, expect, _electron as electron } from '@playwright/test';
-
-process.env.NODE_ENV = 'test';
 
 const appPath = path.resolve(import.meta.dirname, '..');
 

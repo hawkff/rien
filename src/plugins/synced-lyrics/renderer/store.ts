@@ -12,7 +12,6 @@ import {
 } from '../providers';
 import { providers } from '../providers/renderer';
 
-import type { LyricProvider } from '../types';
 import type { SongInfo } from '@/providers/song-info';
 
 type LyricsStore = {
@@ -47,133 +46,80 @@ export const currentLyrics = runWithOwner(reactiveOwner, () =>
 
 type VideoId = string;
 
-type SearchCacheData = Record<ProviderName, ProviderState>;
-interface SearchCache {
-  state: 'loading' | 'done';
-  data: SearchCacheData;
-}
+type SearchCache = Record<ProviderName, ProviderState>;
 
-// TODO: Maybe use localStorage for the cache.
+// Lyrics are kept for this many songs, so the cache stops growing while the
+// app runs. A song that was dropped is searched for again.
+const maxCachedSongs = 50;
 const searchCache = new Map<VideoId, SearchCache>();
-export const fetchLyrics = (info: SongInfo) => {
-  if (searchCache.has(info.videoId)) {
-    const cache = searchCache.get(info.videoId)!;
 
-    if (cache.state === 'loading') {
-      setTimeout(() => {
-        fetchLyrics(info);
-      });
-      return;
+// The store gets copies, so it never shares a provider's state with the cache.
+const forStore = (state: ProviderState): ProviderState => ({
+  ...state,
+  data: state.data ? { ...state.data } : null,
+});
+
+// Searches one provider. The result goes into the song's cache entry, and
+// into the store while that song is the current one and the entry is still the
+// song's: an entry that was dropped can have a newer one in its place.
+const search = (
+  providerName: ProviderName,
+  info: SongInfo,
+  cache: SearchCache,
+) => {
+  const update = (state: ProviderState) => {
+    cache[providerName] = state;
+    if (
+      searchCache.get(info.videoId) === cache &&
+      getSongInfo().videoId === info.videoId
+    ) {
+      setLyricsStore('lyrics', (old) => ({
+        ...old,
+        [providerName]: forStore(state),
+      }));
     }
+  };
 
+  update({ state: 'fetching', data: null, error: null });
+  providers[providerName]
+    .search(info)
+    .then((data) => update({ state: 'done', data, error: null }))
+    .catch((error: Error) => {
+      console.error(error);
+      update({ state: 'error', data: null, error });
+    });
+};
+
+export const fetchLyrics = (info: SongInfo) => {
+  const cache = searchCache.get(info.videoId);
+  if (cache) {
+    // Searches still under way add their results when they arrive.
     if (getSongInfo().videoId === info.videoId) {
-      setLyricsStore('lyrics', () => {
-        // weird bug with solid-js
-        return JSON.parse(JSON.stringify(cache.data)) as typeof cache.data;
-      });
+      setLyricsStore(
+        'lyrics',
+        () =>
+          Object.fromEntries(
+            providerNames.map((name) => [name, forStore(cache[name])]),
+          ) as SearchCache,
+      );
     }
 
     return;
   }
 
-  const cache: SearchCache = {
-    state: 'loading',
-    data: initialData(),
-  };
-
-  searchCache.set(info.videoId, cache);
-  if (getSongInfo().videoId === info.videoId) {
-    setLyricsStore('lyrics', () => {
-      // weird bug with solid-js
-      return JSON.parse(JSON.stringify(cache.data)) as typeof cache.data;
-    });
+  const newCache = initialData();
+  searchCache.set(info.videoId, newCache);
+  if (searchCache.size > maxCachedSongs) {
+    searchCache.delete(searchCache.keys().next().value!);
   }
 
-  const tasks: Promise<void>[] = [];
-
-  // prettier-ignore
-  for (
-    const [providerName, provider] of Object.entries(providers) as [
-    ProviderName,
-    LyricProvider,
-  ][]
-    ) {
-    const pCache = cache.data[providerName];
-
-    tasks.push(
-      provider
-        .search(info)
-        .then((res) => {
-          pCache.state = 'done';
-          pCache.data = res;
-
-          if (getSongInfo().videoId === info.videoId) {
-            setLyricsStore('lyrics', (old) => {
-              return {
-                ...old,
-                [providerName]: {
-                  state: 'done',
-                  data: res ? { ...res } : null,
-                  error: null,
-                },
-              };
-            });
-          }
-        })
-        .catch((error: Error) => {
-          pCache.state = 'error';
-          pCache.error = error;
-
-          console.error(error);
-
-          if (getSongInfo().videoId === info.videoId) {
-            setLyricsStore('lyrics', (old) => {
-              return {
-                ...old,
-                [providerName]: { state: 'error', error, data: null },
-              };
-            });
-          }
-        }),
-    );
+  for (const providerName of providerNames) {
+    search(providerName, info, newCache);
   }
-
-  Promise.allSettled(tasks).then(() => {
-    cache.state = 'done';
-    searchCache.set(info.videoId, cache);
-  });
 };
 
 export const retrySearch = (provider: ProviderName, info: SongInfo) => {
-  setLyricsStore('lyrics', (old) => {
-    const pCache = {
-      state: 'fetching',
-      data: null,
-      error: null,
-    };
-
-    return {
-      ...old,
-      [provider]: pCache,
-    };
-  });
-
-  providers[provider]
-    .search(info)
-    .then((res) => {
-      setLyricsStore('lyrics', (old) => {
-        return {
-          ...old,
-          [provider]: { state: 'done', data: res, error: null },
-        };
-      });
-    })
-    .catch((error) => {
-      setLyricsStore('lyrics', (old) => {
-        return {
-          ...old,
-          [provider]: { state: 'error', data: null, error },
-        };
-      });
-    });
+  const cache = searchCache.get(info.videoId);
+  if (cache) search(provider, info, cache);
+  else fetchLyrics(info);
 };

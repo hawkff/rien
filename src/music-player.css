@@ -87,3 +87,9 @@ tp-yt-iron-dropdown,
 tp-yt-paper-dialog {
   app-region: no-drag;
 }
+
+/* The icon of a menu item that a plugin adds, at the size of the menu's own */
+.ytmd-menu-item {
+  width: 18px;
+  height: 18px;
+}

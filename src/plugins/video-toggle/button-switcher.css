@@ -86,6 +86,24 @@
   transition: transform 300ms;
 }
 
+/* The checkbox is invisible, so the switch shows its keyboard focus. */
+.video-toggle-custom-mode
+  .video-switch-button:has(.video-switch-button-checkbox:focus-visible) {
+  outline: auto;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-toggle-custom-mode
+    .video-switch-button-checkbox
+    + .video-switch-button-label:before,
+  .video-toggle-custom-mode
+    .video-switch-button-checkbox:checked
+    + .video-switch-button-label:before {
+    transition: none;
+  }
+}
+
 /* disable the native toggler */
 .video-toggle-custom-mode #av-id {
   display: none;

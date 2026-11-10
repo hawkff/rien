@@ -1,50 +1,59 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Cannot load Pear Desktop</title>
+    <title>Cannot load the page</title>
     <style>
       body {
-        background: #000;
-      }
-
-      .container {
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 20px;
+        box-sizing: border-box;
+        min-height: 100vh;
         margin: 0;
-        font-family: Roboto, Arial, sans-serif;
-        font-size: 20px;
-        font-weight: 500;
+        padding: 24px;
+        background: #000;
         color: rgba(255, 255, 255, 0.5);
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        margin-right: -50%;
-        transform: translate(-50%, -50%);
+        font: 500 20px/1.4 Roboto, Arial, sans-serif;
         text-align: center;
       }
 
-      .button {
-        background: #065fd4;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        color: white;
-        font: inherit;
-        text-transform: uppercase;
-        text-decoration: none;
+      p {
+        margin: 0;
+        text-wrap: balance;
+      }
+
+      button {
+        padding: 8px 22px;
+        border: 0;
         border-radius: 2px;
+        background: #065fd4;
+        color: #fff;
+        font: inherit;
         font-size: 16px;
         font-weight: normal;
-        text-align: center;
-        padding: 8px 22px;
-        display: inline-block;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+
+      button:hover {
+        filter: brightness(1.15);
+      }
+
+      button:active {
+        filter: brightness(0.9);
+      }
+
+      button:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
       }
     </style>
   </head>
 
   <body>
-    <div class="container">
-      <p>Cannot load Pear Desktop… Internet disconnected?</p>
-      <a class="button" href="#" onclick="reload()">Retry</a>
-    </div>
+    <p>Cannot load the page. Check your internet connection.</p>
+    <button type="button" onclick="reload()">Retry</button>
   </body>
 </html>

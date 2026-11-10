@@ -97,7 +97,7 @@ export const onPlayerApiReady = () => {
   );
   buttonContainer.setAttribute('aria-disabled', 'false');
   buttonContainer.setAttribute('aria-selected', 'false');
-  buttonContainer.setAttribute('role', 'option');
+  buttonContainer.setAttribute('role', 'menuitem');
   buttonContainer.setAttribute('tabindex', '-1');
 
   render(

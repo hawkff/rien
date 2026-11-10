@@ -107,7 +107,7 @@ export default createRenderer<
 
                 const captionLabels = [
                   ...this.captionTrackList.map((track) => track.displayName),
-                  'None',
+                  t('plugins.captions-selector.prompt.selector.none'),
                 ];
 
                 currentIndex = (await ipc.invoke(

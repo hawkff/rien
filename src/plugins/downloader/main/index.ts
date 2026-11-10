@@ -38,7 +38,7 @@ import {
   setBadge,
 } from './utils';
 
-import { DefaultPresetList, presetName, VideoFormatList } from '../types';
+import { containerOf, DefaultPresetList, presetName } from '../types';
 
 import type { DownloaderPluginConfig } from '../index';
 import type { BackendContext } from '@/types/contexts';
@@ -127,6 +127,10 @@ Platform.shim.eval = (
 let yt: Innertube;
 // Settles once `yt` is set up. Downloads wait for it.
 let innertubeReady = Promise.resolve();
+// A setup that failed, for example while offline at launch, runs again for the
+// next download.
+const ensureInnertube = () =>
+  (innertubeReady = innertubeReady.catch(() => setUpInnertube()));
 let win: BrowserWindow;
 let playingUrl: string;
 
@@ -430,7 +434,7 @@ async function downloadSongUnsafe(
       );
   }
 
-  await innertubeReady;
+  await ensureInnertube();
   let info: YTMusic.TrackInfo | YT.VideoInfo = await yt.music.getInfo(id);
 
   if (!info) {
@@ -488,13 +492,7 @@ async function downloadSongUnsafe(
 
   const format = info.chooseFormat(downloadOptions);
 
-  let targetFileExtension: string;
-  if (!presetSetting?.extension) {
-    targetFileExtension =
-      VideoFormatList.find((it) => it.itag === format.itag)?.container ?? 'mp3';
-  } else {
-    targetFileExtension = presetSetting?.extension ?? 'mp3';
-  }
+  const targetFileExtension = presetSetting.extension ?? containerOf(format);
 
   let filename = filenamify(`${name}.${targetFileExtension}`, {
     replacement: '_',
@@ -522,9 +520,7 @@ async function downloadSongUnsafe(
 
   const iterableStream = Utils.streamToIterable(stream);
 
-  if (!existsSync(dir)) {
-    mkdirSync(dir);
-  }
+  mkdirSync(dir, { recursive: true });
 
   let fileBuffer: Uint8Array | null = await iterableStreamToProcessedUint8Array(
     iterableStream,
@@ -590,6 +586,8 @@ async function iterableStreamToProcessedUint8Array(
   const native = loadNative();
   if (!native) throw new Error('Could not load the native module');
 
+  // shortcut: the whole download is held in memory, more than once while it is
+  // converted. Convert it as a stream if hour-long downloads run out of memory.
   const input = Buffer.concat(
     await downloadChunks(
       stream,
@@ -696,7 +694,7 @@ export async function downloadPlaylist(givenUrl?: string | URL) {
   );
   sendFeedback(t('plugins.downloader.backend.feedback.getting-playlist-info'));
   try {
-    await innertubeReady;
+    await ensureInnertube();
   } catch (error: unknown) {
     sendError(error as Error);
     return;

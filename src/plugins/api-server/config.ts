@@ -21,7 +21,10 @@ export const defaultAPIServerConfig: APIServerConfig = {
   hostname: '0.0.0.0',
   port: 26538,
   authStrategy: AuthStrategy.AUTH_AT_FIRST,
-  secret: Date.now().toString(36),
+  // Random. Not randomUUID, which the window's first, empty page lacks.
+  secret: Array.from(crypto.getRandomValues(new Uint32Array(4)), (part) =>
+    part.toString(36),
+  ).join(''),
 
   authorizedClients: [],
   useHttps: false,

@@ -80,10 +80,10 @@
     padding-left: 1.5rem;
   }
 
-  & .text-lyrics > .romaji {
-    color: var(--ytmusic-text-secondary) !important;
-    font-size: calc(var(--lyrics-font-size) * 0.7) !important;
-    font-style: italic !important;
+  /* Lines that are not current are dimmed through opacity already. The
+     secondary color on top of that made their romanization too faint. */
+  &:not(.current) .text-lyrics > .romaji {
+    color: var(--ytmusic-text-primary) !important;
   }
 }
 
@@ -200,12 +200,21 @@
 
 .lyrics-picker-dot {
   display: inline-block;
+  position: relative;
   cursor: pointer;
   width: 5px;
   height: 5px;
   margin: 0 4px 0;
   border-radius: 200px;
   border: 1px solid #6e7c7c7f;
+}
+
+/* A click target larger than the dot: up to the neighboring dots, and only as
+   far up as the star button begins */
+.lyrics-picker-dot::before {
+  content: '';
+  position: absolute;
+  inset: -2px -5px -9px;
 }
 
 .lyrics-picker-left,
@@ -224,6 +233,9 @@
 div:has(> .lyrics-picker) {
   z-index: 100;
   position: sticky !important;
+  /* The list positions its rows through `top`, and at times gives this row
+     an offset that would cut the picker off. */
+  top: 0 !important;
 
   & > .lyrics-picker {
     position: relative;
@@ -233,6 +245,41 @@ div:has(> .lyrics-picker) {
 
     backdrop-filter: blur(5px);
   }
+}
+
+/* Empty and error states: a centered message in the page's own type */
+.lyrics-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 1.6rem 2.4rem 3.2rem;
+  text-align: center;
+}
+
+.lyrics-state-message,
+.lyrics-state-detail {
+  margin: 0;
+  font-size: 1.6rem;
+  line-height: 1.5;
+  color: var(--ytmusic-text-primary);
+  /* The translated message brings its own line break. */
+  white-space: pre-line;
+  text-wrap: balance;
+}
+
+.lyrics-state-detail {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font-size: 1.4rem;
+  color: var(--ytmusic-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.lyrics-state yt-button-renderer {
+  margin-top: 1.2rem;
 }
 
 /* Animations */
@@ -270,4 +317,17 @@ div:has(> .lyrics-picker) {
 .lyrics-picker mdui-icon-check-circle,
 .lyrics-picker mdui-icon-warning {
   font-size: 24px;
+}
+
+/* With Reduce Motion on, lines and the picker change without moving. */
+@media (prefers-reduced-motion: reduce) {
+  .current .text-lyrics > span > span {
+    animation: none;
+  }
+
+  .text-lyrics,
+  .lyrics-picker-item,
+  div:has(> .lyrics-picker) > .lyrics-picker {
+    transition: none;
+  }
 }

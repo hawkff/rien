@@ -75,13 +75,13 @@ export default createPlugin({
 
     const { apiURL, categories } = config;
 
+    // The answer for an earlier song can arrive after the next song started.
+    let latestVideoId: string | undefined;
     ipc.on('peard:video-src-changed', async (data: GetPlayerResponse) => {
-      const segments = await fetchSegments(
-        apiURL,
-        categories,
-        data?.videoDetails?.videoId,
-      );
-      ipc.send('sponsorblock-skip', segments);
+      const videoId = data?.videoDetails?.videoId;
+      latestVideoId = videoId;
+      const segments = await fetchSegments(apiURL, categories, videoId);
+      if (videoId === latestVideoId) ipc.send('sponsorblock-skip', segments);
     });
   },
   renderer: {

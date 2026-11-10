@@ -50,7 +50,6 @@ import {
 import { setupSongInfo } from '@/providers/song-info';
 import { setUpTray } from '@/tray';
 import { LoggerPrefix } from '@/utils';
-import { isTesting } from '@/utils/testing';
 
 import type { PluginConfig } from '@/types/plugins';
 
@@ -367,13 +366,8 @@ async function createMainWindow() {
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, '..', 'preload', 'preload.cjs'),
-      ...(isTesting()
-        ? undefined
-        : {
-            // Sandbox is only enabled in tests for now
-            // See https://www.electronjs.org/docs/latest/tutorial/sandbox#preload-scripts
-            sandbox: false,
-          }),
+      // The preload script uses Node modules, which a sandboxed one cannot.
+      sandbox: false,
     },
     ...decorations,
   };
@@ -593,12 +587,9 @@ app.once('browser-window-created', (_event, win) => {
         console.log(log);
       }
 
-      if (
-        errorCode !== -3 &&
-        // Workaround for #2435
-        !URL.parse(validatedURL)?.hostname?.includes('doubleclick.net')
-      ) {
-        // -3 is a false positive
+      // A frame inside the page that fails to load, such as an ad, must not
+      // replace the page. -3 is an aborted load, not a failed one.
+      if (isMainFrame && errorCode !== -3) {
         win.webContents.send('log', log);
         win.webContents.loadFile(ErrorHtmlAsset);
       }

@@ -22,6 +22,7 @@ import {
 } from 'solid-js';
 import * as z from 'zod';
 
+import { t } from '@/i18n';
 import { LitElementWrapper } from '@/solit';
 
 import {
@@ -188,16 +189,25 @@ export const LyricsPicker = (props: {
     });
   };
 
+  // A button gets its name from its icon: the button inside mdui-button-icon
+  // takes no label from the element around it.
+  const starProps = {
+    'role': 'img',
+    'aria-label': t('plugins.synced-lyrics.menu.preferred-provider.label'),
+  };
+
   return (
     <div class="lyrics-picker" ref={props.setStickRef}>
       <div class="lyrics-picker-left">
-        <mdui-button-icon>
+        {/* The buttons take the click, so the keyboard works on them too. Each
+            arrow is named after the provider it switches to. */}
+        <mdui-button-icon onClick={previous}>
           <LitElementWrapper
             elementClass={IconChevronLeft}
             props={{
-              onClick: previous,
-              role: 'button',
-              style: { padding: '5px' },
+              'style': { padding: '5px' },
+              'role': 'img',
+              'aria-label': providerNames.at(providerIdx() - 1),
             }}
           />
         </mdui-button-icon>
@@ -209,6 +219,8 @@ export const LyricsPicker = (props: {
             {(provider) => (
               <div
                 class="lyrics-picker-item"
+                // Only the provider in view takes focus and clicks.
+                inert={provider() !== lyricsStore.provider}
                 style={{
                   transform: `translateX(${providerIdx() * -100 - 5}%)`,
                 }}
@@ -263,14 +275,20 @@ export const LyricsPicker = (props: {
                   class="description ytmusic-description-shelf-renderer"
                   text={{ runs: [{ text: provider() }] }}
                 />
-                <mdui-button-icon onClick={toggleStar} tabindex={-1}>
+                <mdui-button-icon onClick={toggleStar}>
                   <Show
                     fallback={
-                      <LitElementWrapper elementClass={IconStarBorder} />
+                      <LitElementWrapper
+                        elementClass={IconStarBorder}
+                        props={starProps}
+                      />
                     }
                     when={starredProvider() === provider()}
                   >
-                    <LitElementWrapper elementClass={IconStar} />
+                    <LitElementWrapper
+                      elementClass={IconStar}
+                      props={starProps}
+                    />
                   </Show>
                 </mdui-button-icon>
               </div>
@@ -278,12 +296,16 @@ export const LyricsPicker = (props: {
           </Index>
         </div>
 
-        <ul class="lyrics-picker-content-dots">
+        {/* The arrows do the same for the keyboard and screen readers. */}
+        <ul aria-hidden="true" class="lyrics-picker-content-dots">
           <For each={providerNames}>
             {(_, idx) => (
               <li
                 class="lyrics-picker-dot"
-                onClick={() => setLyricsStore('provider', providerNames[idx()])}
+                onClick={() => {
+                  setHasManuallySwitchedProvider(true);
+                  setLyricsStore('provider', providerNames[idx()]);
+                }}
                 style={{
                   background: idx() === providerIdx() ? 'white' : 'black',
                 }}
@@ -294,13 +316,14 @@ export const LyricsPicker = (props: {
       </div>
 
       <div class="lyrics-picker-left">
-        <mdui-button-icon>
+        <mdui-button-icon onClick={next}>
           <LitElementWrapper
             elementClass={IconChevronRight}
             props={{
-              onClick: next,
-              role: 'button',
-              style: { padding: '5px' },
+              'style': { padding: '5px' },
+              'role': 'img',
+              'aria-label':
+                providerNames[(providerIdx() + 1) % providerNames.length],
             }}
           />
         </mdui-button-icon>

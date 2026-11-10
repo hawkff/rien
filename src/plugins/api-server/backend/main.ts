@@ -17,7 +17,11 @@ import { API_VERSION } from './api-version';
 import { registerAuth, registerControl, registerWebsocket } from './routes';
 import { JWTPayloadSchema } from './scheme';
 
-import { type APIServerConfig, AuthStrategy } from '../config';
+import {
+  type APIServerConfig,
+  AuthStrategy,
+  defaultAPIServerConfig,
+} from '../config';
 
 import type { BackendType } from './types';
 import type {
@@ -30,6 +34,11 @@ import type { MiddlewareHandler } from 'hono';
 export const backend = createBackend<BackendType, APIServerConfig>({
   async start(ctx) {
     const config = await ctx.getConfig();
+    // Older versions saved the time of a start as the secret: eight characters
+    // in base 36. Replace such a secret. Paired clients ask for a new token.
+    if (/^[0-9a-z]{8}$/.test(config.secret)) {
+      await ctx.setConfig({ secret: defaultAPIServerConfig.secret });
+    }
 
     this.init(ctx);
     registerCallback((songInfo) => {

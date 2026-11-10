@@ -270,7 +270,7 @@ export const LyricsRenderer = () => {
     const scrollIndex = Math.min(idx + 1, maxIdx);
 
     scroller()!.scrollToIndex(scrollIndex, {
-      smooth: true,
+      smooth: !matchMedia('(prefers-reduced-motion: reduce)').matches,
       align: 'center',
     });
   });

@@ -25,6 +25,8 @@ export const tabStates: Record<string, () => void> = {
     const tabRenderer = await waitForElement<HTMLElement>(
       selectors.body.tabRenderer,
     );
+    // Several calls can wait here at once. Only the first adds the container.
+    if (document.querySelector('#synced-lyrics-container')) return;
 
     container = Object.assign(document.createElement('div'), {
       id: 'synced-lyrics-container',

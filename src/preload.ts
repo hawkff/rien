@@ -10,6 +10,7 @@ import { languageResource } from 'virtual:i18n';
 import { pluginStubs } from 'virtual:plugins';
 
 import { loadI18n, setLanguage } from '@/i18n';
+import { isAppPage } from '@/utils/app-page';
 
 import * as config from './config';
 import {
@@ -55,10 +56,21 @@ ipcRenderer.on('plugin:enable', async (_, id: string) => {
   await forceLoadPreloadPlugin(id);
 });
 
-contextBridge.exposeInMainWorld('mainConfig', config);
-contextBridge.exposeInMainWorld('electronIs', is);
-contextBridge.exposeInMainWorld('getLanguageResource', languageResource);
-contextBridge.exposeInMainWorld('ipcRenderer', {
+// The bridge and the page script give a page control of the app, so only the
+// app's own pages get them. This script also runs for the window's first,
+// empty page and for other sites the window shows, such as a sign-in provider.
+const appPage = isAppPage(location);
+const exposeInMainWorld: typeof contextBridge.exposeInMainWorld = (
+  key,
+  api,
+) => {
+  if (appPage) contextBridge.exposeInMainWorld(key, api);
+};
+
+exposeInMainWorld('mainConfig', config);
+exposeInMainWorld('electronIs', is);
+exposeInMainWorld('getLanguageResource', languageResource);
+exposeInMainWorld('ipcRenderer', {
   on: (
     channel: string,
     listener: (event: IpcRendererEvent, ...args: unknown[]) => void,
@@ -82,13 +94,8 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   sendToHost: (channel: string, ...args: unknown[]) =>
     ipcRenderer.sendToHost(channel, ...args),
 });
-contextBridge.exposeInMainWorld('reload', () =>
-  ipcRenderer.send('peard:reload'),
-);
-contextBridge.exposeInMainWorld(
-  'ELECTRON_RENDERER_URL',
-  process.env.ELECTRON_RENDERER_URL,
-);
+exposeInMainWorld('reload', () => ipcRenderer.send('peard:reload'));
+exposeInMainWorld('ELECTRON_RENDERER_URL', process.env.ELECTRON_RENDERER_URL);
 
 // Runs in the page first: a registry for the chunks of the page script. A
 // chunk runs when it is first required, like a CommonJS module.
@@ -131,13 +138,14 @@ const enabledPlugins = Object.entries(pluginStubs)
     ([id, stub]) => deepmerge(stub.config, pluginConfigs[id] ?? {}).enabled,
   )
   .map(([id]) => id);
-const renderer = ipcRenderer.sendSync(
-  'get-renderer-scripts',
-  enabledPlugins,
-) as { dev: string } | { entry: string; scripts: RendererScript[] };
+const renderer = appPage
+  ? (ipcRenderer.sendSync('get-renderer-scripts', enabledPlugins) as
+      | { dev: string }
+      | { entry: string; scripts: RendererScript[] })
+  : undefined;
 const injected = new Set<string>();
 const injectPluginChunks = async (id: string) => {
-  if ('dev' in renderer) return;
+  if (!renderer || 'dev' in renderer) return;
   const scripts = ipcRenderer.sendSync('get-renderer-plugin-scripts', id, [
     ...injected,
   ]) as RendererScript[];
@@ -148,14 +156,16 @@ const injectPluginChunks = async (id: string) => {
 // One injection at a time, so a call never skips chunks that an earlier call
 // is still adding.
 let injection = Promise.resolve();
-contextBridge.exposeInMainWorld('injectRendererPlugin', (id: string) => {
+exposeInMainWorld('injectRendererPlugin', (id: string) => {
   const result = injection.then(() => injectPluginChunks(id));
   injection = result.catch(() => {});
   return result;
 });
 
-let blocked = true;
-if ('dev' in renderer) {
+let blocked = !!renderer;
+if (!renderer) {
+  // Not an app page, so there is no page script to wait for.
+} else if ('dev' in renderer) {
   webFrame.executeJavaScript(renderer.dev, true, () => (blocked = false));
 } else {
   renderer.scripts.forEach(({ file }) => injected.add(file));

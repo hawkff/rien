@@ -2,6 +2,7 @@ node_modules
 /dist
 /pack
 /native/target
+/test-results
 .vscode/settings.json
 .idea
 

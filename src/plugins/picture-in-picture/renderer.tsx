@@ -138,7 +138,7 @@ export const onPlayerApiReady = async (
   );
   pipButtonContainer.setAttribute('aria-disabled', 'false');
   pipButtonContainer.setAttribute('aria-selected', 'false');
-  pipButtonContainer.setAttribute('role', 'option');
+  pipButtonContainer.setAttribute('role', 'menuitem');
   pipButtonContainer.setAttribute('tabindex', '-1');
 
   render(
