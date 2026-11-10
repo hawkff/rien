@@ -274,12 +274,10 @@ export default createPlugin({
 - `bun run dist:linux` - Linux (amd64)
 - `bun run dist:linux:deb-arm64` - Linux (arm64 for Debian)
 - `bun run dist:linux:rpm-arm64` - Linux (arm64 for Fedora)
-- `bun run dist:mac` - macOS (amd64)
-- `bun run dist:mac:arm64` - macOS (arm64)
+- `bun run dist:mac` - macOS (arm64)
 
 Builds the app for macOS and Linux
 using [electron-builder](https://github.com/electron-userland/electron-builder).
-To package for the other architecture, such as `dist:mac` on an Apple Silicon Mac, add its Rust target first: `rustup target add x86_64-apple-darwin`.
 
 ### Building in devcontainer
 
