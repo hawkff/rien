@@ -125,6 +125,8 @@ Platform.shim.eval = (
 };
 
 let yt: Innertube;
+// Settles once `yt` is set up. Downloads wait for it.
+let innertubeReady = Promise.resolve();
 let win: BrowserWindow;
 let playingUrl: string;
 
@@ -196,11 +198,40 @@ export const onMainLoad = async ({
   win = _win;
   config = await getConfig();
 
+  ipc.handle('download-song', (url: string) => downloadSong(url));
+  ipc.on('peard:video-src-changed', (data: GetPlayerResponse) => {
+    playingUrl = data.microformat.microformatDataRenderer.urlCanonical;
+  });
+  ipc.handle('download-playlist-request', async (url: string) =>
+    downloadPlaylist(url),
+  );
+
+  downloadSongOnFinishSetup({ ipc, getConfig });
+
+  // The page starts loading only after every plugin has started, and this
+  // setup makes several network requests, so it runs in the background.
+  innertubeReady = setUpInnertube();
+  innertubeReady.catch((error: unknown) => {
+    console.error('Could not set up the downloader:', error);
+  });
+};
+
+const setUpInnertube = async () => {
+  const netFetch = getNetFetchAsFetch();
+  // Downloads wait for this setup, so a stalled request must not hold them
+  // up. Requests after the setup, such as the downloads, have no time limit.
+  let settingUp = true;
+  const fetch: typeof globalThis.fetch = (input, init) =>
+    netFetch(
+      input,
+      settingUp ? { ...init, signal: AbortSignal.timeout(15_000) } : init,
+    );
+
   yt = await Innertube.create({
     cache: new UniversalCache(false),
     cookie: await getCookieFromWindow(win),
     generate_session_locally: true,
-    fetch: getNetFetchAsFetch(),
+    fetch,
   });
 
   const requestKey = 'O43z0dpjhgX20SCx4KAo';
@@ -229,11 +260,6 @@ export const onMainLoad = async ({
         document,
       });
 
-      const netFetch = getNetFetchAsFetch();
-      // The plugin registers its IPC handlers after this, so a stalled
-      // request must not hold it up.
-      const fetch: typeof globalThis.fetch = (input, init) =>
-        netFetch(input, { ...init, signal: AbortSignal.timeout(15_000) });
       const bgChallenge = await getChallenge({
         requestKey,
         fetchFunction: fetch,
@@ -270,15 +296,7 @@ export const onMainLoad = async ({
     }
   }
 
-  ipc.handle('download-song', (url: string) => downloadSong(url));
-  ipc.on('peard:video-src-changed', (data: GetPlayerResponse) => {
-    playingUrl = data.microformat.microformatDataRenderer.urlCanonical;
-  });
-  ipc.handle('download-playlist-request', async (url: string) =>
-    downloadPlaylist(url),
-  );
-
-  downloadSongOnFinishSetup({ ipc, getConfig });
+  settingUp = false;
 };
 
 export const onConfigChange = (newConfig: DownloaderPluginConfig) => {
@@ -412,6 +430,7 @@ async function downloadSongUnsafe(
       );
   }
 
+  await innertubeReady;
   let info: YTMusic.TrackInfo | YT.VideoInfo = await yt.music.getInfo(id);
 
   if (!info) {
@@ -676,6 +695,13 @@ export async function downloadPlaylist(givenUrl?: string | URL) {
     }),
   );
   sendFeedback(t('plugins.downloader.backend.feedback.getting-playlist-info'));
+  try {
+    await innertubeReady;
+  } catch (error: unknown) {
+    sendError(error as Error);
+    return;
+  }
+
   let playlist: YTMusic.Playlist;
   const items: YTNodes.MusicResponsiveListItem[] = [];
   try {
