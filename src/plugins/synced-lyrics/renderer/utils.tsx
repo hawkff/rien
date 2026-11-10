@@ -5,6 +5,7 @@ import { waitForElement } from '@/utils/wait-for-element';
 
 import { detectLanguage, romanizeJapanese } from '.';
 import { LyricsRenderer, setIsVisible } from './renderer';
+import { currentLyrics } from './store';
 
 export const selectors = {
   head: '#tabsContent > .tab-header:nth-of-type(2)',
@@ -144,6 +145,16 @@ const kanaRegex = /[\u3040-\u30FF]/;
 const hasJapanese = (lines: string[]) =>
   lines.some((line) => kanaRegex.test(line) || shinjitaiRegex.test(line));
 
+// Language detection reads a line of kanji alone as Chinese. In a song with
+// kana on any line, such lines are Japanese, unless they have Hangul.
+const isJapaneseSong = () => {
+  const data = currentLyrics().data;
+  return (
+    data?.lines?.some((line) => kanaRegex.test(line.text)) ??
+    kanaRegex.test(data?.lyrics ?? '')
+  );
+};
+
 // tests for Hangul characters, sufficient for our use case
 const hasKorean = (lines: string[]) =>
   lines.some((line) => /[ㄱ-ㅎㅏ-ㅣ가-힣]+/.test(line));
@@ -235,7 +246,10 @@ const handlers: Record<string, (line: string) => Promise<string> | string> = {
 };
 
 export const romanize = async (line: string) => {
-  const lang = await detectLanguage(line);
+  const lang =
+    hasChinese([line]) && !hasKorean([line]) && isJapaneseSong()
+      ? 'ja'
+      : await detectLanguage(line);
 
   const handler = lang ? handlers[lang] : undefined;
   if (handler) {
