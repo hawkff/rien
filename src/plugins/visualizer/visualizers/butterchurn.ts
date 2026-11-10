@@ -1,14 +1,12 @@
-import Butterchurn from 'butterchurn';
-import ButterchurnPresets from 'butterchurn-presets';
-
 import { Visualizer } from './visualizer';
 
 import type { VisualizerPluginConfig } from '../index';
+import type Butterchurn from 'butterchurn';
 
 class ButterchurnVisualizer extends Visualizer {
-  private readonly visualizer: ReturnType<typeof Butterchurn.createVisualizer>;
+  private visualizer?: ReturnType<typeof Butterchurn.createVisualizer>;
   private destroyed: boolean = false;
-  private animFrameHandle: number | null;
+  private animFrameHandle: number | null = null;
 
   constructor(
     audioContext: AudioContext,
@@ -20,26 +18,37 @@ class ButterchurnVisualizer extends Visualizer {
   ) {
     super(audioSource, audioNode);
 
-    const preset = ButterchurnPresets[config.butterchurn.preset];
-    const renderVisualizer = () => {
-      if (this.destroyed) return;
-      this.visualizer.render();
-      this.animFrameHandle = requestAnimationFrame(renderVisualizer);
-    };
+    // butterchurn and its presets are large, so they load only once this
+    // visualizer is used.
+    Promise.all([import('butterchurn'), import('butterchurn-presets')])
+      .then(([{ default: Butterchurn }, { default: ButterchurnPresets }]) => {
+        if (this.destroyed) return;
 
-    this.visualizer = Butterchurn.createVisualizer(audioContext, canvas, {
-      width: canvas.width,
-      height: canvas.height,
-    });
-    this.visualizer.loadPreset(preset, config.butterchurn.blendTimeInSeconds);
-    this.visualizer.connectAudio(audioNode);
+        const preset = ButterchurnPresets[config.butterchurn.preset];
+        const visualizer = Butterchurn.createVisualizer(audioContext, canvas, {
+          width: canvas.width,
+          height: canvas.height,
+        });
+        const renderVisualizer = () => {
+          if (this.destroyed) return;
+          visualizer.render();
+          this.animFrameHandle = requestAnimationFrame(renderVisualizer);
+        };
 
-    // Start animation request loop. Do not use setInterval!
-    this.animFrameHandle = requestAnimationFrame(renderVisualizer);
+        visualizer.loadPreset(preset, config.butterchurn.blendTimeInSeconds);
+        visualizer.connectAudio(audioNode);
+        this.visualizer = visualizer;
+
+        // Start animation request loop. Do not use setInterval!
+        this.animFrameHandle = requestAnimationFrame(renderVisualizer);
+      })
+      .catch((error: unknown) => {
+        console.error('Could not load butterchurn:', error);
+      });
   }
 
   resize(width: number, height: number) {
-    this.visualizer.setRendererSize(width, height);
+    this.visualizer?.setRendererSize(width, height);
   }
 
   destroy() {
