@@ -76,7 +76,6 @@
     "electron-localshortcut": "3.2.1",
     "electron-store": "12.0.0",
     "electron-unhandled": "6.0.0",
-    "electron-updater": "6.8.11",
     "es-hangul": "2.4.0",
     "fast-average-color": "9.6.0",
     "fast-equals": "6.2.2",

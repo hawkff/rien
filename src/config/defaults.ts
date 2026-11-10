@@ -17,7 +17,6 @@ export interface DefaultConfig {
     language?: string;
     tray: boolean;
     appVisible: boolean;
-    autoUpdates: boolean;
     alwaysOnTop: boolean;
     hideMenu: boolean;
     hideMenuWarned: boolean;
@@ -54,7 +53,6 @@ export const defaultConfig: DefaultConfig = {
   'options': {
     tray: false,
     appVisible: true,
-    autoUpdates: true,
     alwaysOnTop: false,
     hideMenu: false,
     hideMenuWarned: false,

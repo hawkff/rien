@@ -159,14 +159,6 @@ export const mainMenuTemplate = async (
       label: t('main.menu.options.label'),
       submenu: [
         {
-          label: t('main.menu.options.submenu.auto-update'),
-          type: 'checkbox',
-          checked: config.get('options.autoUpdates'),
-          click(item: MenuItem) {
-            config.setMenuOption('options.autoUpdates', item.checked);
-          },
-        },
-        {
           label: t('main.menu.options.submenu.resume-on-start'),
           type: 'checkbox',
           checked: config.get('options.resumeOnStart'),
