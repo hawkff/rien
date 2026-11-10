@@ -294,8 +294,8 @@ export class Queue {
     }
 
     if (this.originalDispatch)
-      this.queue.queue.store.store.dispatch = this
-        .originalDispatch as Store['dispatch'];
+      this.queue.queue.store.store.dispatch =
+        this.originalDispatch as Store['dispatch'];
   }
 
   injection() {

@@ -31,10 +31,10 @@ const inAppMenuActive = await config.plugins.isEnabled('in-app-menu');
 const pluginEnabledMenu = async (
   plugin: string,
   label = '',
-  description?: string ,
+  description?: string,
   isNew = false,
   hasSubmenu = false,
-  refreshMenu?: (() => void) ,
+  refreshMenu?: () => void,
 ): Promise<Electron.MenuItemConstructorOptions> => ({
   label: label || plugin,
   sublabel: isNew ? t('main.menu.plugins.new') : undefined,
@@ -484,26 +484,22 @@ export const mainMenuTemplate = async (
             } as Electron.MenuItemConstructorOptions,
           ].concat(
             availableLanguages
-              .map(
-                (lang): Electron.MenuItemConstructorOptions => ({
-                  label: `${langResources[lang].translation.language?.name ?? 'Unknown'} (${langResources[lang].translation.language?.['local-name'] ?? 'Unknown'})`,
-                  type: 'checkbox',
-                  checked: (config.get('options.language') ?? 'en') === lang,
-                  click() {
-                    config.setMenuOption('options.language', lang);
-                    refreshMenu(win);
-                    setLanguage(lang);
-                    dialog.showMessageBox(win, {
-                      title: t(
-                        'main.menu.options.submenu.language.dialog.title',
-                      ),
-                      message: t(
-                        'main.menu.options.submenu.language.dialog.message',
-                      ),
-                    });
-                  },
-                }),
-              )
+              .map((lang): Electron.MenuItemConstructorOptions => ({
+                label: `${langResources[lang].translation.language?.name ?? 'Unknown'} (${langResources[lang].translation.language?.['local-name'] ?? 'Unknown'})`,
+                type: 'checkbox',
+                checked: (config.get('options.language') ?? 'en') === lang,
+                click() {
+                  config.setMenuOption('options.language', lang);
+                  refreshMenu(win);
+                  setLanguage(lang);
+                  dialog.showMessageBox(win, {
+                    title: t('main.menu.options.submenu.language.dialog.title'),
+                    message: t(
+                      'main.menu.options.submenu.language.dialog.message',
+                    ),
+                  });
+                },
+              }))
               .sort((a, b) => a.label!.localeCompare(b.label!)),
           ),
         },

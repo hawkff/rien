@@ -1,4 +1,3 @@
-/* oxlint-disable @stylistic/no-mixed-operators */
 import { IconCheckCircle } from '@mdui/icons/check-circle.js';
 import { IconChevronLeft } from '@mdui/icons/chevron-left.js';
 import { IconChevronRight } from '@mdui/icons/chevron-right.js';
