@@ -22,7 +22,6 @@ mac:
   target:
     - target: dmg
       arch:
-        - x64
         - arm64
   icon: assets/generated/icons/mac/icon.icon
   compression: maximum

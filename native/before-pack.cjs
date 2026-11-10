@@ -7,7 +7,6 @@ const { join } = require('node:path');
 const archNames = ['ia32', 'x64', 'armv7l', 'arm64', 'universal'];
 const targets = {
   'darwin-arm64': 'aarch64-apple-darwin',
-  'darwin-x64': 'x86_64-apple-darwin',
   'linux-arm64': 'aarch64-unknown-linux-gnu',
   'linux-x64': 'x86_64-unknown-linux-gnu',
 };

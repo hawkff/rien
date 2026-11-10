@@ -1,6 +1,6 @@
 // Builds the native module into dist/native/<arch>/pear-native.node, where the
 // main process loads it. Takes an optional Rust target for cross-compiling, as
-// in `bun native/build.ts x86_64-apple-darwin`.
+// in `bun native/build.ts aarch64-unknown-linux-gnu`.
 import { copyFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
