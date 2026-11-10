@@ -34,14 +34,7 @@
 
 ## Content
 
-- [Features](#features)
-- [Translation](#translation)
-- [Download](#download)
-  - [Arch Linux](#arch-linux)
-  - [Solus](#solus)
-  - [MacOS](#macos)
-  - [Windows](#windows)
-    - [How to install without a network connection? (in Windows)](#how-to-install-without-a-network-connection-in-windows)
+- [Install](#install)
 - [Themes](#themes)
 - [Dev](#dev)
 - [Build your own plugins](#build-your-own-plugins)
@@ -53,74 +46,15 @@
 - [License](#license)
 - [FAQ](#faq)
 
-## Translation
+## Install
 
-You can help with translation on [Hosted Weblate](https://bit.ly/48n5YF7).
+This fork has no releases yet. To install the app, [build it](#build) for macOS on Apple silicon or for Linux, then install the package from `pack/`. The `pear-desktop` packages in the AUR, in Solus and in Homebrew install upstream's build.
 
-<a href="https://bit.ly/48n5YF7">
-  <img src="https://bit.ly/4q83L6S" alt="translation status" />
-  <img src="https://bit.ly/4h3zBxo" alt="translation status 2" />
-</a>
-
-## Download
-
-You can check out the [latest release](https://github.com/pear-devs/pear-desktop/releases/latest) to quickly find the
-latest version.
-
-### Arch Linux
-
-Install the [`pear-desktop`](https://aur.archlinux.org/packages/pear-desktop) package from the AUR. For AUR installation instructions, take a look at
-this [wiki page](https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages).
-
-### [Solus](https://getsol.us/)
+The macOS build is not signed. If macOS says the app "is damaged and can't be opened", run this in the Terminal:
 
 ```bash
-sudo eopkg install pear-desktop
+/usr/bin/xattr -cr "/Applications/YouTube Music.app"
 ```
-
-### macOS
-
-You can install the app using Homebrew (see the [cask definition](https://github.com/pear-devs/homebrew-pear)):
-
-```bash
-brew install pear-devs/pear/pear-desktop
-```
-
-If you install the app manually and get an error "is damaged and can’t be opened." when launching the app, run the following in the Terminal:
-
-```bash
-/usr/bin/xattr -cr /Applications/Pear\ Desktop.app
-```
-
-### Windows
-
-You can use the [Scoop package manager](https://scoop.sh) to install the `pear-desktop` package from
-the [`extras` bucket](https://github.com/ScoopInstaller/Extras).
-
-```bash
-scoop bucket add extras
-scoop install extras/pear-desktop
-```
-
-Alternately you can use [Winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/), Windows 11s
-official CLI package manager to install the `pear-devs.pear-desktop` package.
-
-*Note: Microsoft Defender SmartScreen might block the installation since it is from an "unknown publisher". This is also
-true for the manual installation when trying to run the executable(.exe) after a manual download here on github (same
-file).*
-
-```bash
-winget install pear-devs.pear-desktop
-```
-
-#### How to install without a network connection? (in Windows)
-
-- Download the `*.nsis.7z` file for _your device architecture_ in [release page](https://github.com/pear-devs/pear-desktop/releases/latest).
-  - `x64` for 64-bit Windows
-  - `arm64` for ARM64 Windows
-- Download installer in release page. (`*-Setup.exe`)
-- Place them in the **same directory**.
-- Run the installer.
 
 ## Themes
 
@@ -155,6 +89,10 @@ Using plugins, you can:
 Create a folder in `src/plugins/YOUR-PLUGIN-NAME`:
 
 - `index.ts`: the main file of the plugin
+
+<details>
+<summary><code>index.ts</code> with every hook</summary>
+
 ```typescript
 import style from './style.css?inline'; // import style as inline
 
@@ -220,9 +158,14 @@ export default createPlugin({
 });
 ```
 
+</details>
+
 ### Common use cases
 
 - injecting custom CSS: create a `style.css` file in the same folder then:
+
+<details>
+<summary><code>index.ts</code> that adds a stylesheet</summary>
 
 ```typescript
 // index.ts
@@ -241,7 +184,12 @@ export default createPlugin({
 });
 ```
 
+</details>
+
 - If you want to change the HTML:
+
+<details>
+<summary><code>index.ts</code> that runs in the page</summary>
 
 ```typescript
 import { createPlugin } from '@/utils';
@@ -258,6 +206,8 @@ export default createPlugin({
 });
 ```
 
+</details>
+
 - communicating between the front and back: can be done using the ipcMain module from electron. See `index.ts` file and
   example in `sponsorblock` plugin.
 
@@ -266,8 +216,9 @@ export default createPlugin({
 1. Clone the repo
 2. Follow [this guide](https://bun.com/docs/installation) to install Bun
 3. Install Rust with [rustup](https://rustup.rs)
-4. Run `bun install --frozen-lockfile` to install dependencies
-5. Run `bun run dist:OS`
+4. On macOS, install Xcode 26 or later. Its `actool` compiles the app icon
+5. Run `bun install --frozen-lockfile` to install dependencies
+6. Run `bun run dist:OS`
 
 - `bun run dist:linux` - Linux (amd64)
 - `bun run dist:linux:deb-arm64` - Linux (arm64 for Debian)
@@ -275,7 +226,7 @@ export default createPlugin({
 - `bun run dist:mac` - macOS (arm64)
 
 Builds the app for macOS and Linux
-using [electron-builder](https://github.com/electron-userland/electron-builder).
+using [electron-builder](https://github.com/electron-userland/electron-builder). The packages go to `pack/`.
 
 ### Building in devcontainer
 
@@ -283,7 +234,7 @@ using [electron-builder](https://github.com/electron-userland/electron-builder).
 2. Open the folder in VS Code;
 3. Reopen in container when prompted;
 4. Run `bun run dist:OS` as above (choosing the desired target);
-5. Collect the built files from the `dist` folder.
+5. Collect the built files from the `pack` folder.
 
 Since devcontainer uses a mount for the workspace, the built files will be available on the host system as well.
 
