@@ -641,6 +641,18 @@ const getDefaultLocale = async (locale: string) =>
   Object.keys(await languageResources()).includes(locale) ? locale : null;
 
 app.whenReady().then(async () => {
+  // The version number stays at the upstream release, so the About panel also
+  // names the commit and date of the build. The build replaces both values.
+  // Only macOS shows `version`, next to the release.
+  const build = [process.env.BUILD_COMMIT, process.env.BUILD_DATE]
+    .filter(Boolean)
+    .join(', ');
+  app.setAboutPanelOptions(
+    is.macOS()
+      ? { version: build }
+      : { applicationVersion: `${app.getVersion()} (${build})` },
+  );
+
   if (!config.get('options.language')) {
     const locale = await getDefaultLocale(app.getLocale());
     if (locale) {

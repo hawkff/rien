@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -48,8 +49,23 @@ const bundleBunBuiltinPackages = (): Plugin => ({
   },
 });
 
+// The About panel names the commit and date of the build. A build from a
+// source archive without .git can set BUILD_COMMIT instead.
+const readCommit = () => {
+  try {
+    return execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return '';
+  }
+};
+
 export default defineConfig(({ mode }) => {
   const isDev = mode === 'development';
+  const buildCommit = process.env.BUILD_COMMIT || readCommit();
+  const buildDate = new Date().toISOString().slice(0, 10);
 
   const mainAndPreloadExcludes = ['electron', 'custom-electron-prompt', ...builtinModules];
   const mainConfig: MainViteConfig = {
@@ -65,6 +81,8 @@ export default defineConfig(({ mode }) => {
     define: {
       __dirname: 'import.meta.dirname',
       __filename: 'import.meta.filename',
+      'process.env.BUILD_COMMIT': JSON.stringify(buildCommit),
+      'process.env.BUILD_DATE': JSON.stringify(buildDate),
     },
     build: {
       lib: {
