@@ -1,5 +1,6 @@
 import { net } from 'electron';
 
+import { loadNative } from '@/native';
 import { createBackend } from '@/utils';
 
 const handlers = {
@@ -23,8 +24,22 @@ export const backend = createBackend({
     ctx.ipc.handle('synced-lyrics:fetch', (url: string, init: RequestInit) =>
       handlers.fetch(url, init),
     );
+    ctx.ipc.handle(
+      'synced-lyrics:detect-language',
+      (text: string) => loadNative()?.detectLanguage(text) ?? null,
+    );
+    ctx.ipc.handle('synced-lyrics:romanize-japanese', (text: string) => {
+      try {
+        return loadNative()?.romanizeJapanese(text) ?? text;
+      } catch (error: unknown) {
+        console.error('Could not romanize Japanese:', error);
+        return text;
+      }
+    });
   },
   stop(ctx) {
     ctx.ipc.removeHandler('synced-lyrics:fetch');
+    ctx.ipc.removeHandler('synced-lyrics:detect-language');
+    ctx.ipc.removeHandler('synced-lyrics:romanize-japanese');
   },
 });

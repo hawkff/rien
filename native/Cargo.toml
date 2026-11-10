@@ -1,0 +1,22 @@
+[package]
+name = "pear-native"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+lindera = { version = "6.2.0", features = ["embed-ipadic"] }
+napi = { version = "3.16.1", default-features = false, features = ["napi4"] }
+napi-derive = "3.7.0"
+whatlang = "0.18.0"
+
+[build-dependencies]
+napi-build = "2.6.0"
+
+[profile.release]
+lto = true
+strip = "symbols"

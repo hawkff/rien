@@ -16,6 +16,9 @@ export let netFetch: (
   url: string,
   init?: RequestInit,
 ) => Promise<[number, string, Record<string, string>]>;
+// These run in the native module in the main process.
+export let detectLanguage: (text: string) => Promise<string | null>;
+export let romanizeJapanese: (text: string) => Promise<string>;
 
 export const renderer = createRenderer<
   {
@@ -77,6 +80,14 @@ export const renderer = createRenderer<
 
   async start(ctx: RendererContext<SyncedLyricsPluginConfig>) {
     netFetch = ctx.ipc.invoke.bind(ctx.ipc, 'synced-lyrics:fetch');
+    detectLanguage = ctx.ipc.invoke.bind(
+      ctx.ipc,
+      'synced-lyrics:detect-language',
+    );
+    romanizeJapanese = ctx.ipc.invoke.bind(
+      ctx.ipc,
+      'synced-lyrics:romanize-japanese',
+    );
 
     setConfig(await ctx.getConfig());
 

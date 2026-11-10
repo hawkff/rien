@@ -1,9 +1,9 @@
 import { sify, tify } from 'chinese-conv';
-import lazyVar from 'lazy-var';
 import { render } from 'solid-js/web';
 
 import { waitForElement } from '@/utils/wait-for-element';
 
+import { detectLanguage, romanizeJapanese } from '.';
 import { LyricsRenderer, setIsVisible } from './renderer';
 
 export const selectors = {
@@ -138,23 +138,6 @@ const shinjitai = [
 ].map((codePoint) => String.fromCodePoint(codePoint));
 const shinjitaiRegex = new RegExp(`[${shinjitai.join('')}]`);
 
-// The romanization libraries below take about 70 MB once loaded, so each one
-// loads on first use instead of with the page.
-const kuroshiro = lazyVar.lazy(async () => {
-  const [{ default: Kuroshiro }, { default: KuromojiAnalyzer }] =
-    await Promise.all([
-      import('kuroshiro'),
-      import('kuroshiro-analyzer-kuromoji'),
-    ]);
-  const _kuroshiro = new Kuroshiro();
-  await _kuroshiro.init(
-    new KuromojiAnalyzer({
-      dictPath: 'https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/',
-    }),
-  );
-  return _kuroshiro;
-});
-
 // Hiragana and katakana
 const kanaRegex = /[\u3040-\u30FF]/;
 
@@ -178,12 +161,7 @@ const hasBengali = (lines: string[]) =>
 const hasHindi = (lines: string[]) =>
   lines.some((line) => /[\u0900-\u097F]+/.test(line));
 
-export const romanizeJapanese = async (line: string) =>
-  (await kuroshiro.get()).convert(line, {
-    to: 'romaji',
-    mode: 'spaced',
-  }) ?? line;
-
+// The libraries below load on first use instead of with the page.
 export const romanizeHangul = async (line: string) => {
   const [{ romanize }, { default: hanja }] = await Promise.all([
     import('es-hangul'),
@@ -247,7 +225,8 @@ export const romanizeHindi = async (line: string) => {
 };
 
 const handlers: Record<string, (line: string) => Promise<string> | string> = {
-  ja: romanizeJapanese,
+  // romanizeJapanese is only set once the renderer starts
+  ja: (line) => romanizeJapanese(line),
   ko: romanizeHangul,
   zh: romanizeChinese,
   th: romanizeThai,
@@ -256,18 +235,19 @@ const handlers: Record<string, (line: string) => Promise<string> | string> = {
 };
 
 export const romanize = async (line: string) => {
-  const { detect } = await import('tinyld');
-  const lang = detect(line);
+  const lang = await detectLanguage(line);
 
-  const handler = handlers[lang];
+  const handler = lang ? handlers[lang] : undefined;
   if (handler) {
     return handler(line);
   }
 
   // fallback
-  if (hasJapanese([line])) line = await romanizeJapanese(line);
+  const japanese = hasJapanese([line]);
+  if (japanese) line = await romanizeJapanese(line);
   if (hasKorean([line])) line = await romanizeHangul(line);
-  if (hasChinese([line])) line = await romanizeChinese(line);
+  // Kanji left over from a failed Japanese conversion should stay as they are.
+  if (!japanese && hasChinese([line])) line = await romanizeChinese(line);
   if (hasThai([line])) line = await romanizeThai(line);
   if (hasBengali([line])) line = await romanizeBengali(line);
   if (hasHindi([line])) line = await romanizeHindi(line);
