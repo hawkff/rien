@@ -3,7 +3,7 @@ import is from 'electron-is';
 import { t } from '@/i18n';
 import { createPlugin } from '@/utils';
 
-import { sortSegments } from './segments';
+import { latestSegments, sortSegments } from './segments';
 
 import type { Segment, SkipSegment } from './types';
 import type { GetPlayerResponse } from '@/types/get-player-response';
@@ -75,14 +75,13 @@ export default createPlugin({
 
     const { apiURL, categories } = config;
 
-    // The answer for an earlier song can arrive after the next song started.
-    let latestVideoId: string | undefined;
-    ipc.on('peard:video-src-changed', async (data: GetPlayerResponse) => {
-      const videoId = data?.videoDetails?.videoId;
-      latestVideoId = videoId;
-      const segments = await fetchSegments(apiURL, categories, videoId);
-      if (videoId === latestVideoId) ipc.send('sponsorblock-skip', segments);
-    });
+    const onVideo = latestSegments(
+      (videoId) => fetchSegments(apiURL, categories, videoId),
+      (segments) => ipc.send('sponsorblock-skip', segments),
+    );
+    ipc.on('peard:video-src-changed', (data: GetPlayerResponse) =>
+      onVideo(data?.videoDetails?.videoId),
+    );
   },
   renderer: {
     timeUpdateListener: (e: Event) => {

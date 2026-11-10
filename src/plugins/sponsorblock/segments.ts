@@ -32,3 +32,18 @@ export const sortSegments = (segments: Segment[]) => {
 
   return compiledSegments;
 };
+
+// Loads the segments of every video that starts and hands over only those of
+// the latest one. The answer for an earlier video can arrive after the next
+// video started.
+export const latestSegments = (
+  load: (videoId: string) => Promise<Segment[]>,
+  deliver: (segments: Segment[]) => void,
+) => {
+  let latestVideoId: string | undefined;
+  return async (videoId: string) => {
+    latestVideoId = videoId;
+    const segments = await load(videoId);
+    if (videoId === latestVideoId) deliver(segments);
+  };
+};

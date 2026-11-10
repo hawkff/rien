@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { sortSegments } from '../segments';
+import { latestSegments, sortSegments } from '../segments';
 
 test('Segment sorting', () => {
   expect(
@@ -33,4 +33,21 @@ test('Segment sorting', () => {
     [0, 6],
     [7, 8],
   ]);
+});
+
+test('A late answer for an earlier video is dropped', async () => {
+  const delivered = [];
+  const onVideo = latestSegments(
+    async (videoId) => {
+      if (videoId === 'second') return [[20, 40]];
+      // The first video's answer takes longer than the second's.
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return [[0, 60]];
+    },
+    (segments) => delivered.push(segments),
+  );
+
+  await Promise.all([onVideo('first'), onVideo('second')]);
+
+  expect(delivered).toEqual([[[20, 40]]]);
 });
