@@ -15,8 +15,6 @@
 > [!NOTE]
 > This is a fork of [pear-desktop](https://github.com/pear-devs/pear-desktop) that uses Bun instead of pnpm.
 
-<!--![Screenshot](web/screenshot.png "Screenshot")-->
-
 - Native look & feel extension
 
 > [!IMPORTANT]
