@@ -4,8 +4,19 @@ import { join } from 'node:path';
 import { app } from 'electron';
 
 interface PearNative {
+  convertToMp3(input: Buffer): Promise<Buffer>;
   detectLanguage(text: string): string | null;
   romanizeJapanese(text: string): string;
+  tagMp4(
+    input: Buffer,
+    tags: {
+      title?: string;
+      artist?: string;
+      album?: string;
+      track?: number;
+      cover?: Buffer;
+    },
+  ): Promise<Buffer>;
 }
 
 // electron-vite adds a `require` of its own to chunks that call require(), so

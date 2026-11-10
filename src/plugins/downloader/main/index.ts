@@ -1,15 +1,12 @@
-import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { Mutex } from 'async-mutex';
 import { BotGuardClient, getChallenge } from 'bgutils-js/botguard';
 import { buildURL, getHeaders } from 'bgutils-js/utils';
 import { WebPoMinter } from 'bgutils-js/webpo';
 import { app, type BrowserWindow, dialog, ipcMain } from 'electron';
 import is from 'electron-is';
 import filenamify from 'filenamify';
-import lazyVar from 'lazy-var';
 import NodeID3 from 'node-id3';
 import {
   Innertube,
@@ -23,6 +20,7 @@ import {
 } from '\u0079\u006f\u0075\u0074\u0075\u0062\u0065i.js';
 
 import { t } from '@/i18n';
+import { loadNative } from '@/native';
 import { getNetFetchAsFetch } from '@/plugins/utils/main';
 import {
   registerCallback,
@@ -40,7 +38,7 @@ import {
   setBadge,
 } from './utils';
 
-import { DefaultPresetList, type Preset, VideoFormatList } from '../types';
+import { DefaultPresetList, presetName, VideoFormatList } from '../types';
 
 import type { DownloaderPluginConfig } from '../index';
 import type { BackendContext } from '@/types/contexts';
@@ -48,30 +46,6 @@ import type { GetPlayerResponse } from '@/types/get-player-response';
 import type { WebPoSignalOutput } from 'bgutils-js/shared-types';
 
 type CustomSongInfo = SongInfo & { trackId?: string };
-
-const ffmpeg = lazyVar.lazy(async () =>
-  (await import('@ffmpeg.wasm/main')).createFFmpeg({
-    log: false,
-    logger() {}, // Console.log,
-    progress() {}, // Console.log,
-  }),
-);
-const ffmpegMutex = new Mutex();
-
-// The loaded ffmpeg core holds tens of megabytes, so unload it once downloads
-// have been idle for a minute. The next conversion loads it again.
-const ffmpegIdleMs = 60_000;
-let ffmpegUnloadTimer: NodeJS.Timeout | undefined;
-const scheduleFfmpegUnload = () => {
-  ffmpegUnloadTimer = setTimeout(() => {
-    ffmpegMutex
-      .runExclusive(async () => {
-        const ffmpegInstance = await ffmpeg.get();
-        if (ffmpegInstance.isLoaded()) ffmpegInstance.exit();
-      })
-      .catch((error: unknown) => console.error(error));
-  }, ffmpegIdleMs);
-};
 
 // bgutils-js 4 no longer generates a PO token in one call. These are the steps
 // its old `BG.PoToken.generate` ran.
@@ -484,20 +458,13 @@ async function downloadSongUnsafe(
     );
   }
 
-  const selectedPreset = config.selectedPreset ?? 'mp3 (256kbps)';
-  let presetSetting: Preset;
-  if (selectedPreset === 'Custom') {
-    presetSetting = config.customPresetSetting ?? DefaultPresetList['Custom'];
-  } else if (selectedPreset === 'Source') {
-    presetSetting = DefaultPresetList['Source'];
-  } else {
-    presetSetting = DefaultPresetList['mp3 (256kbps)'];
-  }
+  const presetSetting = DefaultPresetList[presetName(config.selectedPreset)];
 
   const downloadOptions: Types.FormatOptions = {
     type: (await isPremium()) ? 'audio' : 'video+audio', // Audio, video or video+audio
     quality: 'best', // Best, bestefficiency, 144p, 240p, 480p, 720p and so on.
-    format: 'any', // Media container format
+    // The MP3 conversion decodes AAC, which YouTube serves in MP4.
+    format: presetSetting.extension === 'mp3' ? 'mp4' : 'any', // Media container format
   };
 
   const format = info.chooseFormat(downloadOptions);
@@ -540,11 +507,10 @@ async function downloadSongUnsafe(
     mkdirSync(dir);
   }
 
-  let fileBuffer = await iterableStreamToProcessedUint8Array(
+  let fileBuffer: Uint8Array | null = await iterableStreamToProcessedUint8Array(
     iterableStream,
     targetFileExtension,
     metadata,
-    presetSetting?.ffmpegArgs ?? [],
     format.content_length ?? 0,
     sendFeedback,
     increasePlaylistProgress,
@@ -589,9 +555,7 @@ async function downloadChunks(
       }),
       ratio,
     );
-    // 15% for download, 85% for conversion
-    // This is a very rough estimate, trying to make the progress bar look nice
-    increasePlaylistProgress(ratio * 0.15);
+    increasePlaylistProgress(ratio);
   }
   return chunks;
 }
@@ -600,76 +564,46 @@ async function iterableStreamToProcessedUint8Array(
   stream: AsyncGenerator<Uint8Array, void>,
   extension: string,
   metadata: CustomSongInfo,
-  presetFfmpegArgs: string[],
   contentLength: number,
   sendFeedback: (str: string, value?: number) => void,
   increasePlaylistProgress: (value: number) => void = () => {},
-): Promise<Uint8Array | null> {
-  sendFeedback(t('plugins.downloader.backend.feedback.loading'), 2); // Indefinite progress bar after download
+): Promise<Uint8Array> {
+  const native = loadNative();
+  if (!native) throw new Error('Could not load the native module');
 
-  const safeVideoName = randomBytes(32).toString('hex');
+  const input = Buffer.concat(
+    await downloadChunks(
+      stream,
+      contentLength,
+      sendFeedback,
+      increasePlaylistProgress,
+    ),
+  );
 
-  return await ffmpegMutex.runExclusive(async () => {
-    clearTimeout(ffmpegUnloadTimer);
-    try {
-      const ffmpegInstance = await ffmpeg.get();
-      if (!ffmpegInstance.isLoaded()) {
-        await ffmpegInstance.load();
-      }
+  if (extension === 'mp3') {
+    sendFeedback(t('plugins.downloader.backend.feedback.converting'), 2);
+    return native.convertToMp3(input);
+  }
 
-      sendFeedback(t('plugins.downloader.backend.feedback.preparing-file'));
-      ffmpegInstance.FS(
-        'writeFile',
-        safeVideoName,
-        Buffer.concat(
-          await downloadChunks(
-            stream,
-            contentLength,
-            sendFeedback,
-            increasePlaylistProgress,
-          ),
-        ),
-      );
+  if (extension === 'm4a' || extension === 'mp4') {
+    sendFeedback(t('plugins.downloader.backend.feedback.saving'), 2);
+    // The file is still worth saving without a cover.
+    const cover = await getCoverBuffer(metadata.imageSrc ?? '').catch(
+      (error: unknown) => {
+        console.warn('Could not get the cover:', error);
+        return null;
+      },
+    );
+    return native.tagMp4(input, {
+      title: metadata.title,
+      artist: metadata.artist,
+      album: metadata.album || undefined,
+      track: metadata.trackId ? Number(metadata.trackId) : undefined,
+      cover: cover ?? undefined,
+    });
+  }
 
-      sendFeedback(t('plugins.downloader.backend.feedback.converting'));
-
-      ffmpegInstance.setProgress(({ ratio }) => {
-        sendFeedback(
-          t('plugins.downloader.backend.feedback.conversion-progress', {
-            percent: Math.floor(ratio * 100),
-          }),
-          ratio,
-        );
-        increasePlaylistProgress(0.15 + (ratio * 0.85));
-      });
-
-      const safeVideoNameWithExtension = `${safeVideoName}.${extension}`;
-      try {
-        await ffmpegInstance.run(
-          '-i',
-          safeVideoName,
-          ...presetFfmpegArgs,
-          ...getFFmpegMetadataArgs(metadata),
-          safeVideoNameWithExtension,
-        );
-      } finally {
-        ffmpegInstance.FS('unlink', safeVideoName);
-      }
-
-      sendFeedback(t('plugins.downloader.backend.feedback.saving'));
-
-      try {
-        return ffmpegInstance.FS('readFile', safeVideoNameWithExtension);
-      } finally {
-        ffmpegInstance.FS('unlink', safeVideoNameWithExtension);
-      }
-    } catch (error: unknown) {
-      sendError(error as Error, safeVideoName);
-    } finally {
-      scheduleFfmpegUnload();
-    }
-    return null;
-  });
+  return input;
 }
 
 const getCoverBuffer = async (url: string) => {
@@ -907,19 +841,6 @@ export async function downloadPlaylist(givenUrl?: string | URL) {
     setBadge(0); // Close badge counter
     sendFeedback(); // Clear feedback
   }
-}
-
-function getFFmpegMetadataArgs(metadata: CustomSongInfo) {
-  if (!metadata) {
-    return [];
-  }
-
-  return [
-    ...(metadata.title ? ['-metadata', `title=${metadata.title}`] : []),
-    ...(metadata.artist ? ['-metadata', `artist=${metadata.artist}`] : []),
-    ...(metadata.album ? ['-metadata', `album=${metadata.album}`] : []),
-    ...(metadata.trackId ? ['-metadata', `track=${metadata.trackId}`] : []),
-  ];
 }
 
 // Playlist radio modifier needs to be cut from playlist ID

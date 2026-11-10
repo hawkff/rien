@@ -1,23 +1,12 @@
-export interface Preset {
-  extension?: string | null;
-  ffmpegArgs: string[];
-}
-
-// Presets for FFmpeg
-export const DefaultPresetList: Record<string, Preset> = {
-  'mp3 (256kbps)': {
-    extension: 'mp3',
-    ffmpegArgs: ['-b:a', '256k'],
-  },
-  'Source': {
-    extension: undefined,
-    ffmpegArgs: ['-acodec', 'copy'],
-  },
-  'Custom': {
-    extension: null,
-    ffmpegArgs: [],
-  },
+export const DefaultPresetList = {
+  'mp3 (256kbps)': { extension: 'mp3' },
+  // Saves the downloaded stream as it is
+  'Source': { extension: undefined },
 };
+
+// Configs can still name the removed Custom preset, which now gets mp3.
+export const presetName = (selectedPreset?: string) =>
+  selectedPreset === 'Source' ? 'Source' : 'mp3 (256kbps)';
 
 export interface VideoFormat {
   itag: number;

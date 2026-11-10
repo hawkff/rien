@@ -8,7 +8,7 @@ import promptOptions from '@/providers/prompt-options';
 import { type DownloaderPluginConfig, defaultConfig } from './index';
 import { downloadPlaylist } from './main';
 import { getFolder } from './main/utils';
-import { DefaultPresetList } from './types';
+import { DefaultPresetList, presetName } from './types';
 
 import type { MenuTemplate } from '@/menu';
 import type { MenuContext } from '@/types/contexts';
@@ -198,7 +198,7 @@ export const onMenu = async ({
       submenu: Object.keys(DefaultPresetList).map((preset) => ({
         label: preset,
         type: 'radio',
-        checked: config.selectedPreset === preset,
+        checked: presetName(config.selectedPreset) === preset,
         click() {
           setConfig({ selectedPreset: preset });
         },

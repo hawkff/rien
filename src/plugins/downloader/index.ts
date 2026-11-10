@@ -5,7 +5,6 @@ import { onConfigChange, onMainLoad } from './main';
 import { onMenu } from './menu';
 import { onPlayerApiReady, onRendererLoad } from './renderer';
 import style from './style.css?inline';
-import { DefaultPresetList, type Preset } from './types';
 
 export type DownloaderPluginConfig = {
   enabled: boolean;
@@ -18,7 +17,6 @@ export type DownloaderPluginConfig = {
     folder?: string;
   };
   selectedPreset: string;
-  customPresetSetting: Preset;
   skipExisting: boolean;
   playlistMaxItems?: number;
 };
@@ -34,7 +32,6 @@ export const defaultConfig: DownloaderPluginConfig = {
     folder: undefined,
   },
   selectedPreset: 'mp3 (256kbps)', // Selected preset
-  customPresetSetting: DefaultPresetList['mp3 (256kbps)'], // Presets
   skipExisting: false,
   playlistMaxItems: undefined,
 };

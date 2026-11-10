@@ -4,7 +4,9 @@
 	"name": "Pear Desktop - Dev Container",
 	"image": "mcr.microsoft.com/devcontainers/typescript-node:24",
 	// Features to add to the dev container. More info: https://containers.dev/features.
-	"features": {},
+	"features": {
+		"ghcr.io/devcontainers/features/rust:1": {}
+	},
 	"postCreateCommand": "npm install --global bun@1.4.4 && bun install --frozen-lockfile"
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],

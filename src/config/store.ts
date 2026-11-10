@@ -1,5 +1,4 @@
 import { blockers } from '@/plugins/do-not-track/types';
-import { DefaultPresetList, type Preset } from '@/plugins/downloader/types';
 
 import { defaultConfig as defaults } from './defaults';
 
@@ -143,22 +142,10 @@ const migrations = {
       | string
       | undefined;
     if (originalPreset) {
-      if (originalPreset !== 'opus') {
-        store.set('plugins.downloader.selectedPreset', 'Custom');
-        store.set('plugins.downloader.customPresetSetting', {
-          extension: 'mp3',
-          ffmpegArgs:
-            (store.get('plugins.downloader.ffmpegArgs') as string[]) ??
-            DefaultPresetList['mp3 (256kbps)'].ffmpegArgs,
-        } satisfies Preset);
-      } else {
-        store.set('plugins.downloader.selectedPreset', 'Source');
-        store.set('plugins.downloader.customPresetSetting', {
-          extension: null,
-          ffmpegArgs:
-            (store.get('plugins.downloader.ffmpegArgs') as string[]) ?? [],
-        } satisfies Preset);
-      }
+      store.set(
+        'plugins.downloader.selectedPreset',
+        originalPreset === 'opus' ? 'Source' : 'mp3 (256kbps)',
+      );
       store.delete('plugins.downloader.preset');
       store.delete('plugins.downloader.ffmpegArgs');
     }

@@ -47,8 +47,6 @@
   "dependencies": {
     "@dehoist/romanize-thai": "1.0.0",
     "@electron/remote": "2.1.4",
-    "@ffmpeg.wasm/core-mt": "0.12.0",
-    "@ffmpeg.wasm/main": "0.12.0",
     "@floating-ui/dom": "1.8.0",
     "@foobar404/wave": "2.0.5",
     "@ghostery/adblocker-electron": "2.20.3",
@@ -92,7 +90,6 @@
     "i18next": "27.0.1",
     "keyboardevent-from-electron-accelerator": "2.0.0",
     "keyboardevents-areequal": "0.2.2",
-    "lazy-var": "2.2.2",
     "mdui": "2.1.5",
     "node-html-parser": "9.0.7",
     "node-id3": "0.2.9",

@@ -10,9 +10,15 @@ crate-type = ["cdylib"]
 
 [dependencies]
 lindera = { version = "6.2.0", features = ["embed-ipadic"] }
+mp3lame-encoder = { version = "0.3.0", features = ["std"] }
+mp4ameta = "0.13.0"
 napi = { version = "3.16.1", default-features = false, features = ["napi4"] }
 napi-derive = "3.7.0"
+symphonia = { version = "0.6.1", default-features = false, features = ["aac", "isomp4"] }
 whatlang = "0.18.0"
+
+[dev-dependencies]
+symphonia = { version = "0.6.1", default-features = false, features = ["aac", "isomp4", "mp3"] }
 
 [build-dependencies]
 napi-build = "2.6.0"
