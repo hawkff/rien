@@ -1,19 +1,7 @@
-<div align="center">
-
-# :pear: Pear Desktop
-
-[![GitHub release](https://img.shields.io/github/release/pear-devs/pear-desktop.svg?style=for-the-badge)](https://github.com/pear-devs/pear-desktop/releases/)
-[![GitHub license](https://img.shields.io/github/license/pear-devs/pear-desktop.svg?style=for-the-badge)](https://github.com/pear-devs/pear-desktop/blob/master/license)
-[![eslint code style](https://img.shields.io/badge/code_style-eslint-5ed9c7.svg?style=for-the-badge)](https://github.com/pear-devs/pear-desktop/blob/master/eslint.config.mjs)
-[![Build status](https://img.shields.io/github/actions/workflow/status/pear-devs/pear-desktop/build.yml?branch=master&style=for-the-badge)](https://GitHub.com/pear-devs/pear-desktop/releases/)
-[![GitHub All Releases](https://img.shields.io/github/downloads/pear-devs/pear-desktop/total?style=for-the-badge)](https://GitHub.com/pear-devs/pear-desktop/releases/)
-<!--[![AUR](https://img.shields.io/aur/version/pear-desktop-bin?color=blueviolet&style=for-the-badge)](https://aur.archlinux.org/packages/pear-desktop-bin)-->
-[![Known Vulnerabilities](https://snyk.io/test/github/pear-devs/pear-desktop/badge.svg)](https://snyk.io/test/github/pear-devs/pear-desktop)
-
-</div>
+# Rien
 
 > [!NOTE]
-> This is a fork of [pear-desktop](https://github.com/pear-devs/pear-desktop) that uses Bun instead of pnpm.
+> Rien is a fork of [pear-desktop](https://github.com/pear-devs/pear-desktop) for macOS on Apple silicon and for Linux. It uses a Rust module for romanization and downloads, and it loads less code into the page. The [release notes](https://github.com/hawkff/rien/releases) list the changes.
 
 - Native look & feel extension
 
@@ -48,13 +36,20 @@
 
 ## Install
 
-This fork has no releases yet. To install the app, [build it](#build) for macOS on Apple silicon or for Linux, then install the package from `pack/`. The `pear-desktop` packages in the AUR, in Solus and in Homebrew install upstream's build.
+Download the latest build from the [releases page](https://github.com/hawkff/rien/releases/latest):
+
+- macOS on Apple silicon: the `.dmg` file
+- Linux on x64: the `.AppImage` file
+
+For another Linux package or for arm64 Linux, [build the app](#build).
 
 The macOS build is not signed. If macOS says the app "is damaged and can't be opened", run this in the Terminal:
 
 ```bash
-/usr/bin/xattr -cr "/Applications/YouTube Music.app"
+/usr/bin/xattr -cr /Applications/Rien.app
 ```
+
+The AppImage needs FUSE 2 (`libfuse2`). On a system without it, start the file with `--appimage-extract-and-run`.
 
 ## Themes
 
@@ -66,7 +61,7 @@ Some predefined themes are available in https://github.com/kerichdev/themes-for-
 
 ```bash
 git clone https://github.com/hawkff/rien
-cd pear-desktop
+cd rien
 bun install --frozen-lockfile
 bun run dev
 ```
@@ -254,7 +249,7 @@ Uses [Playwright](https://playwright.dev/) to test the app.
 
 ## License
 
-MIT © [pear-devs](https://github.com/pear-devs/pear-desktop)
+MIT © [pear-devs](https://github.com/pear-devs/pear-desktop) and Rien contributors
 
 ## FAQ
 
