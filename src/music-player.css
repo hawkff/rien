@@ -100,6 +100,18 @@ ytmusic-app {
   --ytmusic-player-bar-background: var(--ytmusic-background);
 }
 
+/* The newer player bar's seek line is 3 px tall, and a click just off it lands
+   on the bar, which closes the player page. A clear band around the line takes
+   those clicks, as the older bar's slider does. The band stops short of the
+   cover and the play button. */
+ytmusic-app-layout > ytmusic-miniplayer .ytMusicMiniPlayerProgressBar {
+  padding-block: 6px 12px;
+  margin-block: -6px -12px;
+  /* The page sets the line's colors inline, which resets the clip */
+  background-clip: content-box !important;
+  background-origin: content-box !important;
+}
+
 /* The arrow that opens and closes the player page in the newer player bar,
    shaped like the bar's other round buttons */
 .player-page-button {

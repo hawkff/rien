@@ -62,23 +62,27 @@ test('The newer player bar takes the page background and follows commands from o
     // Playing, past any ad. In a narrow window the bar leaves out most of its
     // buttons, Previous and Repeat among them.
     await window.setViewportSize({ width: 545, height: 700 });
-    await expect
-      .poll(
-        () =>
-          window.evaluate(() => {
-            document
-              .querySelector('.ytp-skip-ad-button, .ytp-ad-skip-button-modern')
-              ?.click();
-            const player = document.querySelector('#movie_player');
-            if (player.getPlayerState() !== 1) player.playVideo();
-            return (
-              player.getPlayerState() === 1 &&
-              !player.classList.contains('ad-showing')
-            );
-          }),
-        { timeout: 120_000, intervals: [1000] },
-      )
-      .toBe(true);
+    const playing = () =>
+      expect
+        .poll(
+          () =>
+            window.evaluate(() => {
+              document
+                .querySelector(
+                  '.ytp-skip-ad-button, .ytp-ad-skip-button-modern',
+                )
+                ?.click();
+              const player = document.querySelector('#movie_player');
+              if (player.getPlayerState() !== 1) player.playVideo();
+              return (
+                player.getPlayerState() === 1 &&
+                !player.classList.contains('ad-showing')
+              );
+            }),
+          { timeout: 120_000, intervals: [1000] },
+        )
+        .toBe(true);
+    await playing();
 
     // The commands that the tray, the shortcuts plugin and the API server send
     const send = (channel, ...args) =>
@@ -155,6 +159,35 @@ test('The newer player bar takes the page background and follows commands from o
     await expect
       .poll(async () => (await state()).video, { timeout: 30_000 })
       .toBe(video);
+
+    // A click just under the 3 px seek line seeks, as on the older bar, and
+    // doesn't reach the bar, which would close the player page. A click just
+    // above it seeks too, instead of reaching the page under it.
+    await playing();
+    const pageOpen = () =>
+      window.evaluate(() =>
+        document
+          .querySelector('ytmusic-app-layout')
+          .hasAttribute('player-page-open'),
+      );
+    const seekedTo = (fraction) =>
+      expect
+        .poll(() =>
+          window.evaluate((fraction) => {
+            const { currentTime, duration } = document.querySelector('video');
+            return Math.abs(currentTime / duration - fraction) < 0.05;
+          }, fraction),
+        )
+        .toBe(true);
+    expect(await pageOpen()).toBe(true);
+    // The line lies on the bar's top edge, 3 px tall
+    const { x, y, width } = await window.locator(bar).boundingBox();
+    await window.mouse.click(x + width * 0.25, y + 6);
+    await seekedTo(0.25);
+    await window.mouse.click(x + width * 0.35, y - 6);
+    await seekedTo(0.35);
+    expect((await state()).video).toBe(video);
+    expect(await pageOpen()).toBe(true);
   } finally {
     await app.close();
   }
