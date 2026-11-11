@@ -94,6 +94,12 @@ tp-yt-paper-dialog {
   height: 18px;
 }
 
+/* The player bar takes the page's background, as the rest of the app does.
+   The site gives it a gray of its own. */
+ytmusic-app {
+  --ytmusic-player-bar-background: var(--ytmusic-background);
+}
+
 /* The arrow that opens and closes the player page in the newer player bar,
    shaped like the bar's other round buttons */
 .player-page-button {
@@ -122,4 +128,9 @@ tp-yt-paper-dialog {
 
 .player-page-button.open svg {
   transform: rotate(180deg);
+}
+
+/* In fullscreen the bar lies over the video, away from the player page */
+ytmusic-app-layout[player-fullscreened] .player-page-button {
+  display: none;
 }

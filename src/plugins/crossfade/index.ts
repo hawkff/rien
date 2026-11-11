@@ -4,6 +4,7 @@ import { Innertube } from '\u0079\u006f\u0075\u0074\u0075\u0062\u0065i.js';
 
 import { t } from '@/i18n';
 import { getNetFetchAsFetch } from '@/plugins/utils/main';
+import { skip } from '@/providers/player-bar';
 import promptOptions from '@/providers/prompt-options';
 import { createPlugin } from '@/utils';
 
@@ -183,7 +184,7 @@ export default createPlugin<
     onConfigChange(newConfig) {
       this.config = newConfig;
     },
-    onPlayerApiReady() {
+    onPlayerApiReady(api) {
       let transitionAudio: Howl; // Howler audio used to fade out the current music
       let firstVideo = true;
       let waitForTransition: Promise<unknown>;
@@ -273,7 +274,7 @@ export default createPlugin<
             video.removeEventListener('timeupdate', transitionBeforeEnd);
 
             // Go to next video - XXX: does not support "repeat 1" mode
-            document.querySelector<HTMLButtonElement>('.next-button')?.click();
+            skip('next', api);
           }
         };
 

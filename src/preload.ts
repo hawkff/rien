@@ -72,7 +72,10 @@ window.addEventListener('keydown', (event) => {
 });
 
 // Pages outside the music site, such as Google's sign-in, have nothing that
-// leads back to it, so they get a button.
+// leads back to it, so they get a button. It sits in a strip of its own at the
+// top, beside the traffic lights on macOS, and the page moves down to make
+// room: Google's "unusual traffic" page puts its captcha in the corner the
+// button would cover.
 if (
   location.protocol === 'https:' &&
   location.hostname !== 'music.\u0079\u006f\u0075\u0074\u0075\u0062\u0065.com'
@@ -81,17 +84,22 @@ if (
     document.addEventListener('DOMContentLoaded', resolve, { once: true }),
   );
   Promise.all([i18nReady, domReady]).then(() => {
+    document.documentElement.style.setProperty(
+      'padding-top',
+      '48px',
+      'important',
+    );
     const host = document.createElement('div');
     host.dataset.backToMusic = '';
     const root = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = `button {
-      position: fixed; z-index: 2147483647; top: 48px; left: 16px;
+      position: fixed; z-index: 2147483647; top: 8px; left: ${is.macOS() ? 84 : 16}px;
       padding: 6px 14px; border: 1px solid rgb(128 128 128 / 40%); border-radius: 18px;
-      background: rgb(128 128 128 / 15%); color: inherit; font: 500 14px system-ui, sans-serif;
+      background: #303030; color: #fff; font: 500 14px system-ui, sans-serif;
       cursor: pointer;
     }
-    button:hover { background: rgb(128 128 128 / 28%); }
+    button:hover { background: #454545; }
     button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }`;
     const button = Object.assign(document.createElement('button'), {
       type: 'button',

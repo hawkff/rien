@@ -2,6 +2,7 @@ import '@total-typescript/ts-reset';
 
 import type * as config from './config';
 import type { t } from '@/i18n';
+import type { LikeType } from '@/types/datahost-get-state';
 import type { VideoDataChanged } from '@/types/video-data-changed';
 import type { ipcRenderer as electronIpcRenderer } from 'electron';
 import type is from 'electron-is';
@@ -35,6 +36,7 @@ declare global {
     download: () => void;
     togglePictureInPicture: () => void;
     reload: () => void;
+    getLikeStatus: () => LikeType;
     i18n: {
       t: typeof t;
     };

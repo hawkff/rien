@@ -19,10 +19,17 @@ import {
   loadAllRendererPlugins,
 } from './loader/renderer';
 import { startingPages } from './providers/extracted-data';
+import {
+  appStore,
+  getLikeStatus,
+  playerBar,
+  skip,
+} from './providers/player-bar';
 import { addPlayerPageButton } from './providers/player-page-button';
 import { retryBlockedRequests } from './providers/retry-blocked';
 import { setupSongInfo } from './providers/song-info-front';
 
+import type { RepeatMode } from '@/types/datahost-get-state';
 import type { MusicPlayer } from '@/types/music-player';
 import type { MusicPlayerAppElement } from '@/types/music-player-app-element';
 import type { QueueResponse } from '@/types/music-player-desktop-internal';
@@ -39,6 +46,8 @@ let firstDataLoaded = false;
 
 registerWindowDefaultTrustedTypePolicy();
 retryBlockedRequests();
+// For the API server, which reads it through executeJavaScript
+window.getLikeStatus = getLikeStatus;
 
 const onPlayerApiReady = async (
   id: string,
@@ -54,6 +63,22 @@ const onPlayerApiReady = async (
   } catch (error) {
     console.error(LoggerPrefix, `${id}: the player hook failed`, error);
   }
+};
+
+// The order in which the repeat button goes through the modes
+const repeatModes: RepeatMode[] = ['NONE', 'ALL', 'ONE'];
+
+// What the site's player controller does for the bars: the player sounds, the
+// store shows.
+const setMuteAndVolume = (muted: boolean, volume: number) => {
+  if (!api) return;
+  if (api.isMuted() !== muted) {
+    if (muted) api.mute();
+    else api.unMute();
+  }
+  api.setVolume(volume);
+  appStore()?.dispatch({ type: 'SET_MUTED', payload: muted });
+  if (!muted) appStore()?.dispatch({ type: 'SET_VOLUME', payload: volume });
 };
 
 async function listenForApiLoad() {
@@ -88,15 +113,15 @@ async function onApiLoaded() {
       window.dispatchEvent(new Event('resize')),
     );
 
+  // The commands below come from outside the page: the tray, the shortcuts
+  // plugin, the API server. Each works with either player bar. The newer bar
+  // leaves out most of its buttons in a narrow window, so for it they go to
+  // the player and the store, as the site's own controller does.
   window.ipcRenderer.on('peard:previous-video', () => {
-    document
-      .querySelector<HTMLElement>('.previous-button.ytmusic-player-bar')
-      ?.click();
+    if (api) skip('previous', api);
   });
   window.ipcRenderer.on('peard:next-video', () => {
-    document
-      .querySelector<HTMLElement>('.next-button.ytmusic-player-bar')
-      ?.click();
+    if (api) skip('next', api);
   });
   window.ipcRenderer.on('peard:play', (_) => {
     api?.playVideo();
@@ -111,21 +136,10 @@ async function onApiLoaded() {
   window.ipcRenderer.on('peard:seek-to', (_, t: number) => api!.seekTo(t));
   window.ipcRenderer.on('peard:seek-by', (_, t: number) => api!.seekBy(t));
   window.ipcRenderer.on('peard:shuffle', () => {
-    document
-      .querySelector<HTMLElement & { queue: { shuffle: () => void } }>(
-        'ytmusic-player-bar',
-      )
-      ?.queue.shuffle();
+    document.querySelector<QueueElement>('#queue')?.queue.shuffle();
   });
 
-  const isShuffled = () => {
-    const isShuffled =
-      document
-        .querySelector<HTMLElement>('ytmusic-player-bar')
-        ?.attributes.getNamedItem('shuffle-on') ?? null;
-
-    return isShuffled !== null;
-  };
+  const isShuffled = () => appStore()?.getState().queue.shuffleEnabled ?? false;
 
   window.ipcRenderer.on('peard:get-shuffle', () => {
     window.ipcRenderer.send('peard:get-shuffle-response', isShuffled());
@@ -134,38 +148,52 @@ async function onApiLoaded() {
   window.ipcRenderer.on(
     'peard:update-like',
     (_, status: 'LIKE' | 'DISLIKE' = 'LIKE') => {
+      const older = document.querySelector<
+        HTMLElement & { updateLikeStatus: (status: string) => void }
+      >('#like-button-renderer');
+      if (older) {
+        older.updateLikeStatus(status);
+        return;
+      }
+      // The newer bar's buttons toggle: press the one asked for unless it is
+      // pressed already.
+      const button = status === 'DISLIKE' ? playerBar.dislike : playerBar.like;
       document
-        .querySelector<
-          HTMLElement & { updateLikeStatus: (status: string) => void }
-        >('#like-button-renderer')
-        ?.updateLikeStatus(status);
+        .querySelector<HTMLElement>(`${button}:not([aria-pressed="true"])`)
+        ?.click();
     },
   );
   window.ipcRenderer.on('peard:switch-repeat', (_, repeat = 1) => {
     for (let i = 0; i < repeat; i++) {
-      document
-        .querySelector<HTMLElement & { onRepeatButtonClick: () => void }>(
-          'ytmusic-player-bar',
-        )
-        ?.onRepeatButtonClick();
+      const older = document.querySelector<
+        HTMLElement & { onRepeatButtonClick: () => void }
+      >('ytmusic-player-bar');
+      if (older) {
+        older.onRepeatButtonClick();
+        continue;
+      }
+      const store = appStore();
+      const mode = store?.getState().queue.repeatMode ?? 'NONE';
+      store?.dispatch({
+        type: 'SET_REPEAT',
+        payload:
+          repeatModes[(repeatModes.indexOf(mode) + 1) % repeatModes.length],
+      });
     }
   });
   window.ipcRenderer.on('peard:update-volume', (_, volume: number) => {
-    document
-      .querySelector<HTMLElement & { updateVolume: (volume: number) => void }>(
-        'ytmusic-player-bar',
-      )
-      ?.updateVolume(volume);
+    const older = document.querySelector<
+      HTMLElement & { updateVolume: (volume: number) => void }
+    >('ytmusic-player-bar');
+    if (older) older.updateVolume(volume);
+    else setMuteAndVolume(volume === 0, volume);
   });
 
-  const isFullscreen = () => {
-    const isFullscreen =
-      document
-        .querySelector<HTMLElement>('ytmusic-player-bar')
-        ?.attributes.getNamedItem('player-fullscreened') ?? null;
-
-    return isFullscreen !== null;
-  };
+  // Both bars' layouts mark fullscreen on ytmusic-app-layout
+  const isFullscreen = () =>
+    document
+      .querySelector('ytmusic-app-layout')
+      ?.hasAttribute('player-fullscreened') ?? false;
 
   const clickFullscreenButton = (isFullscreenValue: boolean) => {
     const fullscreen = isFullscreen();
@@ -174,7 +202,13 @@ async function onApiLoaded() {
     }
 
     if (fullscreen) {
-      document.querySelector<HTMLElement>('.exit-fullscreen-button')?.click();
+      // The newer bar's layout has no exit button; the site follows the page
+      // leaving fullscreen as well.
+      const exit = document.querySelector<HTMLElement>(
+        '.exit-fullscreen-button',
+      );
+      if (exit) exit.click();
+      else if (document.fullscreenElement) document.exitFullscreen();
     } else {
       document.querySelector<HTMLElement>('.fullscreen-button')?.click();
     }
@@ -192,11 +226,16 @@ async function onApiLoaded() {
   );
 
   window.ipcRenderer.on('peard:toggle-mute', (_) => {
-    document
-      .querySelector<HTMLElement & { onVolumeClick: () => void }>(
-        'ytmusic-player-bar',
-      )
-      ?.onVolumeClick();
+    const older = document.querySelector<
+      HTMLElement & { onVolumeClick: () => void }
+    >('ytmusic-player-bar');
+    if (older) older.onVolumeClick();
+    else if (api) {
+      // After a volume of 0 the store still has the volume before it
+      const volume =
+        api.getVolume() || (appStore()?.getState().player.volume ?? 0);
+      setMuteAndVolume(!api.isMuted(), volume);
+    }
   });
 
   window.ipcRenderer.on('peard:get-queue', () => {
@@ -420,6 +459,11 @@ async function onApiLoaded() {
         justify-content: ${
           likeButtonsOptions === 'hide' ? 'flex-start' : 'space-between'
         } !important;
+      }
+      ${
+        likeButtonsOptions === 'hide'
+          ? 'ytmusic-miniplayer yt-video-action-bar-view-model { display: none !important; }'
+          : ''
       }`;
 
     document.head.appendChild(style);

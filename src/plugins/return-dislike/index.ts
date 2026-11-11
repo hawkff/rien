@@ -1,4 +1,5 @@
 import { t } from '@/i18n';
+import { newerBar, playerBar } from '@/providers/player-bar';
 import { createPlugin } from '@/utils';
 
 import style from './style.css?inline';
@@ -19,11 +20,10 @@ const dislikes = (videoId: string) =>
     .catch(() => undefined);
 
 // The dislike button of the older player bar and of the newer one
-const dislikeButton =
-  'ytmusic-player-bar #button-shape-dislike button, ytmusic-miniplayer dislike-button-view-model button';
+const dislikeButton = `ytmusic-player-bar #button-shape-dislike button, ${playerBar.dislike}`;
 const label = () =>
   document.querySelector<HTMLElement>(
-    'ytmusic-player-bar .dislike-count, ytmusic-miniplayer .dislike-count',
+    `ytmusic-player-bar .dislike-count, ${newerBar} .dislike-count`,
   );
 
 export default createPlugin<
@@ -95,9 +95,7 @@ export default createPlugin<
       // The player bar renders its buttons anew now and then, which drops the
       // count.
       this.observer = new MutationObserver(place);
-      const bar = document.querySelector(
-        'ytmusic-player-bar, ytmusic-miniplayer',
-      );
+      const bar = document.querySelector(`ytmusic-player-bar, ${newerBar}`);
       if (bar) this.observer.observe(bar, { childList: true, subtree: true });
       api.addEventListener('videodatachange', this.show);
       this.show();

@@ -1,6 +1,5 @@
-import { LikeType, type GetState } from '@/types/datahost-get-state';
-
 import { singleton } from './decorators';
+import { appStore, getLikeStatus, newerBar } from './player-bar';
 
 import type { SongInfo } from './song-info';
 import type { MusicPlayer } from '@/types/music-player';
@@ -34,84 +33,52 @@ export const setupSeekedListener = singleton(() => {
   });
 });
 
+// The video's time in whole seconds, as the older bar's #progress-bar showed
+// it. The newer bar has no element that reflects it.
 export const setupTimeChangedListener = singleton(() => {
-  const progressObserver = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      const target = mutation.target as Node & { value: string };
-      const numberValue = Number(target.value);
-      window.ipcRenderer.send('peard:time-changed', numberValue);
-      songInfo.elapsedSeconds = numberValue;
-    }
+  let last: number | undefined;
+  document.querySelector('video')?.addEventListener('timeupdate', (event) => {
+    const seconds = Math.floor((event.target as HTMLVideoElement).currentTime);
+    if (seconds === last) return;
+    last = seconds;
+    window.ipcRenderer.send('peard:time-changed', seconds);
+    songInfo.elapsedSeconds = seconds;
   });
-  const progressBar = document.querySelector('#progress-bar');
-  if (progressBar) {
-    progressObserver.observe(progressBar, { attributeFilter: ['value'] });
-  }
 });
 
 export const setupRepeatChangedListener = singleton(() => {
-  const repeatObserver = new MutationObserver((mutations) => {
-    // provided by App
-    window.ipcRenderer.send(
-      'peard:repeat-changed',
-      (
-        mutations[0].target as Node & {
-          __dataHost: {
-            getState: () => GetState;
-          };
-        }
-      ).__dataHost.getState().queue.repeatMode,
-    );
-  });
-  repeatObserver.observe(document.querySelector('#right-controls .repeat')!, {
-    attributeFilter: ['title'],
-  });
-
+  const store = appStore();
+  if (!store) return;
+  let mode = store.getState().queue.repeatMode;
   // Emit the initial value as well; as it's persistent between launches.
-  // provided by App
-  window.ipcRenderer.send(
-    'peard:repeat-changed',
-    document
-      .querySelector<
-        HTMLElement & {
-          getState: () => GetState;
-        }
-      >('ytmusic-player-bar')
-      ?.getState().queue.repeatMode,
-  );
+  window.ipcRenderer.send('peard:repeat-changed', mode);
+  store.subscribe(() => {
+    const next = store.getState().queue.repeatMode;
+    if (next === mode) return;
+    mode = next;
+    window.ipcRenderer.send('peard:repeat-changed', mode);
+  });
 });
 
-const mapLikeStatus = (status: string | null): LikeType =>
-  Object.values(LikeType).includes(status as LikeType)
-    ? (status as LikeType)
-    : LikeType.Indifferent;
-
-const LIKE_STATUS_ATTRIBUTE = 'like-status';
-
 export const setupLikeChangedListener = singleton(() => {
-  const likeDislikeObserver = new MutationObserver((mutations) => {
-    window.ipcRenderer.send(
-      'peard:like-changed',
-      mapLikeStatus(
-        (mutations[0].target as HTMLElement)?.getAttribute?.(
-          LIKE_STATUS_ATTRIBUTE,
-        ),
-      ),
-    );
+  const bar = document.querySelector(`ytmusic-player-bar, ${newerBar}`);
+  if (!bar) return;
+  let status: string | undefined;
+  const send = () => {
+    const next = getLikeStatus();
+    if (next === status) return;
+    status = next;
+    window.ipcRenderer.send('peard:like-changed', status);
+  };
+  // The newer bar renders its like buttons anew for each song.
+  new MutationObserver(send).observe(bar, {
+    attributes: true,
+    attributeFilter: ['like-status', 'aria-pressed'],
+    childList: true,
+    subtree: true,
   });
-  const likeButtonRenderer = document.querySelector('#like-button-renderer');
-  if (likeButtonRenderer) {
-    likeDislikeObserver.observe(likeButtonRenderer, {
-      attributes: true,
-      attributeFilter: [LIKE_STATUS_ATTRIBUTE],
-    });
-
-    // Emit the initial value as well; as it's persistent between launches.
-    window.ipcRenderer.send(
-      'peard:like-changed',
-      mapLikeStatus(likeButtonRenderer.getAttribute?.(LIKE_STATUS_ATTRIBUTE)),
-    );
-  }
+  // Emit the initial value as well; as it's persistent between launches.
+  send();
 });
 
 export const setupVolumeChangedListener = singleton((api: MusicPlayer) => {
@@ -130,32 +97,27 @@ export const setupVolumeChangedListener = singleton((api: MusicPlayer) => {
 });
 
 export const setupShuffleChangedListener = singleton(() => {
-  const playerBar = document.querySelector('ytmusic-player-bar');
+  const store = appStore();
 
-  if (!playerBar) {
+  if (!store) {
     window.ipcRenderer.send('peard:shuffle-changed-supported', false);
     return;
   }
 
-  const observer = new MutationObserver(() => {
-    window.ipcRenderer.send(
-      'peard:shuffle-changed',
-      (playerBar?.attributes.getNamedItem('shuffle-on') ?? null) !== null,
-    );
-  });
-
-  observer.observe(playerBar, {
-    attributes: true,
-    attributeFilter: ['shuffle-on'],
-    childList: false,
-    subtree: false,
+  let shuffled = store.getState().queue.shuffleEnabled;
+  store.subscribe(() => {
+    const next = store.getState().queue.shuffleEnabled;
+    if (next === shuffled) return;
+    shuffled = next;
+    window.ipcRenderer.send('peard:shuffle-changed', shuffled);
   });
 });
 
+// Both bars' layouts mark fullscreen on ytmusic-app-layout
 export const setupFullScreenChangedListener = singleton(() => {
-  const playerBar = document.querySelector('ytmusic-player-bar');
+  const layout = document.querySelector('ytmusic-app-layout');
 
-  if (!playerBar) {
+  if (!layout) {
     window.ipcRenderer.send('peard:fullscreen-changed-supported', false);
     return;
   }
@@ -163,16 +125,13 @@ export const setupFullScreenChangedListener = singleton(() => {
   const observer = new MutationObserver(() => {
     window.ipcRenderer.send(
       'peard:fullscreen-changed',
-      (playerBar?.attributes.getNamedItem('player-fullscreened') ?? null) !==
-        null,
+      layout.hasAttribute('player-fullscreened'),
     );
   });
 
-  observer.observe(playerBar, {
+  observer.observe(layout, {
     attributes: true,
     attributeFilter: ['player-fullscreened'],
-    childList: false,
-    subtree: false,
   });
 });
 

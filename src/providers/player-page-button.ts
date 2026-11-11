@@ -1,7 +1,7 @@
 import { t } from '@/i18n';
 import { waitForElement } from '@/utils/wait-for-element';
 
-import type { QueueElement } from '@/types/queue';
+import { appStore, newerBar } from './player-bar';
 
 // The newer player bar (ytmusic-miniplayer) opens the player page only through
 // a click on the song's cover, which is easy to miss. This adds the arrow the
@@ -9,7 +9,7 @@ import type { QueueElement } from '@/types/queue';
 export const addPlayerPageButton = async () => {
   if (document.querySelector('ytmusic-player-bar')) return;
   const section = await waitForElement<HTMLElement>(
-    'ytmusic-miniplayer .ytMusicMiniPlayerRightSection',
+    `${newerBar} .ytMusicMiniPlayerRightSection`,
     { retryInterval: 500 },
   );
   const layout = document.querySelector('ytmusic-app-layout');
@@ -29,7 +29,7 @@ export const addPlayerPageButton = async () => {
     button.setAttribute('aria-label', button.title);
   };
   button.addEventListener('click', () =>
-    document.querySelector<QueueElement>('#queue')?.queue.store.store.dispatch({
+    appStore()?.dispatch({
       type: 'SET_PLAYER_PAGE_INFO',
       payload: { open: !isOpen() },
     }),

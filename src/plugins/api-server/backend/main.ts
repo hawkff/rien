@@ -141,9 +141,10 @@ export const backend = createBackend<BackendType, APIServerConfig>({
       backendCtx,
       () => this.songInfo,
       () => this.currentRepeatMode,
+      // The page reads it from whichever player bar it has
       () =>
         backendCtx.window.webContents.executeJavaScript(
-          'document.querySelector("#like-button-renderer")?.likeStatus',
+          'window.getLikeStatus?.()',
         ) as Promise<LikeType>,
       () => this.volumeState,
     );
