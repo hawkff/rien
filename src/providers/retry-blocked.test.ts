@@ -40,14 +40,19 @@ test('a refused API request is sent again', async () => {
   expect(waits).toEqual([300, 600]);
 });
 
-test('the third refusal reaches the page', async () => {
-  const { calls, fetch } = answers(blocked, blocked, blocked, passes);
+test('the eighth refusal reaches the page', async () => {
+  waits.length = 0;
+  const { calls, fetch } = answers(
+    ...Array<() => Response>(8).fill(blocked),
+    passes,
+  );
   const response = await retryBlocked(fetch, wait)(`${api}/next`, {
     method: 'POST',
     body: '{}',
   });
   expect(response.status).toBe(403);
-  expect(calls).toHaveLength(3);
+  expect(calls).toHaveLength(8);
+  expect(waits).toEqual([300, 600, 900, 1200, 1500, 1800, 2100]);
 });
 
 test('other answers and other requests go through once', async () => {

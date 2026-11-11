@@ -95,9 +95,14 @@ test('A refused queue request is sent again, other answers once', async () => {
       type: 'application/json',
       calls: 1,
     });
+    // Three refusals in a row, as seen behind a VPN exit, still end in the
+    // answer; the eighth refusal reaches the page.
     expect(
       await request(['refused', 'refused', 'refused', 'passes']),
-    ).toMatchObject({ status: 403, calls: 3 });
+    ).toMatchObject({ status: 200, calls: 4 });
+    expect(
+      await request([...Array(8).fill('refused'), 'passes']),
+    ).toMatchObject({ status: 403, calls: 8 });
     expect(await request(['lost', 'passes'])).toMatchObject({
       status: 0,
       events: ['error'],

@@ -1,10 +1,13 @@
 // Google answers some API requests from flagged networks, VPN and proxy exits
 // among them, with a page that says the network "may be sending automated
 // queries" (HTTP 403 with HTML). The refusal is per request, so the same request
-// often passes a moment later. The page does not try again, and a refused queue
-// or tab request leaves the side panel empty.
-
-const attempts = 3;
+// often passes a moment later. The page does not try again: a refused queue
+// request leaves the side panel loading and the song without a next one.
+//
+// Behind one VPN exit about 3 in 10 requests were refused, up to 4 in a row,
+// and a refusal took 5 to 10 seconds to arrive. Eight tries leave about one
+// request in 15,000 refused, after about a minute at worst.
+const attempts = 8;
 const api = '/\u0079\u006f\u0075\u0074\u0075\u0062\u0065i/v1/';
 const apiUrl = (url: string | URL) => {
   const target = URL.parse(url, location.href);
@@ -15,7 +18,7 @@ const isBlocked = (response: Response) =>
   !!response.headers.get('content-type')?.startsWith('text/html');
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Sends an API request up to three times while Google refuses it. Only the
+// Sends an API request up to eight times while Google refuses it. Only the
 // latest request of a kind tries again: the page shows every answer it gets,
 // and an answer that comes after a newer request's answer would replace it,
 // such as an earlier tab's content in the tab now open.
