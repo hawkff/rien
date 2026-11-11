@@ -18,9 +18,15 @@ import { APPLICATION_NAME, setLanguage, t } from '@/i18n';
 import * as config from './config';
 import { getAllMenuTemplate, loadAllMenuPlugins } from './loader/menu';
 import { pluginSections, sectionOf } from './menu-sections';
-import { restart } from './providers/app-controls';
+import { relaunch, restart } from './providers/app-controls';
 import { startingPages } from './providers/extracted-data';
 import promptOptions from './providers/prompt-options';
+import {
+  accountArgs,
+  createGuestProfile,
+  GUEST_SWITCH,
+  guestArgs,
+} from './utils/guest-profile';
 
 import packageJson from '../package.json';
 
@@ -376,6 +382,9 @@ export const mainMenuTemplate = async (
           label: t('main.menu.options.submenu.single-instance-lock'),
           type: 'checkbox',
           checked: true,
+          // A guest holds the account's lock, which keeps its profile from
+          // being removed by an account start.
+          enabled: !app.commandLine.hasSwitch(GUEST_SWITCH),
           click(item: MenuItem) {
             if (!item.checked && app.hasSingleInstanceLock()) {
               app.releaseSingleInstanceLock();
@@ -688,6 +697,35 @@ export const mainMenuTemplate = async (
           label: t('main.menu.navigation.submenu.restart'),
           click: restart,
         },
+        app.commandLine.hasSwitch(GUEST_SWITCH)
+          ? {
+              label: t('main.menu.navigation.submenu.guest.back'),
+              toolTip: t('main.menu.navigation.submenu.guest.back-tooltip'),
+              click() {
+                relaunch(
+                  accountArgs(
+                    process.argv.slice(1),
+                    app.commandLine.getSwitchValue(GUEST_SWITCH),
+                  ),
+                );
+              },
+            }
+          : {
+              label: t('main.menu.navigation.submenu.guest.use', {
+                applicationName: APPLICATION_NAME,
+              }),
+              toolTip: t('main.menu.navigation.submenu.guest.use-tooltip'),
+              click() {
+                const accountDir = app.getPath('userData');
+                const guestDir = createGuestProfile(
+                  app.getPath('temp'),
+                  accountDir,
+                );
+                relaunch(
+                  guestArgs(process.argv.slice(1), guestDir, accountDir),
+                );
+              },
+            },
         {
           label: t('main.menu.navigation.submenu.quit'),
           role: 'quit',

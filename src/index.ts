@@ -50,6 +50,11 @@ import {
 import { setupSongInfo } from '@/providers/song-info';
 import { setUpTray } from '@/tray';
 import { LoggerPrefix } from '@/utils';
+import {
+  GUEST_SWITCH,
+  guestTitle,
+  removeGuestProfiles,
+} from '@/utils/guest-profile';
 import { browserUserAgent } from '@/utils/user-agent';
 
 import type { PluginConfig } from '@/types/plugins';
@@ -63,9 +68,17 @@ unhandled({
 // Prevent window being garbage collected
 let mainWindow: Electron.BrowserWindow | null;
 
+// The lock is keyed to the userData folder. A guest takes the account's lock,
+// so opening Rien again focuses the guest instead of starting the account.
+const guestOf = app.commandLine.getSwitchValue(GUEST_SWITCH);
+const ownProfile = app.getPath('userData');
+if (guestOf) app.setPath('userData', guestOf);
 const gotTheLock = app.requestSingleInstanceLock();
+if (guestOf) app.setPath('userData', ownProfile);
 if (!gotTheLock) {
   app.exit();
+} else if (!guestOf) {
+  removeGuestProfiles(app.getPath('temp'), ownProfile);
 }
 
 protocol.registerSchemesAsPrivileged([
@@ -610,11 +623,21 @@ app.once('browser-window-created', (_event, win) => {
   });
 
   const customWindowTitle = config.get('options.customWindowTitle');
+  const windowTitle = (pageTitle: string) =>
+    guestOf
+      ? guestTitle(
+          t('main.window.guest-title', { applicationName: APPLICATION_NAME }),
+          // The page's title is often the app's name, which the label holds.
+          customWindowTitle ||
+            (pageTitle === APPLICATION_NAME ? '' : pageTitle),
+        )
+      : (customWindowTitle ?? pageTitle);
 
-  if (customWindowTitle) {
-    win.on('page-title-updated', (event) => {
+  if (guestOf) win.setTitle(windowTitle(''));
+  if (customWindowTitle || guestOf) {
+    win.on('page-title-updated', (event, pageTitle) => {
       event.preventDefault();
-      win.setTitle(customWindowTitle);
+      win.setTitle(windowTitle(pageTitle));
     });
   }
 });

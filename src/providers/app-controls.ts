@@ -4,7 +4,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 
 import * as config from '@/config';
 
-export const restart = () => restartInternal();
+export const restart = () => relaunch();
 
 export const setupAppControls = () => {
   ipcMain.on('peard:restart', restart);
@@ -17,8 +17,9 @@ export const setupAppControls = () => {
   );
 };
 
-function restartInternal() {
-  app.relaunch({ execPath: process.env.PORTABLE_EXECUTABLE_FILE });
+// `args` replaces the command line arguments; without it they stay the same.
+export function relaunch(args?: string[]) {
+  app.relaunch({ execPath: process.env.PORTABLE_EXECUTABLE_FILE, args });
   // ExecPath will be undefined if not running portable app, resulting in default behavior
   app.quit();
 }

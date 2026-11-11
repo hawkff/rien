@@ -87,6 +87,12 @@
           "copy-current-url": "Copy current URL",
           "go-back": "Go back",
           "go-forward": "Go forward",
+          "guest": {
+            "back": "Back to my account",
+            "back-tooltip": "Restarts on your own profile. Settings changed as a guest are discarded with the guest profile.",
+            "use": "Use {{applicationName}} as a guest",
+            "use-tooltip": "Restarts signed out on a temporary profile with a copy of your settings. Settings changed as a guest are discarded when you go back."
+          },
           "quit": "Exit",
           "restart": "Restart App"
         }
@@ -228,6 +234,9 @@
         "default": "{{applicationName}}",
         "with-song-info": "{{applicationName}}: {{artist}} - {{title}}"
       }
+    },
+    "window": {
+      "guest-title": "{{applicationName}} — Guest"
     }
   },
   "plugins": {
