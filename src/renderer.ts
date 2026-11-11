@@ -4,6 +4,7 @@ import 'mdui/mdui.css';
 import 'mdui';
 
 import { loadI18n, setLanguage, t as i18t } from '@/i18n';
+import { LoggerPrefix } from '@/utils';
 import {
   defaultTrustedTypePolicy,
   registerWindowDefaultTrustedTypePolicy,
@@ -18,6 +19,7 @@ import {
   loadAllRendererPlugins,
 } from './loader/renderer';
 import { startingPages } from './providers/extracted-data';
+import { addPlayerPageButton } from './providers/player-page-button';
 import { retryBlockedRequests } from './providers/retry-blocked';
 import { setupSongInfo } from './providers/song-info-front';
 
@@ -37,6 +39,22 @@ let firstDataLoaded = false;
 
 registerWindowDefaultTrustedTypePolicy();
 retryBlockedRequests();
+
+const onPlayerApiReady = async (
+  id: string,
+  plugin: NonNullable<ReturnType<typeof getLoadedRendererPlugin>>,
+) => {
+  if (typeof plugin.renderer === 'function') return;
+  try {
+    await plugin.renderer?.onPlayerApiReady?.call(
+      plugin.renderer,
+      api!,
+      createContext(id),
+    );
+  } catch (error) {
+    console.error(LoggerPrefix, `${id}: the player hook failed`, error);
+  }
+};
 
 async function listenForApiLoad() {
   if (!isApiLoaded) {
@@ -316,15 +334,15 @@ async function onApiLoaded() {
   const audioSource = audioContext.createMediaElementSource(video);
   audioSource.connect(audioContext.destination);
 
-  for (const [id, plugin] of Object.entries(getAllLoadedRendererPlugins())) {
-    if (typeof plugin.renderer !== 'function') {
-      await plugin.renderer?.onPlayerApiReady?.call(
-        plugin.renderer,
-        api!,
-        createContext(id),
-      );
-    }
-  }
+  // Each plugin's hook runs on its own, so one that throws, as on a page layout
+  // it does not know, no longer keeps the others from starting. The rest of
+  // this setup waits for all of them: hooks subscribe to the events it sends.
+  await Promise.all(
+    Object.entries(getAllLoadedRendererPlugins()).map(([id, plugin]) =>
+      onPlayerApiReady(id, plugin),
+    ),
+  );
+  addPlayerPageButton();
 
   if (firstDataLoaded) {
     document.dispatchEvent(
@@ -458,16 +476,8 @@ const main = async () => {
   });
   window.ipcRenderer.on('plugin:enable', async (_event, id: string) => {
     await forceLoadRendererPlugin(id);
-    if (api) {
-      const plugin = getLoadedRendererPlugin(id);
-      if (plugin && typeof plugin.renderer !== 'function') {
-        await plugin.renderer?.onPlayerApiReady?.call(
-          plugin.renderer,
-          api,
-          createContext(id),
-        );
-      }
-    }
+    const plugin = getLoadedRendererPlugin(id);
+    if (api && plugin) await onPlayerApiReady(id, plugin);
   });
 
   window.ipcRenderer.on(

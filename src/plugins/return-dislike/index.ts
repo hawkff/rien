@@ -18,9 +18,12 @@ const dislikes = (videoId: string) =>
     )
     .catch(() => undefined);
 
+// The dislike button of the older player bar and of the newer one
+const dislikeButton =
+  'ytmusic-player-bar #button-shape-dislike button, ytmusic-miniplayer dislike-button-view-model button';
 const label = () =>
   document.querySelector<HTMLElement>(
-    'ytmusic-player-bar #button-shape-dislike .dislike-count',
+    'ytmusic-player-bar .dislike-count, ytmusic-miniplayer .dislike-count',
   );
 
 export default createPlugin<
@@ -61,9 +64,7 @@ export default createPlugin<
           textContent: count.text,
         });
         span.dataset.video = count.video;
-        document
-          .querySelector('ytmusic-player-bar #button-shape-dislike button')
-          ?.append(span);
+        document.querySelector(dislikeButton)?.append(span);
       };
       this.show = async () => {
         const videoId = api.getVideoData().video_id;
@@ -94,7 +95,9 @@ export default createPlugin<
       // The player bar renders its buttons anew now and then, which drops the
       // count.
       this.observer = new MutationObserver(place);
-      const bar = document.querySelector('ytmusic-player-bar');
+      const bar = document.querySelector(
+        'ytmusic-player-bar, ytmusic-miniplayer',
+      );
       if (bar) this.observer.observe(bar, { childList: true, subtree: true });
       api.addEventListener('videodatachange', this.show);
       this.show();

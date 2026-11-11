@@ -213,6 +213,10 @@
         }
       }
     },
+    "player-bar": {
+      "close-player": "Close the player",
+      "open-player": "Open the player"
+    },
     "tray": {
       "next": "Next",
       "play-pause": "Play/Pause",

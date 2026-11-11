@@ -93,3 +93,33 @@ tp-yt-paper-dialog {
   width: 18px;
   height: 18px;
 }
+
+/* The arrow that opens and closes the player page in the newer player bar,
+   shaped like the bar's other round buttons */
+.player-page-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+}
+
+.player-page-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.player-page-button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.player-page-button.open svg {
+  transform: rotate(180deg);
+}
