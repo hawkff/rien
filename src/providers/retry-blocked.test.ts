@@ -4,6 +4,8 @@ import { retryBlocked } from './retry-blocked';
 
 Object.assign(globalThis, { location: { href: 'https://music.example/' } });
 
+const api =
+  'https://music.example/\u0079\u006f\u0075\u0074\u0075\u0062\u0065i/v1';
 const blocked = () =>
   new Response('<title>Sorry...</title>', {
     status: 403,
@@ -29,21 +31,21 @@ const wait = (ms: number) => {
 test('a refused API request is sent again', async () => {
   waits.length = 0;
   const { calls, fetch } = answers(blocked, blocked, passes);
-  const response = await retryBlocked(fetch, wait)(
-    'https://music.example/\u0079\u006f\u0075\u0074\u0075\u0062\u0065i/v1/browse',
-    { method: 'POST', body: '{}' },
-  );
+  const response = await retryBlocked(fetch, wait)(`${api}/browse`, {
+    method: 'POST',
+    body: '{}',
+  });
   expect(response.status).toBe(200);
   expect(calls).toHaveLength(3);
-  expect(waits).toEqual([1000, 2000]);
+  expect(waits).toEqual([300, 600]);
 });
 
 test('the third refusal reaches the page', async () => {
   const { calls, fetch } = answers(blocked, blocked, blocked, passes);
-  const response = await retryBlocked(fetch, wait)(
-    'https://music.example/\u0079\u006f\u0075\u0074\u0075\u0062\u0065i/v1/next',
-    { method: 'POST', body: '{}' },
-  );
+  const response = await retryBlocked(fetch, wait)(`${api}/next`, {
+    method: 'POST',
+    body: '{}',
+  });
   expect(response.status).toBe(403);
   expect(calls).toHaveLength(3);
 });
@@ -54,23 +56,34 @@ test('other answers and other requests go through once', async () => {
       status: 403,
       headers: { 'content-type': 'application/json' },
     });
-  const api = answers(json, passes);
-  expect(
-    (
-      await retryBlocked(
-        api.fetch,
-        wait,
-      )(
-        'https://music.example/\u0079\u006f\u0075\u0074\u0075\u0062\u0065i/v1/player',
-      )
-    ).status,
-  ).toBe(403);
-  expect(api.calls).toHaveLength(1);
+  const player = answers(json, passes);
+  const answer = await retryBlocked(player.fetch, wait)(`${api}/player`);
+  expect(answer.status).toBe(403);
+  expect(player.calls).toHaveLength(1);
 
   const other = answers(blocked, passes);
-  expect(
-    (await retryBlocked(other.fetch, wait)('https://lrclib.example/api'))
-      .status,
-  ).toBe(403);
+  const lyrics = await retryBlocked(
+    other.fetch,
+    wait,
+  )('https://lrclib.example/api');
+  expect(lyrics.status).toBe(403);
   expect(other.calls).toEqual(['https://lrclib.example/api']);
+});
+
+test('an earlier request stops trying once a newer one of its kind went out', async () => {
+  // The first request waits after its refusal until the second one is done.
+  let release = () => {};
+  const held = () =>
+    new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  const { calls, fetch } = answers(blocked, passes, passes);
+  const retrying = retryBlocked(fetch, held);
+  const first = retrying(`${api}/browse`, { method: 'POST', body: '1' });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const second = await retrying(`${api}/browse`, { method: 'POST', body: '2' });
+  release();
+  expect(second.status).toBe(200);
+  expect((await first).status).toBe(403);
+  expect(calls).toHaveLength(2);
 });

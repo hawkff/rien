@@ -15,24 +15,32 @@ const isBlocked = (response: Response) =>
   !!response.headers.get('content-type')?.startsWith('text/html');
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Sends an API request up to three times while Google refuses it.
+// Sends an API request up to three times while Google refuses it. Only the
+// latest request of a kind tries again: the page shows every answer it gets,
+// and an answer that comes after a newer request's answer would replace it,
+// such as an earlier tab's content in the tab now open.
+const latest = new Map<string, object>();
 export const retryBlocked =
   (fetch: typeof window.fetch, wait = pause): typeof window.fetch =>
   async (input, init) => {
-    if (!apiUrl(input instanceof Request ? input.url : input)) {
-      return fetch(input, init);
-    }
+    const target = apiUrl(input instanceof Request ? input.url : input);
+    if (!target) return fetch(input, init);
     const request = new Request(input, init);
-    let response = await fetch(request.clone());
+    const turn = {};
+    latest.set(target.pathname, turn);
+    const current = () => latest.get(target.pathname) === turn;
+    const first = await fetch(request.clone());
+    let response = first;
     for (
       let attempt = 1;
       attempt < attempts && isBlocked(response);
       attempt++
     ) {
-      await wait(attempt * 1000);
+      await wait(attempt * 300);
+      if (!current()) return first;
       response = await fetch(request.clone());
     }
-    return response;
+    return current() ? response : first;
   };
 
 // The queue request goes through XMLHttpRequest. The app sends it with fetch
