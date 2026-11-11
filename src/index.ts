@@ -50,6 +50,7 @@ import {
 import { setupSongInfo } from '@/providers/song-info';
 import { setUpTray } from '@/tray';
 import { LoggerPrefix } from '@/utils';
+import { browserUserAgent } from '@/utils/user-agent';
 
 import type { PluginConfig } from '@/types/plugins';
 
@@ -132,6 +133,8 @@ if (is.linux()) {
   app.commandLine.appendSwitch('class', 'io.github.hawkff.rien');
 }
 
+app.userAgentFallback = browserUserAgent(app.userAgentFallback);
+
 if (disableHardwareAcceleration) {
   if (is.dev()) console.log('Disabling hardware acceleration');
   app.disableHardwareAcceleration();
@@ -182,6 +185,17 @@ function onClosed() {
 ipcMain.handle('peard:get-main-plugin-names', async () =>
   Object.keys(await mainPlugins()),
 );
+
+// Pages outside the music site, such as Google's sign-in, get a button that
+// leads to the last music page in the window's history.
+ipcMain.on('peard:back-to-music', ({ sender }) => {
+  const index = sender.navigationHistory
+    .getAllEntries()
+    .map((entry) => URL.parse(entry.url)?.hostname)
+    .lastIndexOf('music.\u0079\u006f\u0075\u0074\u0075\u0062\u0065.com');
+  if (index >= 0) sender.navigationHistory.goToIndex(index);
+  else sender.loadURL(config.defaultConfig.url);
+});
 
 const initHook = async (win: BrowserWindow) => {
   const allPluginStubs = await allPlugins();

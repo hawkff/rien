@@ -74,6 +74,15 @@ const separatorStyle = cacheNoArgs(
   `,
 );
 
+const sectionTitleStyle = cacheNoArgs(
+  () => css`
+    padding: 4px 12px 2px;
+
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+  `,
+);
+
 const animationStyle = cacheNoArgs(() => ({
   enter: css`
     opacity: 0;
@@ -118,6 +127,15 @@ const PanelRenderer = (props: PanelRendererProps) => {
       {(subItem) => (
         <Show when={subItem().visible}>
           <Switch>
+            {/* The plugin menu's section titles: headers on macOS, greyed items elsewhere */}
+            <Match
+              when={
+                subItem().type === 'header' ||
+                (subItem().type === 'normal' && !subItem().enabled)
+              }
+            >
+              <div class={sectionTitleStyle()}>{subItem().label}</div>
+            </Match>
             <Match when={subItem().type === 'normal'}>
               <PanelItem
                 chip={subItem().sublabel}

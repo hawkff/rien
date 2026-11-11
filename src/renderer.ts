@@ -18,6 +18,7 @@ import {
   loadAllRendererPlugins,
 } from './loader/renderer';
 import { startingPages } from './providers/extracted-data';
+import { retryBlockedRequests } from './providers/retry-blocked';
 import { setupSongInfo } from './providers/song-info-front';
 
 import type { MusicPlayer } from '@/types/music-player';
@@ -35,6 +36,7 @@ let isApiLoaded = false;
 let firstDataLoaded = false;
 
 registerWindowDefaultTrustedTypePolicy();
+retryBlockedRequests();
 
 async function listenForApiLoad() {
   if (!isApiLoaded) {

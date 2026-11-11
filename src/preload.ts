@@ -9,7 +9,7 @@ import is from 'electron-is';
 import { languageResource } from 'virtual:i18n';
 import { pluginStubs } from 'virtual:plugins';
 
-import { loadI18n, setLanguage } from '@/i18n';
+import { loadI18n, setLanguage, t } from '@/i18n';
 import { isAppPage } from '@/utils/app-page';
 
 import * as config from './config';
@@ -44,10 +44,66 @@ new MutationObserver((mutations, observer) => {
   }
 }).observe(document, { subtree: true, childList: true });
 
-loadI18n().then(async () => {
+const i18nReady = loadI18n().then(async () => {
   await setLanguage(config.get('options.language') ?? 'en');
   await loadAllPreloadPlugins();
 });
+
+// Browsers go back and forward with Cmd+Left and Cmd+Right on macOS and with
+// Alt elsewhere, but not while the focus is in a text field.
+window.addEventListener('keydown', (event) => {
+  const modifier = is.macOS() ? event.metaKey : event.altKey;
+  const others =
+    event.ctrlKey ||
+    event.shiftKey ||
+    (is.macOS() ? event.altKey : event.metaKey);
+  if (!modifier || others) return;
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  const target = event.composedPath()[0] as HTMLElement;
+  if (
+    target.isContentEditable ||
+    /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)
+  ) {
+    return;
+  }
+  event.preventDefault();
+  if (event.key === 'ArrowLeft') history.back();
+  else history.forward();
+});
+
+// Pages outside the music site, such as Google's sign-in, have nothing that
+// leads back to it, so they get a button.
+if (
+  location.protocol === 'https:' &&
+  location.hostname !== 'music.\u0079\u006f\u0075\u0074\u0075\u0062\u0065.com'
+) {
+  const domReady = new Promise((resolve) =>
+    document.addEventListener('DOMContentLoaded', resolve, { once: true }),
+  );
+  Promise.all([i18nReady, domReady]).then(() => {
+    const host = document.createElement('div');
+    host.dataset.backToMusic = '';
+    const root = host.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = `button {
+      position: fixed; z-index: 2147483647; top: 48px; left: 16px;
+      padding: 6px 14px; border: 1px solid rgb(128 128 128 / 40%); border-radius: 18px;
+      background: rgb(128 128 128 / 15%); color: inherit; font: 500 14px system-ui, sans-serif;
+      cursor: pointer;
+    }
+    button:hover { background: rgb(128 128 128 / 28%); }
+    button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }`;
+    const button = Object.assign(document.createElement('button'), {
+      type: 'button',
+      textContent: `‹ ${t('main.menu.navigation.submenu.back-to-music')}`,
+    });
+    button.addEventListener('click', () =>
+      ipcRenderer.send('peard:back-to-music'),
+    );
+    root.append(style, button);
+    document.body.append(host);
+  });
+}
 
 ipcRenderer.on('plugin:unload', async (_, id: string) => {
   await forceUnloadPreloadPlugin(id);

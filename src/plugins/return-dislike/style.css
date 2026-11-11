@@ -1,0 +1,10 @@
+/* The dislike button grows around the count, which follows the icon as the
+   like count does. */
+#button-shape-dislike button:has(.dislike-count) {
+  width: auto;
+  padding-inline: 12px 16px;
+}
+
+#button-shape-dislike .dislike-count {
+  margin-inline-start: 6px;
+}

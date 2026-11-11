@@ -83,6 +83,7 @@
       "navigation": {
         "label": "Navigation",
         "submenu": {
+          "back-to-music": "Back to music",
           "copy-current-url": "Copy current URL",
           "go-back": "Go back",
           "go-forward": "Go forward",
@@ -187,7 +188,18 @@
       "plugins": {
         "enabled": "Enabled",
         "label": "Plugins",
-        "new": "NEW"
+        "new": "NEW",
+        "sections": {
+          "app": "App",
+          "library": "Library and downloads",
+          "look": "Look",
+          "lyrics": "Lyrics and captions",
+          "other": "Other",
+          "playback": "Playback",
+          "privacy": "Privacy and network",
+          "services": "Other apps and services",
+          "sound": "Sound"
+        }
       },
       "view": {
         "label": "View",
@@ -768,6 +780,10 @@
           "label": "Open player quality changer"
         }
       }
+    },
+    "return-dislike": {
+      "description": "Shows the dislike count next to the dislike button. The counts come from the Return Dislike API, a third party that gets the ID of each song you play. For newer songs they are estimates.",
+      "name": "Return Dislike"
     },
     "scrobbler": {
       "description": "Add scrobbling support (etc. last.fm, Listenbrainz)",

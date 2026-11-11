@@ -17,6 +17,7 @@ import { APPLICATION_NAME, setLanguage, t } from '@/i18n';
 
 import * as config from './config';
 import { getAllMenuTemplate, loadAllMenuPlugins } from './loader/menu';
+import { pluginSections, sectionOf } from './menu-sections';
 import { restart } from './providers/app-controls';
 import { startingPages } from './providers/extracted-data';
 import promptOptions from './providers/prompt-options';
@@ -116,36 +117,48 @@ export const mainMenuTemplate = async (
     }),
   );
 
-  const availablePlugins = Object.keys(await allPlugins());
+  const availablePlugins = Object.keys(await allPlugins()).sort((a, b) => {
+    const aPluginLabel = allPluginsStubs[a]?.name?.() ?? a;
+    const bPluginLabel = allPluginsStubs[b]?.name?.() ?? b;
+
+    return aPluginLabel.localeCompare(bPluginLabel);
+  });
   const pluginMenus = await Promise.all(
-    availablePlugins
-      .sort((a, b) => {
-        const aPluginLabel = allPluginsStubs[a]?.name?.() ?? a;
-        const bPluginLabel = allPluginsStubs[b]?.name?.() ?? b;
+    availablePlugins.map(async (id) => {
+      const predefinedTemplate = menuResult.find((it) => it[0] === id);
+      if (predefinedTemplate) return predefinedTemplate[1];
 
-        return aPluginLabel.localeCompare(bPluginLabel);
-      })
-      .map(async (id) => {
-        const predefinedTemplate = menuResult.find((it) => it[0] === id);
-        if (predefinedTemplate) return predefinedTemplate[1];
+      const plugin = allPluginsStubs[id];
+      const pluginLabel = plugin?.name?.() ?? id;
+      const pluginDescription = plugin?.description?.() ?? undefined;
+      const isNew = plugin?.addedVersion
+        ? satisfies(packageJson.version, plugin.addedVersion)
+        : false;
 
-        const plugin = allPluginsStubs[id];
-        const pluginLabel = plugin?.name?.() ?? id;
-        const pluginDescription = plugin?.description?.() ?? undefined;
-        const isNew = plugin?.addedVersion
-          ? satisfies(packageJson.version, plugin.addedVersion)
-          : false;
-
-        return pluginEnabledMenu(
-          id,
-          pluginLabel,
-          pluginDescription,
-          isNew,
-          true,
-          innerRefreshMenu,
-        );
-      }),
+      return pluginEnabledMenu(
+        id,
+        pluginLabel,
+        pluginDescription,
+        isNew,
+        true,
+        innerRefreshMenu,
+      );
+    }),
   );
+  // The plugins in sections, each under its title. Titles exist in macOS 14
+  // and later; elsewhere a greyed item stands in.
+  const pluginSubmenu = Object.keys(pluginSections).flatMap((section) => {
+    const items = pluginMenus.filter(
+      (_, index) => sectionOf(availablePlugins[index]) === section,
+    );
+    if (items.length === 0) return [];
+    const label = t(`main.menu.plugins.sections.${section}`);
+    const title: Electron.MenuItemConstructorOptions =
+      is.macOS() && Number(process.getSystemVersion().split('.')[0]) >= 14
+        ? { type: 'header', label }
+        : { label, enabled: false };
+    return [{ type: 'separator' } as const, title, ...items];
+  });
 
   const langResources = await languageResources();
   const availableLanguages = Object.keys(langResources);
@@ -153,7 +166,7 @@ export const mainMenuTemplate = async (
   return [
     {
       label: t('main.menu.plugins.label'),
-      submenu: pluginMenus,
+      submenu: pluginSubmenu.slice(1),
     },
     {
       label: t('main.menu.options.label'),
@@ -646,6 +659,7 @@ export const mainMenuTemplate = async (
       submenu: [
         {
           label: t('main.menu.navigation.submenu.go-back'),
+          accelerator: 'CmdOrCtrl+[',
           click() {
             if (navigationHistory.canGoBack()) {
               navigationHistory.goBack();
@@ -654,6 +668,7 @@ export const mainMenuTemplate = async (
         },
         {
           label: t('main.menu.navigation.submenu.go-forward'),
+          accelerator: 'CmdOrCtrl+]',
           click() {
             if (navigationHistory.canGoForward()) {
               navigationHistory.goForward();
