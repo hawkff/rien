@@ -647,6 +647,15 @@
         "fetched-lyrics": "Fetched lyrics for Genius"
       }
     },
+    "mpv-keys": {
+      "description": "Gives the window mpv's keys for playback: Space or p plays and pauses, the arrows seek, < and > change the song, 9 and 0 set the volume, m mutes, [ ] { } and Backspace set the speed, f toggles fullscreen and L repeats the song. They are set under plugins.mpv-keys.keys in config.json.",
+      "name": "mpv Key Bindings",
+      "notice": {
+        "picture-in-picture": "mpv Key Bindings took {{key}} from {{plugin}}. Change plugins.mpv-keys.keys or plugins.picture-in-picture.hotkey in config.json.",
+        "precise-volume": "mpv Key Bindings took Up and Down from {{plugin}}. Change plugins.mpv-keys.keys or plugins.precise-volume.arrowsShortcut in config.json.",
+        "skipped": "mpv Key Bindings skipped entries of plugins.mpv-keys.keys in config.json that name no key or no command: {{entries}}"
+      }
+    },
     "music-together": {
       "description": "Share a playlist with others. When the host plays a song, everyone else will hear the same song",
       "dialog": {

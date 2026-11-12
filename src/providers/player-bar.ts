@@ -35,6 +35,47 @@ export const skip = (direction: 'previous' | 'next', api: MusicPlayer) => {
 export const appStore = () =>
   document.querySelector<QueueElement>('#queue')?.queue.store.store;
 
+// What the site's player controller does for the bars: the player sounds, the
+// store shows.
+export const setMuteAndVolume = (
+  api: MusicPlayer,
+  muted: boolean,
+  volume: number,
+) => {
+  if (api.isMuted() !== muted) {
+    if (muted) api.mute();
+    else api.unMute();
+  }
+  api.setVolume(volume);
+  appStore()?.dispatch({ type: 'SET_MUTED', payload: muted });
+  if (!muted) appStore()?.dispatch({ type: 'SET_VOLUME', payload: volume });
+};
+
+export const toggleMute = (api: MusicPlayer) => {
+  // After a volume of 0 the store still has the volume before it
+  const volume = api.getVolume() || (appStore()?.getState().player.volume ?? 0);
+  setMuteAndVolume(api, !api.isMuted(), volume);
+};
+
+// Both bars' layouts mark fullscreen on ytmusic-app-layout
+export const isFullscreen = () =>
+  document
+    .querySelector('ytmusic-app-layout')
+    ?.hasAttribute('player-fullscreened') ?? false;
+
+export const setFullscreen = (fullscreen: boolean) => {
+  if (fullscreen === isFullscreen()) return;
+  if (fullscreen) {
+    document.querySelector<HTMLElement>('.fullscreen-button')?.click();
+    return;
+  }
+  // The newer bar's layout has no exit button; the site follows the page
+  // leaving fullscreen as well.
+  const exit = document.querySelector<HTMLElement>('.exit-fullscreen-button');
+  if (exit) exit.click();
+  else if (document.fullscreenElement) document.exitFullscreen();
+};
+
 const mapLikeStatus = (status: string | null): LikeType =>
   Object.values(LikeType).includes(status as LikeType)
     ? (status as LikeType)

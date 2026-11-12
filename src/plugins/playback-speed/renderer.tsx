@@ -27,6 +27,19 @@ const roundToTwo = (n: number) => Math.round(n * 1e2) / 1e2;
 const [speed, setSpeed] = createSignal(1);
 const sliderContainer = document.createElement('div');
 
+// Another plugin's speed, such as mpv-keys', becomes this plugin's speed, which
+// it then keeps on the video. Cancelling tells the sender it was taken.
+const takeSpeed = (e: Event) => {
+  const targetSpeed = Number((e as CustomEvent<number>).detail);
+  if (isNaN(targetSpeed)) return;
+  e.preventDefault();
+  setSpeed(
+    Math.min(Math.max(MIN_PLAYBACK_SPEED, targetSpeed), MAX_PLAYBACK_SPEED),
+  );
+  const videoElement = document.querySelector<HTMLVideoElement>('video');
+  if (videoElement) videoElement.playbackRate = speed();
+};
+
 export const onPlayerApiReady = () => {
   const observePopupContainer = () => {
     const updatePlayBackSpeed = () => {
@@ -113,9 +126,11 @@ export const onPlayerApiReady = () => {
 
   observePopupContainer();
   observeVideo();
+  window.addEventListener('peard:set-playback-speed', takeSpeed);
 };
 
 export const onUnload = () => {
+  window.removeEventListener('peard:set-playback-speed', takeSpeed);
   const video = document.querySelector<HTMLVideoElement>('video');
   if (video) {
     video.removeEventListener('ratechange', forcePlaybackRate);

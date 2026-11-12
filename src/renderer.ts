@@ -22,8 +22,12 @@ import { startingPages } from './providers/extracted-data';
 import {
   appStore,
   getLikeStatus,
+  isFullscreen,
   playerBar,
+  setFullscreen,
+  setMuteAndVolume,
   skip,
+  toggleMute,
 } from './providers/player-bar';
 import { addPlayerPageButton } from './providers/player-page-button';
 import { retryBlockedRequests } from './providers/retry-blocked';
@@ -67,19 +71,6 @@ const onPlayerApiReady = async (
 
 // The order in which the repeat button goes through the modes
 const repeatModes: RepeatMode[] = ['NONE', 'ALL', 'ONE'];
-
-// What the site's player controller does for the bars: the player sounds, the
-// store shows.
-const setMuteAndVolume = (muted: boolean, volume: number) => {
-  if (!api) return;
-  if (api.isMuted() !== muted) {
-    if (muted) api.mute();
-    else api.unMute();
-  }
-  api.setVolume(volume);
-  appStore()?.dispatch({ type: 'SET_MUTED', payload: muted });
-  if (!muted) appStore()?.dispatch({ type: 'SET_VOLUME', payload: volume });
-};
 
 async function listenForApiLoad() {
   if (!isApiLoaded) {
@@ -199,33 +190,8 @@ async function onApiLoaded() {
       HTMLElement & { updateVolume: (volume: number) => void }
     >('ytmusic-player-bar');
     if (older) older.updateVolume(volume);
-    else setMuteAndVolume(volume === 0, volume);
+    else if (api) setMuteAndVolume(api, volume === 0, volume);
   });
-
-  // Both bars' layouts mark fullscreen on ytmusic-app-layout
-  const isFullscreen = () =>
-    document
-      .querySelector('ytmusic-app-layout')
-      ?.hasAttribute('player-fullscreened') ?? false;
-
-  const clickFullscreenButton = (isFullscreenValue: boolean) => {
-    const fullscreen = isFullscreen();
-    if (isFullscreenValue === fullscreen) {
-      return;
-    }
-
-    if (fullscreen) {
-      // The newer bar's layout has no exit button; the site follows the page
-      // leaving fullscreen as well.
-      const exit = document.querySelector<HTMLElement>(
-        '.exit-fullscreen-button',
-      );
-      if (exit) exit.click();
-      else if (document.fullscreenElement) document.exitFullscreen();
-    } else {
-      document.querySelector<HTMLElement>('.fullscreen-button')?.click();
-    }
-  };
 
   window.ipcRenderer.on('peard:get-fullscreen', () => {
     window.ipcRenderer.send('peard:set-fullscreen', isFullscreen());
@@ -234,7 +200,7 @@ async function onApiLoaded() {
   window.ipcRenderer.on(
     'peard:click-fullscreen-button',
     (_, fullscreen: boolean | undefined) => {
-      clickFullscreenButton(fullscreen ?? false);
+      setFullscreen(fullscreen ?? false);
     },
   );
 
@@ -243,12 +209,7 @@ async function onApiLoaded() {
       HTMLElement & { onVolumeClick: () => void }
     >('ytmusic-player-bar');
     if (older) older.onVolumeClick();
-    else if (api) {
-      // After a volume of 0 the store still has the volume before it
-      const volume =
-        api.getVolume() || (appStore()?.getState().player.volume ?? 0);
-      setMuteAndVolume(!api.isMuted(), volume);
-    }
+    else if (api) toggleMute(api);
   });
 
   window.ipcRenderer.on('peard:get-queue', () => {

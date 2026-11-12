@@ -4,6 +4,7 @@ export const pluginSections = {
   playback: [
     'crossfade',
     'disable-autoplay',
+    'mpv-keys',
     'playback-speed',
     'quality-changer',
     'skip-disliked-songs',
