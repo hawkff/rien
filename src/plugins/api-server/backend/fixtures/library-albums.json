@@ -1,0 +1,1023 @@
+{
+  "contents": {
+    "singleColumnBrowseResultsRenderer": {
+      "tabs": [
+        {
+          "tabRenderer": {
+            "endpoint": {
+              "commandExecutorCommand": {
+                "commands": [
+                  {
+                    "musicLibraryPersistLaunchNavigationCommand": {
+                      "command": {
+                        "browseEndpoint": {
+                          "browseId": "FEmusic_library_landing"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "browseEndpoint": {
+                      "browseId": "FEmusic_library_landing",
+                      "browseEndpointContextSupportedConfigs": {
+                        "browseEndpointContextMusicConfig": {
+                          "pageType": "MUSIC_PAGE_TYPE_LIBRARY_CONTENT_LANDING_PAGE"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "title": "Library",
+            "selected": true,
+            "content": {
+              "sectionListRenderer": {
+                "contents": [
+                  {
+                    "gridRenderer": {
+                      "items": [
+                        {
+                          "musicTwoRowItemRenderer": {
+                            "thumbnailRenderer": {
+                              "musicThumbnailRenderer": {
+                                "thumbnail": {
+                                  "thumbnails": [
+                                    {
+                                      "url": "https://example.invalid/image-6.jpg",
+                                      "width": 544,
+                                      "height": 544
+                                    }
+                                  ]
+                                },
+                                "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+                                "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FILL"
+                              }
+                            },
+                            "aspectRatio": "MUSIC_TWO_ROW_ITEM_THUMBNAIL_ASPECT_RATIO_SQUARE",
+                            "title": {
+                              "runs": [
+                                {
+                                  "text": "Text 32",
+                                  "navigationEndpoint": {
+                                    "browseEndpoint": {
+                                      "browseId": "MPREb_k5TP_vlTlts",
+                                      "browseEndpointContextSupportedConfigs": {
+                                        "browseEndpointContextMusicConfig": {
+                                          "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            "subtitle": {
+                              "runs": [
+                                {
+                                  "text": "Album"
+                                },
+                                {
+                                  "text": " • "
+                                },
+                                {
+                                  "text": "Text 33",
+                                  "navigationEndpoint": {
+                                    "browseEndpoint": {
+                                      "browseId": "UCWRPYjLy1trWTeSzuVlfRDW",
+                                      "browseEndpointContextSupportedConfigs": {
+                                        "browseEndpointContextMusicConfig": {
+                                          "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "text": " • "
+                                },
+                                {
+                                  "text": "2022"
+                                }
+                              ]
+                            },
+                            "navigationEndpoint": {
+                              "browseEndpoint": {
+                                "browseId": "MPREb_k5TP_vlTlts",
+                                "browseEndpointContextSupportedConfigs": {
+                                  "browseEndpointContextMusicConfig": {
+                                    "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                                  }
+                                }
+                              }
+                            },
+                            "menu": {
+                              "menuRenderer": {
+                                "items": [
+                                  {
+                                    "toggleMenuServiceItemRenderer": {
+                                      "defaultText": {
+                                        "runs": [
+                                          {
+                                            "text": "Text 34"
+                                          }
+                                        ]
+                                      },
+                                      "defaultIcon": {
+                                        "iconType": "BOOKMARK_BORDER"
+                                      },
+                                      "defaultServiceEndpoint": {
+                                        "likeEndpoint": {
+                                          "status": "LIKE",
+                                          "target": {
+                                            "playlistId": "OLAK5uy_JDsjI9gxoHFp53LIxy-pftSeKNzUEgmL0"
+                                          }
+                                        }
+                                      },
+                                      "toggledText": {
+                                        "runs": [
+                                          {
+                                            "text": "Text 35"
+                                          }
+                                        ]
+                                      },
+                                      "toggledIcon": {
+                                        "iconType": "BOOKMARK"
+                                      },
+                                      "toggledServiceEndpoint": {
+                                        "likeEndpoint": {
+                                          "status": "INDIFFERENT",
+                                          "target": {
+                                            "playlistId": "OLAK5uy_JDsjI9gxoHFp53LIxy-pftSeKNzUEgmL0"
+                                          },
+                                          "actions": [
+                                            {
+                                              "hideEnclosingAction": {
+                                                "hack": true
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "isToggled": true
+                                    }
+                                  },
+                                  {
+                                    "toggleMenuServiceItemRenderer": {
+                                      "defaultText": {
+                                        "runs": [
+                                          {
+                                            "text": "Pin to Listen again"
+                                          }
+                                        ]
+                                      },
+                                      "defaultIcon": {
+                                        "iconType": "KEEP"
+                                      },
+                                      "defaultServiceEndpoint": {
+                                        "feedbackEndpoint": {
+                                          "feedbackToken": "token-34"
+                                        }
+                                      },
+                                      "toggledText": {
+                                        "runs": [
+                                          {
+                                            "text": "Unpin from Listen again"
+                                          }
+                                        ]
+                                      },
+                                      "toggledIcon": {
+                                        "iconType": "KEEP_OFF"
+                                      },
+                                      "toggledServiceEndpoint": {
+                                        "feedbackEndpoint": {
+                                          "feedbackToken": "token-35"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "thumbnailOverlay": {
+                              "musicItemThumbnailOverlayRenderer": {
+                                "content": {
+                                  "musicPlayButtonRenderer": {
+                                    "playNavigationEndpoint": {
+                                      "watchEndpoint": {
+                                        "videoId": "hxa1lwJ4t5l",
+                                        "playlistId": "OLAK5uy_JDsjI9gxoHFp53LIxy-pftSeKNzUEgmL0",
+                                        "playerParams": "Text 27",
+                                        "watchEndpointMusicSupportedConfigs": {
+                                          "watchEndpointMusicConfig": {
+                                            "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "playIcon": {
+                                      "iconType": "PLAY_ARROW"
+                                    },
+                                    "pauseIcon": {
+                                      "iconType": "PAUSE"
+                                    },
+                                    "iconColor": 4294967295,
+                                    "backgroundColor": 2566914048,
+                                    "activeBackgroundColor": 4278190080,
+                                    "loadingIndicatorColor": 14745645,
+                                    "playingIcon": {
+                                      "iconType": "VOLUME_UP"
+                                    },
+                                    "iconLoadingColor": 1308622847,
+                                    "activeScaleFactor": 1.2,
+                                    "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_MEDIUM",
+                                    "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF"
+                                  }
+                                },
+                                "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_BOTTOM_RIGHT",
+                                "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_HOVER"
+                              }
+                            },
+                            "subtitleBadges": [
+                              {
+                                "musicInlineBadgeRenderer": {
+                                  "icon": {
+                                    "iconType": "MUSIC_EXPLICIT_BADGE"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "musicTwoRowItemRenderer": {
+                            "thumbnailRenderer": {
+                              "musicThumbnailRenderer": {
+                                "thumbnail": {
+                                  "thumbnails": [
+                                    {
+                                      "url": "https://example.invalid/image-7.jpg",
+                                      "width": 544,
+                                      "height": 544
+                                    }
+                                  ]
+                                },
+                                "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+                                "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FILL"
+                              }
+                            },
+                            "aspectRatio": "MUSIC_TWO_ROW_ITEM_THUMBNAIL_ASPECT_RATIO_SQUARE",
+                            "title": {
+                              "runs": [
+                                {
+                                  "text": "Text 36",
+                                  "navigationEndpoint": {
+                                    "browseEndpoint": {
+                                      "browseId": "MPREb_Ed9CAHuRxAt",
+                                      "browseEndpointContextSupportedConfigs": {
+                                        "browseEndpointContextMusicConfig": {
+                                          "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            "subtitle": {
+                              "runs": [
+                                {
+                                  "text": "Single"
+                                },
+                                {
+                                  "text": " • "
+                                },
+                                {
+                                  "text": "Text 37",
+                                  "navigationEndpoint": {
+                                    "browseEndpoint": {
+                                      "browseId": "UClpeE7_qihmuLqwfMo3rq6X",
+                                      "browseEndpointContextSupportedConfigs": {
+                                        "browseEndpointContextMusicConfig": {
+                                          "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "text": " • "
+                                },
+                                {
+                                  "text": "2013"
+                                }
+                              ]
+                            },
+                            "navigationEndpoint": {
+                              "browseEndpoint": {
+                                "browseId": "MPREb_Ed9CAHuRxAt",
+                                "browseEndpointContextSupportedConfigs": {
+                                  "browseEndpointContextMusicConfig": {
+                                    "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                                  }
+                                }
+                              }
+                            },
+                            "menu": {
+                              "menuRenderer": {
+                                "items": [
+                                  {
+                                    "toggleMenuServiceItemRenderer": {
+                                      "defaultText": {
+                                        "runs": [
+                                          {
+                                            "text": "Text 34"
+                                          }
+                                        ]
+                                      },
+                                      "defaultIcon": {
+                                        "iconType": "BOOKMARK_BORDER"
+                                      },
+                                      "defaultServiceEndpoint": {
+                                        "likeEndpoint": {
+                                          "status": "LIKE",
+                                          "target": {
+                                            "playlistId": "OLAK5uy_fhbePXmZP4NauIUa3WS9tydy0crSun8-H"
+                                          }
+                                        }
+                                      },
+                                      "toggledText": {
+                                        "runs": [
+                                          {
+                                            "text": "Text 35"
+                                          }
+                                        ]
+                                      },
+                                      "toggledIcon": {
+                                        "iconType": "BOOKMARK"
+                                      },
+                                      "toggledServiceEndpoint": {
+                                        "likeEndpoint": {
+                                          "status": "INDIFFERENT",
+                                          "target": {
+                                            "playlistId": "OLAK5uy_fhbePXmZP4NauIUa3WS9tydy0crSun8-H"
+                                          },
+                                          "actions": [
+                                            {
+                                              "hideEnclosingAction": {
+                                                "hack": true
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "isToggled": true
+                                    }
+                                  },
+                                  {
+                                    "toggleMenuServiceItemRenderer": {
+                                      "defaultText": {
+                                        "runs": [
+                                          {
+                                            "text": "Pin to Listen again"
+                                          }
+                                        ]
+                                      },
+                                      "defaultIcon": {
+                                        "iconType": "KEEP"
+                                      },
+                                      "defaultServiceEndpoint": {
+                                        "feedbackEndpoint": {
+                                          "feedbackToken": "token-36"
+                                        }
+                                      },
+                                      "toggledText": {
+                                        "runs": [
+                                          {
+                                            "text": "Unpin from Listen again"
+                                          }
+                                        ]
+                                      },
+                                      "toggledIcon": {
+                                        "iconType": "KEEP_OFF"
+                                      },
+                                      "toggledServiceEndpoint": {
+                                        "feedbackEndpoint": {
+                                          "feedbackToken": "token-37"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "thumbnailOverlay": {
+                              "musicItemThumbnailOverlayRenderer": {
+                                "content": {
+                                  "musicPlayButtonRenderer": {
+                                    "playNavigationEndpoint": {
+                                      "watchEndpoint": {
+                                        "videoId": "rpf97BThI0v",
+                                        "playlistId": "OLAK5uy_fhbePXmZP4NauIUa3WS9tydy0crSun8-H",
+                                        "watchEndpointMusicSupportedConfigs": {
+                                          "watchEndpointMusicConfig": {
+                                            "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "playIcon": {
+                                      "iconType": "PLAY_ARROW"
+                                    },
+                                    "pauseIcon": {
+                                      "iconType": "PAUSE"
+                                    },
+                                    "iconColor": 4294967295,
+                                    "backgroundColor": 2566914048,
+                                    "activeBackgroundColor": 4278190080,
+                                    "loadingIndicatorColor": 14745645,
+                                    "playingIcon": {
+                                      "iconType": "VOLUME_UP"
+                                    },
+                                    "iconLoadingColor": 1308622847,
+                                    "activeScaleFactor": 1.2,
+                                    "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_MEDIUM",
+                                    "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF"
+                                  }
+                                },
+                                "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_BOTTOM_RIGHT",
+                                "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_HOVER"
+                              }
+                            },
+                            "subtitleBadges": [
+                              {
+                                "musicInlineBadgeRenderer": {
+                                  "icon": {
+                                    "iconType": "MUSIC_EXPLICIT_BADGE"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "musicTwoRowItemRenderer": {
+                            "thumbnailRenderer": {
+                              "musicThumbnailRenderer": {
+                                "thumbnail": {
+                                  "thumbnails": [
+                                    {
+                                      "url": "https://example.invalid/image-8.jpg",
+                                      "width": 544,
+                                      "height": 544
+                                    }
+                                  ]
+                                },
+                                "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+                                "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FILL"
+                              }
+                            },
+                            "aspectRatio": "MUSIC_TWO_ROW_ITEM_THUMBNAIL_ASPECT_RATIO_SQUARE",
+                            "title": {
+                              "runs": [
+                                {
+                                  "text": "Text 38",
+                                  "navigationEndpoint": {
+                                    "browseEndpoint": {
+                                      "browseId": "MPREb_DKP9CKWGUco",
+                                      "browseEndpointContextSupportedConfigs": {
+                                        "browseEndpointContextMusicConfig": {
+                                          "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            "subtitle": {
+                              "runs": [
+                                {
+                                  "text": "Album"
+                                },
+                                {
+                                  "text": " • "
+                                },
+                                {
+                                  "text": "Text 39",
+                                  "navigationEndpoint": {
+                                    "browseEndpoint": {
+                                      "browseId": "UC4lnw2uEyUOlu0zfbHkN77D",
+                                      "browseEndpointContextSupportedConfigs": {
+                                        "browseEndpointContextMusicConfig": {
+                                          "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "text": " • "
+                                },
+                                {
+                                  "text": "1991"
+                                }
+                              ]
+                            },
+                            "navigationEndpoint": {
+                              "browseEndpoint": {
+                                "browseId": "MPREb_DKP9CKWGUco",
+                                "browseEndpointContextSupportedConfigs": {
+                                  "browseEndpointContextMusicConfig": {
+                                    "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                                  }
+                                }
+                              }
+                            },
+                            "menu": {
+                              "menuRenderer": {
+                                "items": [
+                                  {
+                                    "toggleMenuServiceItemRenderer": {
+                                      "defaultText": {
+                                        "runs": [
+                                          {
+                                            "text": "Text 34"
+                                          }
+                                        ]
+                                      },
+                                      "defaultIcon": {
+                                        "iconType": "BOOKMARK_BORDER"
+                                      },
+                                      "defaultServiceEndpoint": {
+                                        "likeEndpoint": {
+                                          "status": "LIKE",
+                                          "target": {
+                                            "playlistId": "OLAK5uy_DHWvSInnQhGqZYpyJi8mIYjqUlunCU2UX"
+                                          }
+                                        }
+                                      },
+                                      "toggledText": {
+                                        "runs": [
+                                          {
+                                            "text": "Text 35"
+                                          }
+                                        ]
+                                      },
+                                      "toggledIcon": {
+                                        "iconType": "BOOKMARK"
+                                      },
+                                      "toggledServiceEndpoint": {
+                                        "likeEndpoint": {
+                                          "status": "INDIFFERENT",
+                                          "target": {
+                                            "playlistId": "OLAK5uy_DHWvSInnQhGqZYpyJi8mIYjqUlunCU2UX"
+                                          },
+                                          "actions": [
+                                            {
+                                              "hideEnclosingAction": {
+                                                "hack": true
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "isToggled": true
+                                    }
+                                  },
+                                  {
+                                    "toggleMenuServiceItemRenderer": {
+                                      "defaultText": {
+                                        "runs": [
+                                          {
+                                            "text": "Pin to Listen again"
+                                          }
+                                        ]
+                                      },
+                                      "defaultIcon": {
+                                        "iconType": "KEEP"
+                                      },
+                                      "defaultServiceEndpoint": {
+                                        "feedbackEndpoint": {
+                                          "feedbackToken": "token-38"
+                                        }
+                                      },
+                                      "toggledText": {
+                                        "runs": [
+                                          {
+                                            "text": "Unpin from Listen again"
+                                          }
+                                        ]
+                                      },
+                                      "toggledIcon": {
+                                        "iconType": "KEEP_OFF"
+                                      },
+                                      "toggledServiceEndpoint": {
+                                        "feedbackEndpoint": {
+                                          "feedbackToken": "token-39"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "thumbnailOverlay": {
+                              "musicItemThumbnailOverlayRenderer": {
+                                "content": {
+                                  "musicPlayButtonRenderer": {
+                                    "playNavigationEndpoint": {
+                                      "watchEndpoint": {
+                                        "videoId": "QcgmiXKaWTe",
+                                        "playlistId": "OLAK5uy_DHWvSInnQhGqZYpyJi8mIYjqUlunCU2UX",
+                                        "watchEndpointMusicSupportedConfigs": {
+                                          "watchEndpointMusicConfig": {
+                                            "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "playIcon": {
+                                      "iconType": "PLAY_ARROW"
+                                    },
+                                    "pauseIcon": {
+                                      "iconType": "PAUSE"
+                                    },
+                                    "iconColor": 4294967295,
+                                    "backgroundColor": 2566914048,
+                                    "activeBackgroundColor": 4278190080,
+                                    "loadingIndicatorColor": 14745645,
+                                    "playingIcon": {
+                                      "iconType": "VOLUME_UP"
+                                    },
+                                    "iconLoadingColor": 1308622847,
+                                    "activeScaleFactor": 1.2,
+                                    "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_MEDIUM",
+                                    "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF"
+                                  }
+                                },
+                                "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_BOTTOM_RIGHT",
+                                "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_HOVER"
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "continuations": [
+                        {
+                          "nextContinuationData": {
+                            "continuation": "token-40"
+                          }
+                        }
+                      ],
+                      "itemSize": "COLLECTION_STYLE_ITEM_SIZE_SMALL"
+                    }
+                  }
+                ],
+                "header": {
+                  "musicSideAlignedItemRenderer": {
+                    "startItems": [
+                      {
+                        "chipCloudRenderer": {
+                          "chips": [
+                            {
+                              "chipCloudChipRenderer": {
+                                "navigationEndpoint": {
+                                  "commandExecutorCommand": {
+                                    "commands": [
+                                      {
+                                        "browseEndpoint": {
+                                          "browseId": "FEmusic_library_landing"
+                                        }
+                                      },
+                                      {
+                                        "musicLibraryPersistLaunchNavigationCommand": {
+                                          "command": {
+                                            "browseEndpoint": {
+                                              "browseId": "FEmusic_library_landing"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "icon": {
+                                  "iconType": "CLOSE"
+                                },
+                                "isSelected": true,
+                                "onDeselectedCommand": {
+                                  "commandExecutorCommand": {
+                                    "commands": [
+                                      {
+                                        "browseEndpoint": {
+                                          "browseId": "FEmusic_library_landing"
+                                        }
+                                      },
+                                      {
+                                        "musicLibraryPersistLaunchNavigationCommand": {
+                                          "command": {
+                                            "browseEndpoint": {
+                                              "browseId": "FEmusic_library_landing"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "uniqueId": "Text 9"
+                              }
+                            },
+                            {
+                              "chipCloudChipRenderer": {
+                                "text": {
+                                  "runs": [
+                                    {
+                                      "text": "Albums"
+                                    }
+                                  ]
+                                },
+                                "navigationEndpoint": {
+                                  "commandExecutorCommand": {
+                                    "commands": [
+                                      {
+                                        "browseEndpoint": {
+                                          "browseId": "FEmusic_liked_albums"
+                                        }
+                                      },
+                                      {
+                                        "musicLibraryPersistLaunchNavigationCommand": {
+                                          "command": {
+                                            "browseEndpoint": {
+                                              "browseId": "FEmusic_liked_albums"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "isSelected": true,
+                                "onDeselectedCommand": {
+                                  "commandExecutorCommand": {
+                                    "commands": [
+                                      {
+                                        "browseEndpoint": {
+                                          "browseId": "FEmusic_library_landing"
+                                        }
+                                      },
+                                      {
+                                        "musicLibraryPersistLaunchNavigationCommand": {
+                                          "command": {
+                                            "browseEndpoint": {
+                                              "browseId": "FEmusic_library_landing"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "uniqueId": "Albums"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "endItems": [
+                      {
+                        "musicSortFilterButtonRenderer": {
+                          "title": {
+                            "runs": [
+                              {
+                                "text": "Text 10"
+                              }
+                            ]
+                          },
+                          "icon": {
+                            "iconType": "CHEVRON_DOWN"
+                          },
+                          "menu": {
+                            "musicMultiSelectMenuRenderer": {
+                              "title": {
+                                "musicMenuTitleRenderer": {
+                                  "primaryText": {
+                                    "runs": [
+                                      {
+                                        "text": "Text 11"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "options": [
+                                {
+                                  "musicMultiSelectMenuItemRenderer": {
+                                    "title": {
+                                      "runs": [
+                                        {
+                                          "text": "Text 10"
+                                        }
+                                      ]
+                                    },
+                                    "formItemEntityKey": "Text 40",
+                                    "selectedCommand": {
+                                      "commandExecutorCommand": {
+                                        "commands": [
+                                          {
+                                            "musicCheckboxFormItemMutatedCommand": {
+                                              "formItemEntityKey": "Text 41",
+                                              "newCheckedState": false
+                                            }
+                                          },
+                                          {
+                                            "musicCheckboxFormItemMutatedCommand": {
+                                              "formItemEntityKey": "Text 40",
+                                              "newCheckedState": true
+                                            }
+                                          },
+                                          {
+                                            "musicCheckboxFormItemMutatedCommand": {
+                                              "formItemEntityKey": "Text 42",
+                                              "newCheckedState": false
+                                            }
+                                          },
+                                          {
+                                            "browseSectionListReloadEndpoint": {
+                                              "continuation": {
+                                                "reloadContinuationData": {
+                                                  "continuation": "token-41",
+                                                  "showSpinnerOverlay": true
+                                                }
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "selectedIcon": {
+                                      "iconType": "CHECK"
+                                    }
+                                  }
+                                },
+                                {
+                                  "musicMultiSelectMenuItemRenderer": {
+                                    "title": {
+                                      "runs": [
+                                        {
+                                          "text": "A to Z"
+                                        }
+                                      ]
+                                    },
+                                    "formItemEntityKey": "Text 41",
+                                    "selectedCommand": {
+                                      "commandExecutorCommand": {
+                                        "commands": [
+                                          {
+                                            "musicCheckboxFormItemMutatedCommand": {
+                                              "formItemEntityKey": "Text 42",
+                                              "newCheckedState": false
+                                            }
+                                          },
+                                          {
+                                            "musicCheckboxFormItemMutatedCommand": {
+                                              "formItemEntityKey": "Text 40",
+                                              "newCheckedState": false
+                                            }
+                                          },
+                                          {
+                                            "musicCheckboxFormItemMutatedCommand": {
+                                              "formItemEntityKey": "Text 41",
+                                              "newCheckedState": true
+                                            }
+                                          },
+                                          {
+                                            "browseSectionListReloadEndpoint": {
+                                              "continuation": {
+                                                "reloadContinuationData": {
+                                                  "continuation": "token-42",
+                                                  "showSpinnerOverlay": true
+                                                }
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "selectedIcon": {
+                                      "iconType": "CHECK"
+                                    }
+                                  }
+                                },
+                                {
+                                  "musicMultiSelectMenuItemRenderer": {
+                                    "title": {
+                                      "runs": [
+                                        {
+                                          "text": "Z to A"
+                                        }
+                                      ]
+                                    },
+                                    "formItemEntityKey": "Text 42",
+                                    "selectedCommand": {
+                                      "commandExecutorCommand": {
+                                        "commands": [
+                                          {
+                                            "musicCheckboxFormItemMutatedCommand": {
+                                              "formItemEntityKey": "Text 40",
+                                              "newCheckedState": false
+                                            }
+                                          },
+                                          {
+                                            "musicCheckboxFormItemMutatedCommand": {
+                                              "formItemEntityKey": "Text 42",
+                                              "newCheckedState": true
+                                            }
+                                          },
+                                          {
+                                            "musicCheckboxFormItemMutatedCommand": {
+                                              "formItemEntityKey": "Text 41",
+                                              "newCheckedState": false
+                                            }
+                                          },
+                                          {
+                                            "browseSectionListReloadEndpoint": {
+                                              "continuation": {
+                                                "reloadContinuationData": {
+                                                  "continuation": "token-43",
+                                                  "showSpinnerOverlay": true
+                                                }
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "selectedIcon": {
+                                      "iconType": "CHECK"
+                                    }
+                                  }
+                                }
+                              ],
+                              "formEntityKey": "Text 43"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "tabIdentifier": "Text 16"
+          }
+        },
+        {
+          "tabRenderer": {
+            "endpoint": {
+              "commandExecutorCommand": {
+                "commands": [
+                  {
+                    "musicLibraryPersistLaunchNavigationCommand": {
+                      "command": {
+                        "browseEndpoint": {
+                          "browseId": "FEmusic_offline"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "browseEndpoint": {
+                      "browseId": "FEmusic_offline",
+                      "browseEndpointContextSupportedConfigs": {
+                        "browseEndpointContextMusicConfig": {
+                          "pageType": "MUSIC_PAGE_TYPE_DOWNLOADS_CONTENT_LANDING_PAGE"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "title": "Downloads",
+            "selected": false,
+            "content": {
+              "sectionListRenderer": {
+                "continuations": [
+                  {
+                    "reloadContinuationData": {
+                      "continuation": "token-17"
+                    }
+                  }
+                ]
+              }
+            },
+            "tabIdentifier": "Text 17"
+          }
+        }
+      ]
+    }
+  }
+}

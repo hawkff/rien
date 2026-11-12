@@ -8,6 +8,7 @@ import {
   type Json,
   parseAlbum,
   parseArtist,
+  parseLibrary,
   parsePlaylist,
   parseSearch,
 } from '../browse';
@@ -18,6 +19,7 @@ import {
   ContinuationQuerySchema,
   DownloadSchema,
   ErrorSchema,
+  LibraryKindSchema,
   LyricsSchema,
   PlaylistPageSchema,
   PlayNowSchema,
@@ -72,6 +74,19 @@ const routes = {
       'A playlist and its songs, by playlist ID or browse ID (VL…). Pass `continuation` from a result for its next page.',
     request: { params: BrowseIdSchema, query: ContinuationQuerySchema },
     responses: { 200: json(PlaylistPageSchema), 503: unavailable },
+  }),
+  library: createRoute({
+    method: 'get',
+    path: `/api/${API_VERSION}/library/{kind}`,
+    summary: 'get the library',
+    description:
+      "The signed-in account's library: songs, albums, artists, subscriptions, playlists, liked songs or history. Items carry the library and like state; liked songs carry their slot. Pass `continuation` from a result for its next page.",
+    request: { params: LibraryKindSchema, query: ContinuationQuerySchema },
+    responses: {
+      200: json(SearchPageSchema),
+      409: json(ErrorSchema, 'Rien is not signed in'),
+      503: unavailable,
+    },
   }),
   playNow: createRoute({
     method: 'post',
@@ -189,6 +204,45 @@ export const register = (
     );
     if (!answer) return ctx.json(noAnswer, 503);
     return ctx.json(parsePlaylist(browseId, answer), 200);
+  });
+
+  // The site's pages of the library; liked songs are the playlist LM
+  const libraryPages = {
+    songs: 'FEmusic_liked_videos',
+    albums: 'FEmusic_liked_albums',
+    artists: 'FEmusic_library_corpus_track_artists',
+    subscriptions: 'FEmusic_library_corpus_artists',
+    playlists: 'FEmusic_liked_playlists',
+    likes: 'VLLM',
+    history: 'FEmusic_history',
+  };
+  app.openapi(routes.library, async (ctx) => {
+    const { kind } = ctx.req.valid('param');
+    const { continuation } = ctx.req.valid('query');
+    // Unknown when the page doesn't answer in time; the request then goes on
+    let timer: NodeJS.Timeout | undefined;
+    const signedIn = (await Promise.race([
+      window.webContents
+        .executeJavaScript('window.ytcfg?.get?.("LOGGED_IN") ?? null')
+        .catch(() => null),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(null), 5_000);
+      }),
+    ]).finally(() => clearTimeout(timer))) as boolean | null;
+    if (signedIn === false) {
+      return ctx.json({ error: 'Rien is not signed in' }, 409);
+    }
+    const browseId = libraryPages[kind];
+    const answer = await ask(
+      '/browse',
+      continuation ? { continuation } : { browseId },
+    );
+    if (!answer) return ctx.json(noAnswer, 503);
+    if (kind === 'likes') {
+      const { tracks, continuation: next } = parsePlaylist(browseId, answer);
+      return ctx.json({ items: tracks, continuation: next }, 200);
+    }
+    return ctx.json(parseLibrary(answer), 200);
   });
 
   app.openapi(routes.playNow, (ctx) => {

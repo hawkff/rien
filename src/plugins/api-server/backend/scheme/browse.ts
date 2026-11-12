@@ -34,8 +34,32 @@ export const ItemSchema = z
       description: "The song's place in a playlist (playlistSetVideoId)",
     }),
     available: z.boolean(),
+    library: z
+      .object({
+        saved: z.boolean(),
+        add: z.string().nullable(),
+        remove: z.string().nullable(),
+      })
+      .nullable()
+      .openapi({
+        description:
+          "Whether it is in the library, and the site's tokens that save it there or remove it. Null when the site offers neither (signed out, artists, playlists)",
+      }),
+    like: z.enum(['LIKE', 'DISLIKE', 'INDIFFERENT']).nullable(),
   })
   .openapi('Item');
+
+export const LibraryKindSchema = z.object({
+  kind: z.enum([
+    'songs',
+    'albums',
+    'artists',
+    'subscriptions',
+    'playlists',
+    'likes',
+    'history',
+  ]),
+});
 
 const Continuation = z.string().nullable().openapi({
   description:

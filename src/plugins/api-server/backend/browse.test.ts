@@ -7,6 +7,8 @@ import {
   type Json,
   parseAlbum,
   parseArtist,
+  parseLibrary,
+  parseListItem,
   parsePlaylist,
   parseQueue,
   parseSearch,
@@ -47,6 +49,9 @@ test('a search for songs gives songs with artists, album, length and a next page
     playlistId: null,
     slot: null,
     available: true,
+    // Signed out, the site offers no library or like state
+    library: null,
+    like: null,
   });
   expect(continuation).toEqual(expect.any(String));
 
@@ -169,4 +174,149 @@ test('the queue gives its songs, which one plays, and the encore', () => {
     'Somewhere I Belong',
     'Bring Me To Life',
   ]);
+});
+
+// The library of a signed-in account. These fixtures hold made-up titles, IDs
+// and tokens in the site's structure.
+test('library songs carry the library and like state, and a next page', () => {
+  const { items, continuation } = parseLibrary(fixture('library-songs'));
+  // The shelf's first row shuffles the whole list and is no song
+  expect(items.length).toBe(2);
+  expect(items[0]).toMatchObject({
+    type: 'song',
+    title: 'Text 1',
+    artists: [{ id: expect.stringMatching(/^UC/), name: 'Text 2' }],
+    album: { id: expect.stringMatching(/^MPREb_/), name: 'Text 3' },
+    duration: expect.any(Number),
+    library: { saved: true, add: 'token-3', remove: 'token-4' },
+    like: 'LIKE',
+  });
+  expect(continuation).toBe('token-13');
+
+  const next = parseLibrary(fixture('library-songs-next'));
+  expect(next.items.length).toBe(3);
+  expect(next.items.every((item) => item.library?.saved)).toBe(true);
+  expect(next.continuation).toEqual(expect.any(String));
+
+  // The same rows in the newer envelope of a next page
+  const rows = (
+    fixture('library-songs-next') as {
+      continuationContents: { musicShelfContinuation: { contents: Json } };
+    }
+  ).continuationContents.musicShelfContinuation.contents;
+  const appended = parseLibrary({
+    onResponseReceivedActions: [
+      {
+        appendContinuationItemsAction: {
+          continuationItems: [
+            ...(rows as Json[]),
+            {
+              continuationItemRenderer: {
+                continuationEndpoint: {
+                  continuationCommand: { token: 'token-next' },
+                },
+              },
+            },
+          ],
+        },
+      },
+    ],
+  });
+  expect(appended.items).toEqual(next.items);
+  expect(appended.continuation).toBe('token-next');
+});
+
+// A song row with the older library menu, which starts with the action that
+// undoes the current state
+const olderRow = (icon: string, first: string, second: string): Json => ({
+  flexColumns: [
+    {
+      musicResponsiveListItemFlexColumnRenderer: {
+        text: {
+          runs: [
+            {
+              text: 'A song',
+              navigationEndpoint: { watchEndpoint: { videoId: 'aaaaaaaaaaa' } },
+            },
+          ],
+        },
+      },
+    },
+  ],
+  menu: {
+    menuRenderer: {
+      items: [
+        {
+          toggleMenuServiceItemRenderer: {
+            defaultIcon: { iconType: icon },
+            defaultServiceEndpoint: {
+              feedbackEndpoint: { feedbackToken: first },
+            },
+            toggledServiceEndpoint: {
+              feedbackEndpoint: { feedbackToken: second },
+            },
+          },
+        },
+      ],
+    },
+  },
+});
+
+test('older library menus give the save and remove tokens the right way round', () => {
+  expect(
+    parseListItem(olderRow('LIBRARY_SAVED', 'remove-it', 'add-it'))?.library,
+  ).toEqual({ saved: true, add: 'add-it', remove: 'remove-it' });
+  expect(
+    parseListItem(olderRow('LIBRARY_ADD', 'add-it', 'remove-it'))?.library,
+  ).toEqual({ saved: false, add: 'add-it', remove: 'remove-it' });
+});
+
+test('library albums, artists, subscriptions and playlists come from grids and shelves', () => {
+  const albums = parseLibrary(fixture('library-albums'));
+  expect(albums.items.map((item) => item.type)).toEqual([
+    'album',
+    'album',
+    'album',
+  ]);
+  expect(albums.items[0].library?.saved).toBe(true);
+  expect(albums.continuation).toEqual(expect.any(String));
+  const more = parseLibrary(fixture('library-albums-next'));
+  expect(more.items.length).toBe(3);
+  expect(more.continuation).toEqual(expect.any(String));
+
+  const artists = parseLibrary(fixture('library-artists'));
+  expect(artists.items.every((item) => item.type === 'artist')).toBe(true);
+  expect(artists.items[0].id).toMatch(/^MPLAUC/);
+  expect(parseLibrary(fixture('library-subscriptions')).items[0]).toMatchObject(
+    { type: 'artist', id: expect.stringMatching(/^UC/), library: null },
+  );
+
+  const playlists = parseLibrary(fixture('library-playlists'));
+  expect(playlists.items[0]).toMatchObject({
+    type: 'playlist',
+    id: 'VLLM',
+    title: 'Liked Music',
+    playlistId: 'LM',
+  });
+});
+
+test('history rows tell songs saved to the library from the others', () => {
+  const { items, continuation } = parseLibrary(fixture('library-history'));
+  expect(items.length).toBe(6);
+  expect(items[0]).toMatchObject({
+    type: 'song',
+    library: { saved: false, add: 'token-80', remove: 'token-81' },
+    like: 'INDIFFERENT',
+  });
+  expect(continuation).toBeNull();
+});
+
+test('liked songs keep their slot for edits', () => {
+  const { tracks } = parsePlaylist('VLLM', fixture('library-likes'));
+  expect(tracks[0]).toMatchObject({
+    type: 'song',
+    slot: expect.any(String),
+    like: 'LIKE',
+    playlistId: 'LM',
+  });
 });

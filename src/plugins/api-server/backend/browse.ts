@@ -69,6 +69,46 @@ export type Item = {
   // The song's place in a playlist, which edits to the playlist name
   slot: string | null;
   available: boolean;
+  // In the library, and the site's tokens that save it there or remove it
+  library: Library | null;
+  like: LikeStatus | null;
+};
+export type Library = {
+  saved: boolean;
+  add: string | null;
+  remove: string | null;
+};
+export type LikeStatus = 'LIKE' | 'DISLIKE' | 'INDIFFERENT';
+const likeStatuses = new Set<string>(['LIKE', 'DISLIKE', 'INDIFFERENT']);
+
+// The library and like state that a row's menu holds for a signed-in account
+const menuState = (menu: Json | undefined) => {
+  const toggle = array(at(menu, 'menuRenderer', 'items'))
+    .map((entry) => object(at(entry, 'toggleMenuServiceItemRenderer')))
+    .find((entry) =>
+      /^(BOOKMARK|LIBRARY_)/.test(
+        string(at(entry, 'defaultIcon', 'iconType')) ?? '',
+      ),
+    );
+  const token = (endpoint: string) =>
+    string(at(toggle, endpoint, 'feedbackEndpoint', 'feedbackToken')) ?? null;
+  // The newer menu says whether it is saved and always offers saving first;
+  // the older one starts with the action that undoes the current state
+  const older = toggle?.isToggled === undefined;
+  const saved = older
+    ? ['LIBRARY_SAVED', 'LIBRARY_REMOVE'].includes(
+        string(at(toggle, 'defaultIcon', 'iconType')) ?? '',
+      )
+    : toggle?.isToggled === true;
+  const [add, remove] =
+    older && saved
+      ? [token('toggledServiceEndpoint'), token('defaultServiceEndpoint')]
+      : [token('defaultServiceEndpoint'), token('toggledServiceEndpoint')];
+  const like = string(at(find(menu, 'likeButtonRenderer'), 'likeStatus'));
+  return {
+    library: toggle ? { saved, add, remove } : null,
+    like: like && likeStatuses.has(like) ? (like as LikeStatus) : null,
+  };
 };
 
 const pageTypes: Record<string, ItemType> = {
@@ -225,6 +265,7 @@ export const parseListItem = (renderer: Json | undefined): Item | null => {
     available:
       item.musicItemRendererDisplayPolicy !==
       'MUSIC_ITEM_RENDERER_DISPLAY_POLICY_GREY_OUT',
+    ...menuState(item.menu),
   };
 };
 
@@ -253,6 +294,7 @@ export const parseCard = (renderer: Json | undefined): Item | null => {
       null,
     slot: null,
     available: true,
+    ...menuState(card.menu),
   };
 };
 
@@ -280,6 +322,7 @@ const parseTopResult = (renderer: Json | undefined): Item | null => {
       null,
     slot: null,
     available: true,
+    ...menuState(card.menu),
   };
 };
 
@@ -331,6 +374,36 @@ export const parseSearch = (response: Json): Page => {
       found.push(...items(at(shelf, 'contents')));
       continuation ??= nextToken(at(shelf, 'contents'), shelf);
     }
+  }
+  return { items: found, continuation };
+};
+
+// A page of the library (songs, albums, artists, subscriptions, playlists,
+// history), or its next page. The site lists them in shelves or in grids.
+export const parseLibrary = (response: Json): Page => {
+  const next =
+    at(response, 'continuationContents', 'musicShelfContinuation') ??
+    at(response, 'continuationContents', 'gridContinuation');
+  if (next) {
+    const list = at(next, 'contents') ?? at(next, 'items');
+    return { items: items(list), continuation: nextToken(list, next) };
+  }
+  // The newer shape of a next page, as playlists already get it
+  const appended = find(response, 'appendContinuationItemsAction');
+  if (appended) {
+    const list = at(appended, 'continuationItems');
+    return { items: items(list), continuation: nextToken(list) };
+  }
+  const found: Item[] = [];
+  let continuation: string | null = null;
+  const sections = array(at(find(response, 'sectionListRenderer'), 'contents'));
+  for (const section of sections) {
+    const shelf =
+      at(section, 'musicShelfRenderer') ?? at(section, 'gridRenderer');
+    if (!shelf) continue;
+    const list = at(shelf, 'contents') ?? at(shelf, 'items');
+    found.push(...items(list));
+    continuation ??= nextToken(list, shelf);
   }
   return { items: found, continuation };
 };
@@ -512,6 +585,7 @@ const queueItem = (entry: Json) => {
       playlistId: watch?.playlistId ?? null,
       slot: string(item.playlistSetVideoId) ?? null,
       available: true,
+      ...menuState(item.menu),
     } satisfies Item,
   };
 };
