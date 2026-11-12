@@ -133,3 +133,58 @@ test('A search through the API gives plain items', async () => {
     await app.close();
   }
 });
+
+test('A token stays good after the app restarts', async () => {
+  test.setTimeout(120_000);
+  const port = await freePort();
+  const api = `http://127.0.0.1:${port}`;
+  const userData = test.info().outputPath('profile');
+  mkdirSync(userData, { recursive: true });
+  // No secret in the settings: the app makes one
+  writeFileSync(
+    path.join(userData, 'config.json'),
+    JSON.stringify({
+      plugins: {
+        'api-server': { enabled: true, port, authorizedClients: ['test'] },
+      },
+    }),
+  );
+  const start = () =>
+    electron.launch({
+      cwd: appPath,
+      args: [
+        appPath,
+        `--user-data-dir=${userData}`,
+        '--no-sandbox',
+        '--disable-gpu',
+        '--whitelisted-ips=',
+        '--disable-dev-shm-usage',
+      ],
+    });
+  const songStatus = async (token) =>
+    (
+      await fetch(`${api}/api/v1/song`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    ).status;
+
+  let app = await start();
+  let accessToken;
+  try {
+    await expect(async () => {
+      const response = await fetch(`${api}/auth/test`, { method: 'POST' });
+      ({ accessToken } = await response.json());
+    }).toPass({ timeout: 30_000 });
+  } finally {
+    await app.close();
+  }
+
+  app = await start();
+  try {
+    await expect(async () => {
+      expect([200, 204]).toContain(await songStatus(accessToken));
+    }).toPass({ timeout: 30_000 });
+  } finally {
+    await app.close();
+  }
+});

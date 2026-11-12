@@ -41,9 +41,13 @@ export const backend = createBackend<BackendType, APIServerConfig>({
     const config = await ctx.getConfig();
     // Older versions saved the time of a start as the secret: eight characters
     // in base 36. Replace such a secret. Paired clients ask for a new token.
-    if (/^[0-9a-z]{8}$/.test(config.secret)) {
-      await ctx.setConfig({ secret: defaultAPIServerConfig.secret });
-    }
+    // A secret from the defaults is new on every start until it is saved, so
+    // it is saved now: tokens then stay good after a restart.
+    await ctx.setConfig({
+      secret: /^[0-9a-z]{8}$/.test(config.secret)
+        ? defaultAPIServerConfig.secret
+        : config.secret,
+    });
 
     this.init(ctx);
     registerCallback((songInfo) => {
