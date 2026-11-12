@@ -3,9 +3,11 @@ productName: Rien
 files:
   - '!*'
   - dist
-  # Only the native module built for the architecture being packed
+  # Only the native module and ytmpc built for the architecture being packed
   - '!dist/native/**'
   - 'dist/native/${arch}/**'
+  - '!dist/bin/**'
+  - 'dist/bin/${arch}/**'
   - assets
   - license
   - '!node_modules'
@@ -16,6 +18,7 @@ files:
 asarUnpack:
   - assets
   - dist/native/**
+  - dist/bin/**
 beforePack: native/before-pack.cjs
 mac:
   identity: null

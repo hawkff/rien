@@ -1,6 +1,8 @@
 // electron-builder runs this before packing each platform and architecture, so
-// every package gets the native module built for its own target.
+// every package gets the native module and ytmpc, the terminal client, built
+// for its own target.
 const { execFileSync } = require('node:child_process');
+const { copyFileSync, mkdirSync } = require('node:fs');
 const { join } = require('node:path');
 
 // electron-builder's Arch enum
@@ -18,4 +20,27 @@ module.exports = async function beforePack(context) {
   execFileSync('bun', [join(__dirname, 'build.ts'), target], {
     stdio: 'inherit',
   });
+
+  const cli = join(__dirname, '..', 'cli');
+  execFileSync(
+    'cargo',
+    [
+      'build',
+      '--release',
+      '--locked',
+      '--manifest-path',
+      join(cli, 'Cargo.toml'),
+      '--target',
+      target,
+      '--target-dir',
+      join(cli, 'target'),
+    ],
+    { stdio: 'inherit' },
+  );
+  const bin = join(__dirname, '..', 'dist', 'bin', archNames[context.arch]);
+  mkdirSync(bin, { recursive: true });
+  copyFileSync(
+    join(cli, 'target', target, 'release', 'ytmpc'),
+    join(bin, 'ytmpc'),
+  );
 };

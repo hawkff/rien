@@ -21,6 +21,7 @@ import { pluginSections, sectionOf } from './menu-sections';
 import { relaunch, restart } from './providers/app-controls';
 import { startingPages } from './providers/extracted-data';
 import promptOptions from './providers/prompt-options';
+import { installYtmpc } from './providers/ytmpc';
 import {
   accountArgs,
   createGuestProfile,
@@ -612,6 +613,14 @@ export const mainMenuTemplate = async (
               ),
               click() {
                 config.edit();
+              },
+            },
+            {
+              label: t(
+                'main.menu.options.submenu.advanced-options.submenu.install-ytmpc',
+              ),
+              async click() {
+                await installYtmpc(win);
               },
             },
           ],

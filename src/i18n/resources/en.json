@@ -76,6 +76,17 @@
         "detail": "A new version is available and can be downloaded at {{downloadLink}}",
         "message": "A new version is available",
         "title": "Update Available"
+      },
+      "ytmpc": {
+        "api-server": "ytmpc reaches Rien through Plugins > Other apps and services > API Server: turn it on, then run ytmpc in a terminal.",
+        "applications": "Move Rien to the Applications folder and open it from there, then install the command.",
+        "copy": "It's a copy of the one inside Rien: install it again after updating the app.",
+        "done": "The ytmpc command is at {{path}}",
+        "failed": "The ytmpc command couldn't be installed",
+        "link": "It runs the one inside Rien, so it updates with the app.",
+        "local-bin": "If your shell can't find it, add ~/.local/bin to PATH.",
+        "missing": "This build of Rien doesn't carry ytmpc.",
+        "sandbox": "This Rien runs in a sandbox, which keeps it from putting a command where your shell finds it."
       }
     },
     "menu": {
@@ -106,6 +117,7 @@
               "auto-reset-app-cache": "Reset app cache when app starts",
               "disable-hardware-acceleration": "Disable hardware acceleration",
               "edit-config-json": "Edit config.json",
+              "install-ytmpc": "Install the ytmpc command",
               "override-user-agent": "Override User-Agent",
               "restart-on-config-changes": "Restart on config changes",
               "set-proxy": {

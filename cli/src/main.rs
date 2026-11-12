@@ -45,7 +45,7 @@ Usage: ytmpc [command] [--json]
   pair                       ask Rien for access again
 
 --json prints Rien's answer as JSON, for scripts and agents.
-Rien's API server must be on (Plugins > API Server), without HTTPS:
+Rien's API server must be on (Plugins > Other apps and services > API Server), without HTTPS:
 ytmpc talks to it over plain HTTP on this computer.
 Settings, in ~/.config/ytmpc:
   config.toml   address = \"127.0.0.1:26538\"
@@ -175,7 +175,9 @@ fn start_rien(rien: &Rien, address: &str) -> Result<()> {
         }
         thread::sleep(Duration::from_millis(500));
     }
-    bail!("Rien didn't answer at {address}. If it runs, turn on Plugins > API Server.")
+    bail!(
+        "Rien didn't answer at {address}. If it runs, turn on Plugins > Other apps and services > API Server."
+    )
 }
 
 fn main() {

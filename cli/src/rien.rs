@@ -65,7 +65,7 @@ impl Rien {
             || matches!(&error, ureq::Error::ConnectionFailed);
         if refused {
             anyhow!(
-                "Can't reach Rien at {}. Start Rien and turn on Plugins > API Server.",
+                "Can't reach Rien at {}. Start Rien and turn on Plugins > Other apps and services > API Server.",
                 self.address
             )
         } else {
@@ -236,7 +236,7 @@ impl Rien {
                 tungstenite::connect(url.as_str()).map_err(|error| match error {
                     // The URL carries the token, so the error is told without it
                     tungstenite::Error::Url(_) | tungstenite::Error::Io(_) => anyhow!(
-                        "Can't reach Rien at {}. Start Rien and turn on Plugins > API Server.",
+                        "Can't reach Rien at {}. Start Rien and turn on Plugins > Other apps and services > API Server.",
                         self.address
                     ),
                     tungstenite::Error::Http(response) => {
