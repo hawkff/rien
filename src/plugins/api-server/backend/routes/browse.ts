@@ -5,13 +5,13 @@ import { getSongControls } from '@/providers/song-controls';
 
 import { API_VERSION } from '../api-version';
 import {
-  type Json,
   parseAlbum,
   parseArtist,
   parseLibrary,
   parsePlaylist,
   parseSearch,
 } from '../browse';
+import { askPage, pageSignedIn } from '../page';
 import {
   AlbumPageSchema,
   ArtistPageSchema,
@@ -146,27 +146,8 @@ export const register = (
   { window }: BackendContext<APIServerConfig>,
   songInfoGetter: () => SongInfo | undefined,
 ) => {
-  // Asks the site's API through the page, with the page's session. The inputs
-  // are validated and go in as JSON literals.
-  const ask = async (endpoint: '/search' | '/browse', body: object) => {
-    let timer: NodeJS.Timeout | undefined;
-    try {
-      const answer: unknown = await Promise.race([
-        window.webContents.executeJavaScript(
-          `document.querySelector('ytmusic-app')?.networkManager?.fetch(${JSON.stringify(endpoint)}, ${JSON.stringify(body)}) ?? null`,
-        ),
-        new Promise((resolve) => {
-          timer = setTimeout(() => resolve(null), 20_000);
-        }),
-      ]);
-      return (answer ?? null) as Json | null;
-    } catch (error) {
-      console.error('The page could not answer', endpoint, error);
-      return null;
-    } finally {
-      clearTimeout(timer);
-    }
-  };
+  const ask = (endpoint: '/search' | '/browse', body: object) =>
+    askPage(window, endpoint, body);
   const noAnswer = { error: 'The page could not answer; try again' };
 
   app.openapi(routes.search, async (ctx) => {
@@ -220,16 +201,7 @@ export const register = (
     const { kind } = ctx.req.valid('param');
     const { continuation } = ctx.req.valid('query');
     // Unknown when the page doesn't answer in time; the request then goes on
-    let timer: NodeJS.Timeout | undefined;
-    const signedIn = (await Promise.race([
-      window.webContents
-        .executeJavaScript('window.ytcfg?.get?.("LOGGED_IN") ?? null')
-        .catch(() => null),
-      new Promise((resolve) => {
-        timer = setTimeout(() => resolve(null), 5_000);
-      }),
-    ]).finally(() => clearTimeout(timer))) as boolean | null;
-    if (signedIn === false) {
+    if ((await pageSignedIn(window)) === false) {
       return ctx.json({ error: 'Rien is not signed in' }, 409);
     }
     const browseId = libraryPages[kind];

@@ -18,6 +18,7 @@ import {
   registerAuth,
   registerBrowse,
   registerControl,
+  registerLibrary,
   registerWebsocket,
 } from './routes';
 import { JWTPayloadSchema } from './scheme';
@@ -158,6 +159,7 @@ export const backend = createBackend<BackendType, APIServerConfig>({
       () => this.volumeState,
     );
     registerBrowse(this.app, backendCtx, () => this.songInfo);
+    registerLibrary(this.app, backendCtx);
     registerAuth(this.app, backendCtx);
     registerWebsocket(this.app, backendCtx, upgradeWebSocket);
 
