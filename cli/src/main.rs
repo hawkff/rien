@@ -1,8 +1,16 @@
 // ytmpc: Rien's terminal client. One-shot commands over Rien's API server.
 mod items;
 mod rien;
+mod tui;
 
-use std::{env, fs, path::PathBuf};
+use std::{
+    env, fs,
+    io::IsTerminal,
+    path::PathBuf,
+    process::{Command, Stdio},
+    thread,
+    time::{Duration, Instant},
+};
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
@@ -18,7 +26,8 @@ ytmpc: Rien's terminal client
 
 Usage: ytmpc [command] [--json]
 
-  status                     what plays (the default)
+  (no command)               the full-screen client, in a terminal
+  status                     what plays (the default outside a terminal)
   watch                      print changes as they happen
   play [ID] [--list LIST]    resume, or play a song, an album or a playlist
                              (from one of its songs with --list)
@@ -41,6 +50,9 @@ Settings: ~/.config/ytmpc/config.toml, address = \"127.0.0.1:26538\"
 #[derive(Deserialize, Default)]
 struct Config {
     address: Option<String>,
+    /// Key name to action for the full-screen client, mpv style
+    #[serde(default)]
+    keys: std::collections::HashMap<String, String>,
 }
 
 fn config_dir() -> PathBuf {
@@ -125,6 +137,34 @@ fn query(text: &str) -> String {
     out
 }
 
+/// Opens Rien (on macOS through Launch Services, elsewhere from PATH) and
+/// waits for its API server
+fn start_rien(rien: &Rien, address: &str) -> Result<()> {
+    eprintln!("Starting Rien…");
+    let mut command = if cfg!(target_os = "macos") {
+        let mut open = Command::new("open");
+        open.args(["-g", "-a", "Rien"]);
+        open
+    } else {
+        Command::new("rien")
+    };
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    if let Err(error) = command.spawn() {
+        bail!("Can't start Rien ({error}). Start it, then run ytmpc again.");
+    }
+    let started = Instant::now();
+    while started.elapsed() < Duration::from_secs(30) {
+        if rien.reachable() {
+            return Ok(());
+        }
+        thread::sleep(Duration::from_millis(500));
+    }
+    bail!("Rien didn't answer at {address}. If it runs, turn on Plugins > API Server.")
+}
+
 fn main() {
     if let Err(error) = run() {
         eprintln!("ytmpc: {}", items::clean(&format!("{error:#}")));
@@ -152,10 +192,20 @@ fn run() -> Result<()> {
         Ok(text) => toml::from_str(&text).context("~/.config/ytmpc/config.toml has an error")?,
         Err(_) => Config::default(),
     };
-    let mut rien = Rien::new(
-        config.address.unwrap_or_else(|| "127.0.0.1:26538".into()),
-        dir,
-    );
+    let address = config.address.unwrap_or_else(|| "127.0.0.1:26538".into());
+    let mut rien = Rien::new(address.clone(), dir.clone());
+
+    // No command in a terminal opens the full-screen client, which starts
+    // Rien when it doesn't answer; commands never do
+    if args.is_empty() && std::io::stdout().is_terminal() && !as_json {
+        if !rien.reachable() {
+            start_rien(&rien, &address)?;
+        }
+        // Asks for access before the screen changes, so the prompt shows
+        rien.request(Method::Get, "/api/v1/song", None)?;
+        let feed = Rien::new(address, dir.clone()).quiet();
+        return tui::run(rien.quiet(), feed, &dir.join("theme.toml"), &config.keys);
+    }
 
     // Prints JSON as is, or hands it to the human printer
     let show = |answer: Option<Value>, human: &dyn Fn(&Value)| match (answer, as_json) {

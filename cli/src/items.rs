@@ -17,6 +17,9 @@ pub struct Item {
     pub artists: Vec<Ref>,
     pub album: Option<Ref>,
     pub duration: Option<u64>,
+    /// The song's place in Rien's queue, which stays its own when others move
+    #[serde(default)]
+    pub slot: Option<String>,
     pub available: bool,
 }
 

@@ -20,11 +20,14 @@ pub enum Method {
     Delete,
 }
 
+#[derive(Clone)]
 pub struct Rien {
     address: String,
     agent: Agent,
     token: Option<String>,
     token_path: PathBuf,
+    /// No notes on stderr, which would cut into a full-screen client
+    quiet: bool,
 }
 
 fn agent(timeout: Duration) -> Agent {
@@ -36,6 +39,12 @@ fn agent(timeout: Duration) -> Agent {
 }
 
 impl Rien {
+    /// The same client without notes on stderr
+    pub fn quiet(mut self) -> Self {
+        self.quiet = true;
+        self
+    }
+
     pub fn new(address: String, dir: PathBuf) -> Self {
         let token_path = dir.join("token");
         let token = fs::read_to_string(&token_path)
@@ -47,6 +56,7 @@ impl Rien {
             agent: agent(Duration::from_secs(30)),
             token,
             token_path,
+            quiet: false,
         }
     }
 
@@ -92,14 +102,14 @@ impl Rien {
         result.map_err(|error| self.unreachable(error))
     }
 
-    /// Sends a request and gives its JSON answer, or None for an empty one.
-    /// Without a token, or with one Rien no longer accepts, it pairs first.
-    pub fn request(
+    /// Sends a request and gives the answer of a successful one. Without a
+    /// token, or with one Rien no longer accepts, it pairs first.
+    fn answered(
         &mut self,
         method: Method,
         path: &str,
         body: Option<&Value>,
-    ) -> Result<Option<Value>> {
+    ) -> Result<Response<Body>> {
         if self.token.is_none() {
             self.pair()?;
         }
@@ -109,19 +119,10 @@ impl Rien {
             response = self.send(&method, path, body)?;
         }
         let status = response.status().as_u16();
-        let text = response
-            .body_mut()
-            .read_to_string()
-            .context("Couldn't read Rien's answer")?;
         if (200..300).contains(&status) {
-            return if text.trim().is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(
-                    serde_json::from_str(&text).context("Rien's answer isn't JSON")?,
-                ))
-            };
+            return Ok(response);
         }
+        let text = response.body_mut().read_to_string().unwrap_or_default();
         // The API's own errors carry a message; validation errors carry Zod's
         let message = serde_json::from_str::<Value>(&text)
             .ok()
@@ -135,9 +136,52 @@ impl Rien {
         bail!("Rien answered {status}: {message}")
     }
 
+    /// Sends a request and gives its JSON answer, or None for an empty one.
+    pub fn request(
+        &mut self,
+        method: Method,
+        path: &str,
+        body: Option<&Value>,
+    ) -> Result<Option<Value>> {
+        let mut response = self.answered(method, path, body)?;
+        let text = response
+            .body_mut()
+            .read_to_string()
+            .context("Couldn't read Rien's answer")?;
+        if text.trim().is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(
+                serde_json::from_str(&text).context("Rien's answer isn't JSON")?,
+            ))
+        }
+    }
+
+    /// Gets a binary answer, such as a cover, or None for an empty one.
+    pub fn bytes(&mut self, path: &str) -> Result<Option<Vec<u8>>> {
+        let mut response = self.answered(Method::Get, path, None)?;
+        let bytes = response
+            .body_mut()
+            .with_config()
+            .limit(32 * 1024 * 1024)
+            .read_to_vec()
+            .context("Couldn't read Rien's answer")?;
+        Ok(if bytes.is_empty() { None } else { Some(bytes) })
+    }
+
+    /// Whether anything answers HTTP at the address, token or not
+    pub fn reachable(&self) -> bool {
+        agent(Duration::from_secs(3))
+            .get(format!("http://{}/api/v1/song", self.address).as_str())
+            .call()
+            .is_ok()
+    }
+
     /// Asks Rien for a token; Rien asks its user to allow ytmpc.
     pub fn pair(&mut self) -> Result<()> {
-        eprintln!("Asking Rien for access. Allow ytmpc in the dialog Rien shows.");
+        if !self.quiet {
+            eprintln!("Asking Rien for access. Allow ytmpc in the dialog Rien shows.");
+        }
         let mut response = agent(Duration::from_secs(300))
             .post(format!("http://{}/auth/{CLIENT_ID}", self.address).as_str())
             .send_empty()
@@ -190,13 +234,15 @@ impl Rien {
             );
             let (mut socket, _) =
                 tungstenite::connect(url.as_str()).map_err(|error| match error {
-                    tungstenite::Error::Io(io) if io.kind() == ErrorKind::ConnectionRefused => {
-                        anyhow!(
-                            "Can't reach Rien at {}. Start Rien and turn on Plugins > API Server.",
-                            self.address
-                        )
+                    // The URL carries the token, so the error is told without it
+                    tungstenite::Error::Url(_) | tungstenite::Error::Io(_) => anyhow!(
+                        "Can't reach Rien at {}. Start Rien and turn on Plugins > API Server.",
+                        self.address
+                    ),
+                    tungstenite::Error::Http(response) => {
+                        anyhow!("Rien's live feed didn't open: {}", response.status())
                     }
-                    error => anyhow!(error).context("Rien's live feed didn't open"),
+                    _ => anyhow!("Rien's live feed didn't open"),
                 })?;
             loop {
                 match socket.read() {
