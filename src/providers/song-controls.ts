@@ -42,6 +42,9 @@ export const getSongControls = (win: BrowserWindow) => {
     previous: () => win.webContents.send('peard:previous-video'),
     next: () => win.webContents.send('peard:next-video'),
     play: () => win.webContents.send('peard:play'),
+    // A song, a list from its start, or a list from one of its songs
+    playTarget: (target: { videoId?: string; playlistId?: string }) =>
+      win.webContents.send('peard:play-target', target),
     pause: () => win.webContents.send('peard:pause'),
     playPause: () => win.webContents.send('peard:toggle-play'),
     like: () => win.webContents.send('peard:update-like', LikeType.Like),

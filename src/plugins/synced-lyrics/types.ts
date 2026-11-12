@@ -29,6 +29,15 @@ export type LineLyrics = {
 
 export type LineEffect = 'fancy' | 'scale' | 'offset' | 'focus';
 
+// The lyrics shown for the current song, as the API server gives them
+export type CurrentLyrics = {
+  provider: string;
+  title: string;
+  artists: string[];
+  lines: { timeMs: number; durationMs: number | null; text: string }[] | null;
+  plain: string | null;
+};
+
 export interface LyricResult {
   title: string;
   artists: string[];

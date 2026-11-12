@@ -1,0 +1,365 @@
+{
+  "continuationContents": {
+    "musicShelfContinuation": {
+      "contents": [
+        {
+          "musicResponsiveListItemRenderer": {
+            "thumbnail": {
+              "musicThumbnailRenderer": {
+                "thumbnail": {
+                  "thumbnails": [
+                    {
+                      "url": "https://yt3.googleusercontent.com/3lb7-tL4PY-j3wyHSpQlZuqDir6qBJ6mUhWtJUt7cnaxUWY2gyJ2RIVodgNex6kTivozvqj2V3vPszE52Q=w54",
+                      "width": 120,
+                      "height": 120
+                    }
+                  ]
+                }
+              }
+            },
+            "overlay": {
+              "musicItemThumbnailOverlayRenderer": {
+                "content": {
+                  "musicPlayButtonRenderer": {
+                    "playNavigationEndpoint": {
+                      "watchEndpoint": {
+                        "videoId": "Dtt-9AekRqk",
+                        "watchEndpointMusicSupportedConfigs": {
+                          "watchEndpointMusicConfig": {
+                            "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "flexColumns": [
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": {
+                    "runs": [
+                      {
+                        "text": "Lying from You",
+                        "navigationEndpoint": {
+                          "watchEndpoint": {
+                            "videoId": "Dtt-9AekRqk",
+                            "watchEndpointMusicSupportedConfigs": {
+                              "watchEndpointMusicConfig": {
+                                "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": {
+                    "runs": [
+                      {
+                        "text": "Linkin Park",
+                        "navigationEndpoint": {
+                          "browseEndpoint": {
+                            "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                            "browseEndpointContextSupportedConfigs": {
+                              "browseEndpointContextMusicConfig": {
+                                "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "text": " • "
+                      },
+                      {
+                        "text": "Meteora (Bonus Edition)",
+                        "navigationEndpoint": {
+                          "browseEndpoint": {
+                            "browseId": "MPREb_eIeUqM4OeKG",
+                            "browseEndpointContextSupportedConfigs": {
+                              "browseEndpointContextMusicConfig": {
+                                "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "text": " • "
+                      },
+                      {
+                        "text": "2:56"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": {
+                    "runs": [
+                      {
+                        "text": "212M plays"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "playlistItemData": {
+              "videoId": "Dtt-9AekRqk"
+            }
+          }
+        },
+        {
+          "musicResponsiveListItemRenderer": {
+            "thumbnail": {
+              "musicThumbnailRenderer": {
+                "thumbnail": {
+                  "thumbnails": [
+                    {
+                      "url": "https://yt3.googleusercontent.com/YhfFgdvtwfIcLi_2H54RP15T3IPiUZnNtlwvlomHsAmAMQMZhgXu11HoFWPcWAiJRfdChtrqrGRbQl3idA=w54",
+                      "width": 120,
+                      "height": 120
+                    }
+                  ]
+                }
+              }
+            },
+            "overlay": {
+              "musicItemThumbnailOverlayRenderer": {
+                "content": {
+                  "musicPlayButtonRenderer": {
+                    "playNavigationEndpoint": {
+                      "watchEndpoint": {
+                        "videoId": "IJyeAgLcVXo",
+                        "watchEndpointMusicSupportedConfigs": {
+                          "watchEndpointMusicConfig": {
+                            "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "flexColumns": [
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": {
+                    "runs": [
+                      {
+                        "text": "Pretty Birdy (Somewhere I Belong 2002 Demo)",
+                        "navigationEndpoint": {
+                          "watchEndpoint": {
+                            "videoId": "IJyeAgLcVXo",
+                            "watchEndpointMusicSupportedConfigs": {
+                              "watchEndpointMusicConfig": {
+                                "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": {
+                    "runs": [
+                      {
+                        "text": "Linkin Park",
+                        "navigationEndpoint": {
+                          "browseEndpoint": {
+                            "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                            "browseEndpointContextSupportedConfigs": {
+                              "browseEndpointContextMusicConfig": {
+                                "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "text": " • "
+                      },
+                      {
+                        "text": "Meteora 20th Anniversary Edition",
+                        "navigationEndpoint": {
+                          "browseEndpoint": {
+                            "browseId": "MPREb_DOhy8PyMH41",
+                            "browseEndpointContextSupportedConfigs": {
+                              "browseEndpointContextMusicConfig": {
+                                "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "text": " • "
+                      },
+                      {
+                        "text": "4:06"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": {
+                    "runs": [
+                      {
+                        "text": "1.1M plays"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "playlistItemData": {
+              "videoId": "IJyeAgLcVXo"
+            }
+          }
+        },
+        {
+          "musicResponsiveListItemRenderer": {
+            "thumbnail": {
+              "musicThumbnailRenderer": {
+                "thumbnail": {
+                  "thumbnails": [
+                    {
+                      "url": "https://yt3.googleusercontent.com/YhfFgdvtwfIcLi_2H54RP15T3IPiUZnNtlwvlomHsAmAMQMZhgXu11HoFWPcWAiJRfdChtrqrGRbQl3idA=w54",
+                      "width": 120,
+                      "height": 120
+                    }
+                  ]
+                }
+              }
+            },
+            "overlay": {
+              "musicItemThumbnailOverlayRenderer": {
+                "content": {
+                  "musicPlayButtonRenderer": {
+                    "playNavigationEndpoint": {
+                      "watchEndpoint": {
+                        "videoId": "gh1RWBKT4BY",
+                        "watchEndpointMusicSupportedConfigs": {
+                          "watchEndpointMusicConfig": {
+                            "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "flexColumns": [
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": {
+                    "runs": [
+                      {
+                        "text": "Fighting Myself",
+                        "navigationEndpoint": {
+                          "watchEndpoint": {
+                            "videoId": "gh1RWBKT4BY",
+                            "watchEndpointMusicSupportedConfigs": {
+                              "watchEndpointMusicConfig": {
+                                "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": {
+                    "runs": [
+                      {
+                        "text": "Linkin Park",
+                        "navigationEndpoint": {
+                          "browseEndpoint": {
+                            "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                            "browseEndpointContextSupportedConfigs": {
+                              "browseEndpointContextMusicConfig": {
+                                "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "text": " • "
+                      },
+                      {
+                        "text": "Meteora 20th Anniversary Edition",
+                        "navigationEndpoint": {
+                          "browseEndpoint": {
+                            "browseId": "MPREb_DOhy8PyMH41",
+                            "browseEndpointContextSupportedConfigs": {
+                              "browseEndpointContextMusicConfig": {
+                                "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "text": " • "
+                      },
+                      {
+                        "text": "3:22"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "musicResponsiveListItemFlexColumnRenderer": {
+                  "text": {
+                    "runs": [
+                      {
+                        "text": "81M plays"
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "playlistItemData": {
+              "videoId": "gh1RWBKT4BY"
+            }
+          }
+        }
+      ],
+      "continuations": [
+        {
+          "nextContinuationData": {
+            "continuation": "ErgDEhNMaW5raW4gUGFyayBNZXRlb3JhGqADRWdXS0FRSUlBVWdvYWhBUUNSQUZFQU1RQkJBS0VCQVFGUkFSZ2dFTFJIUjBMVGxCWld0U2NXdUNBUXRKU25sbFFXZE1ZMVpZYjRJQkMyZG9NVkpYUWt0VU5FSlpnZ0VMTldWeE4wNVBSbWx5TFctQ0FRdG9la1ZPUmtkbGVsWkRPSUlCQzBwblZFWlJVa0pUVVVzd2dnRUxhWEJNVnpWTVlqSm1Sa0dDQVF0UWJVeEhSRmhIY0VsaGE0SUJDMDVNTW5KYVpsWkhkMHc0Z2dFTGNtdHpOV3RoWlZGamNrR0NBUXRoZFVkdk9XSlZjRUptT0lJQkMyaGxhekJ2ZVZGWVlUWnZnZ0VMUjFKUFJXWjZRamx0UWpDQ0FRdDJWM05VZUZGelFXaElWWUlCQ3pCWGMzZzBabWxOUTJoRmdnRUxTMEZXVEhabFVHcFJTekNDQVFzeVN5MWxkbEp1ZDJOVFk0SUJDMjlmWDFaRGVFTlNNbmx6Z2dFTGRuZDRSSFJoUkVKUVgwbUNBUXRWYlRkUWIxRk1PWGRMWXclM0QlM0QY8erQLg%3D%3D"
+          }
+        }
+      ]
+    }
+  },
+  "header": {
+    "musicHeaderRenderer": {
+      "header": {}
+    }
+  }
+}

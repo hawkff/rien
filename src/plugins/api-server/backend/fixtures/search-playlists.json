@@ -1,0 +1,285 @@
+{
+  "contents": {
+    "tabbedSearchResultsRenderer": {
+      "tabs": [
+        {
+          "tabRenderer": {
+            "title": "YT Music",
+            "selected": true,
+            "content": {
+              "sectionListRenderer": {
+                "contents": [
+                  {
+                    "musicShelfRenderer": {
+                      "title": {
+                        "runs": [
+                          {
+                            "text": "Community playlists"
+                          }
+                        ]
+                      },
+                      "contents": [
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "thumbnail": {
+                              "musicThumbnailRenderer": {
+                                "thumbnail": {
+                                  "thumbnails": [
+                                    {
+                                      "url": "https://yt3.googleusercontent.com/MH77NWZfR-dXTjPz36ldtBVwOrKwFB4NDbuoVJD4xBaiwHQ0LmTLlM8vVmG8R2WvtoJTh8Qi0tE=s1200",
+                                      "width": 1200,
+                                      "height": 1200
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "overlay": {
+                              "musicItemThumbnailOverlayRenderer": {
+                                "content": {
+                                  "musicPlayButtonRenderer": {
+                                    "playNavigationEndpoint": {
+                                      "watchPlaylistEndpoint": {
+                                        "playlistId": "PLd9p7ZJWGPtmbjHzxJm7dGQKy-QV0Q4xJ",
+                                        "params": "wAEB"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "flexColumns": [
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Linkin Park - Lost Demos [Meteora 20TH Anniversary Edition]"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Thanapat Haboonpat",
+                                        "navigationEndpoint": {
+                                          "browseEndpoint": {
+                                            "browseId": "UCR_XOqa51vWP2ve8t5DEOiQ",
+                                            "browseEndpointContextSupportedConfigs": {
+                                              "browseEndpointContextMusicConfig": {
+                                                "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "text": " • "
+                                      },
+                                      {
+                                        "text": "170K views"
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ],
+                            "navigationEndpoint": {
+                              "browseEndpoint": {
+                                "browseId": "VLPLd9p7ZJWGPtmbjHzxJm7dGQKy-QV0Q4xJ",
+                                "browseEndpointContextSupportedConfigs": {
+                                  "browseEndpointContextMusicConfig": {
+                                    "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "thumbnail": {
+                              "musicThumbnailRenderer": {
+                                "thumbnail": {
+                                  "thumbnails": [
+                                    {
+                                      "url": "https://yt3.googleusercontent.com/gPIHRe_Epr-sOuBb3X8fAhSHN4oKAZnq2K61i8S_d7BpgHsBxfS11M_UCSRRMXw8P4w4mCOa6zcs=s1200",
+                                      "width": 1200,
+                                      "height": 1200
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "overlay": {
+                              "musicItemThumbnailOverlayRenderer": {
+                                "content": {
+                                  "musicPlayButtonRenderer": {
+                                    "playNavigationEndpoint": {
+                                      "watchPlaylistEndpoint": {
+                                        "playlistId": "PLfimNm1Iy8o0",
+                                        "params": "wAEB"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "flexColumns": [
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Best of Linkin Park 2026"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Peter Malherbe",
+                                        "navigationEndpoint": {
+                                          "browseEndpoint": {
+                                            "browseId": "UCzngbIzJwvQoTT5q9Jz9xGg",
+                                            "browseEndpointContextSupportedConfigs": {
+                                              "browseEndpointContextMusicConfig": {
+                                                "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "text": " • "
+                                      },
+                                      {
+                                        "text": "6 views"
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ],
+                            "navigationEndpoint": {
+                              "browseEndpoint": {
+                                "browseId": "VLPLfimNm1Iy8o0",
+                                "browseEndpointContextSupportedConfigs": {
+                                  "browseEndpointContextMusicConfig": {
+                                    "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "thumbnail": {
+                              "musicThumbnailRenderer": {
+                                "thumbnail": {
+                                  "thumbnails": [
+                                    {
+                                      "url": "https://yt3.googleusercontent.com/-Q8Q1VyKIwlsMGiPbthbaCBLZuQgM-M1w5RffvDvqUb8Hl1uZL3o4Lw3BUB-zrKCEHOdX0O6pw=s1200",
+                                      "width": 1200,
+                                      "height": 1200
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "overlay": {
+                              "musicItemThumbnailOverlayRenderer": {
+                                "content": {
+                                  "musicPlayButtonRenderer": {
+                                    "playNavigationEndpoint": {
+                                      "watchPlaylistEndpoint": {
+                                        "playlistId": "PLGPAjAPI8Yzs9t827zAq6CXXh8R0rTv-z",
+                                        "params": "wAEB"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "flexColumns": [
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Linkin Park Meteora 20th Anniversary"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Melissa Williams",
+                                        "navigationEndpoint": {
+                                          "browseEndpoint": {
+                                            "browseId": "UCrg0eDRQ_XR8i-vDKXTv7Kw",
+                                            "browseEndpointContextSupportedConfigs": {
+                                              "browseEndpointContextMusicConfig": {
+                                                "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "text": " • "
+                                      },
+                                      {
+                                        "text": "211K views"
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ],
+                            "navigationEndpoint": {
+                              "browseEndpoint": {
+                                "browseId": "VLPLGPAjAPI8Yzs9t827zAq6CXXh8R0rTv-z",
+                                "browseEndpointContextSupportedConfigs": {
+                                  "browseEndpointContextMusicConfig": {
+                                    "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "continuations": [
+                        {
+                          "nextContinuationData": {
+                            "continuation": "EpQHEhNMaW5raW4gUGFyayBNZXRlb3JhGvwGRWdlS0FRUW9BRUFCU0JScUVCQUpFQVVRQXhBRUVBb1FFQkFWRUJHQ0FTSlFUR1E1Y0RkYVNsZEhVSFJ0WW1wSWVuaEtiVGRrUjFGTGVTMVJWakJSTkhoS2dnRU5VRXhtYVcxT2JURkplVGh2TUlJQklsQk1SMUJCYWtGUVNUaFplbk01ZERneU4zcEJjVFpEV0Zob09GSXdjbFIyTFhxQ0FTSlFURkZJYlhOak5Ha3RlSFZRWTNkeFMwZE1ZWGgyUjNZNFZtTm5aRk5JU0ZkM2dnRWlVRXhNTldOdlptMVhTR2hOVm1WNk4ydzBlV2h6Y2xGb1dsUm5jR2RFWldwaE1JSUJJbEJNT1Y5eWNGbFVYMDVqZVdkMGJFSkhabGhZWDFOclpsOXRkRkJUTlY4MWFFV0NBU0pRVEdGc1ZFZHdMVUYzVFdSa1NYSlFXV1JTTXpSTVdXcG5RWHA2UTJabFdVeHNnZ0VpVUV3eFZURmtNa3BtY25SVVZsWTRTMU5RYTFJek0xTkZaMFJRTkV0RVVGTlRNb0lCSWxCTWRrRkdiSFZRYVd0RWFWcGxOMjF2Y0VwTVNEWTBRazlIUms1Q1RIQmhTR3VDQVNKUVRFTk1RMjVtWTBOTWJUWlFWVTlPYURkNVlXNXFVVWRZT0UxSGVUTXlTakpPZ2dFTlVFeEphVUp1ZFZodWFWVlZhNElCSWxCTVZHSXdka3BYWDNwbWRtTllNbEpQY0Y5aVFVeEVOR3RpZUc5T1RtTm5ha3VDQVExUVRHTmFVVWRXYjBWT1FXNVZnZ0VpVUV4MlZXcFRObGRHVm5NdFFYcHJUMmd5UjFSMlpWZ3dhVVJZYzFKQmNHMHlTSUlCSWxCTWN6Rm1jWGhGVkMxaGNFRjFOVTUzT1hSQ1FUVnRWbUZSUlRCek9FazNkR3lDQVExUVRFZHFPRTVhVjJ0MFREbHZnZ0VOVUV4T1VWQXdNRzlZYVRWamM0SUJJbEJNYTNGcFRGQldiR2g1U1dKT1RrSkxWVzh3YjFoUWVFczJMV2MxTlc1S04zYUNBU0pRVEdwM2VGcEpNMVo1WWxOek5YRnhZWEpPU1ZvNGIySTBWRFJrV2prdGNVWm1nZ0VpVUV4Wk0ySkZjR3hRTTBaRFNFSldUalptZUhGa1RIVkVaM1ZXYldNeFZXTklSZyUzRCUzRBjx6tAu"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "header": {}
+              }
+            },
+            "tabIdentifier": "music_search_catalog"
+          }
+        }
+      ]
+    }
+  }
+}

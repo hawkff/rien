@@ -18,7 +18,8 @@ export interface APIServerConfig {
 
 export const defaultAPIServerConfig: APIServerConfig = {
   enabled: false,
-  hostname: '0.0.0.0',
+  // Only this computer; set 0.0.0.0 to reach it from other devices
+  hostname: '127.0.0.1',
   port: 26538,
   authStrategy: AuthStrategy.AUTH_AT_FIRST,
   // Random. Not randomUUID, which the window's first, empty page lacks.

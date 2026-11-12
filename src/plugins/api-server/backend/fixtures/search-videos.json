@@ -1,0 +1,324 @@
+{
+  "contents": {
+    "tabbedSearchResultsRenderer": {
+      "tabs": [
+        {
+          "tabRenderer": {
+            "title": "YT Music",
+            "selected": true,
+            "content": {
+              "sectionListRenderer": {
+                "contents": [
+                  {
+                    "musicShelfRenderer": {
+                      "title": {
+                        "runs": [
+                          {
+                            "text": "Videos"
+                          }
+                        ]
+                      },
+                      "contents": [
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "thumbnail": {
+                              "musicThumbnailRenderer": {
+                                "thumbnail": {
+                                  "thumbnails": [
+                                    {
+                                      "url": "https://i.ytimg.com/vi/ZvXjl20nB6Q/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3mf88VYs3el_pyvKPgi6",
+                                      "width": 400,
+                                      "height": 225
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "overlay": {
+                              "musicItemThumbnailOverlayRenderer": {
+                                "content": {
+                                  "musicPlayButtonRenderer": {
+                                    "playNavigationEndpoint": {
+                                      "watchEndpoint": {
+                                        "videoId": "ZvXjl20nB6Q",
+                                        "watchEndpointMusicSupportedConfigs": {
+                                          "watchEndpointMusicConfig": {
+                                            "musicVideoType": "MUSIC_VIDEO_TYPE_UGC"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "flexColumns": [
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Linkin Park - What I've Done Music Video for Transformers The Movie",
+                                        "navigationEndpoint": {
+                                          "watchEndpoint": {
+                                            "videoId": "ZvXjl20nB6Q",
+                                            "watchEndpointMusicSupportedConfigs": {
+                                              "watchEndpointMusicConfig": {
+                                                "musicVideoType": "MUSIC_VIDEO_TYPE_UGC"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Md. Riasat Azim Aditto",
+                                        "navigationEndpoint": {
+                                          "browseEndpoint": {
+                                            "browseId": "UCzoBFj25zw7eSpZ08yriIMA",
+                                            "browseEndpointContextSupportedConfigs": {
+                                              "browseEndpointContextMusicConfig": {
+                                                "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "text": " • "
+                                      },
+                                      {
+                                        "text": "23M views"
+                                      },
+                                      {
+                                        "text": " • "
+                                      },
+                                      {
+                                        "text": "3:58"
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ],
+                            "playlistItemData": {
+                              "videoId": "ZvXjl20nB6Q"
+                            }
+                          }
+                        },
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "thumbnail": {
+                              "musicThumbnailRenderer": {
+                                "thumbnail": {
+                                  "thumbnails": [
+                                    {
+                                      "url": "https://i.ytimg.com/vi/ONMeMvLFxnM/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3lDcQEvOZz4F2ydPEBFg",
+                                      "width": 400,
+                                      "height": 225
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "overlay": {
+                              "musicItemThumbnailOverlayRenderer": {
+                                "content": {
+                                  "musicPlayButtonRenderer": {
+                                    "playNavigationEndpoint": {
+                                      "watchEndpoint": {
+                                        "videoId": "ONMeMvLFxnM",
+                                        "watchEndpointMusicSupportedConfigs": {
+                                          "watchEndpointMusicConfig": {
+                                            "musicVideoType": "MUSIC_VIDEO_TYPE_UGC"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "flexColumns": [
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Linkin Park Meteora 2.0 (Full Album) (Demos And Unreleased Songs)",
+                                        "navigationEndpoint": {
+                                          "watchEndpoint": {
+                                            "videoId": "ONMeMvLFxnM",
+                                            "watchEndpointMusicSupportedConfigs": {
+                                              "watchEndpointMusicConfig": {
+                                                "musicVideoType": "MUSIC_VIDEO_TYPE_UGC"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "MonsterTrucker08",
+                                        "navigationEndpoint": {
+                                          "browseEndpoint": {
+                                            "browseId": "UCEX84Ad0g17L-6QkVqLK6-g",
+                                            "browseEndpointContextSupportedConfigs": {
+                                              "browseEndpointContextMusicConfig": {
+                                                "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "text": " • "
+                                      },
+                                      {
+                                        "text": "343 views"
+                                      },
+                                      {
+                                        "text": " • "
+                                      },
+                                      {
+                                        "text": "54:59"
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ],
+                            "playlistItemData": {
+                              "videoId": "ONMeMvLFxnM"
+                            }
+                          }
+                        },
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "thumbnail": {
+                              "musicThumbnailRenderer": {
+                                "thumbnail": {
+                                  "thumbnails": [
+                                    {
+                                      "url": "https://i.ytimg.com/vi/kXYiU_JCYtU/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kBG_tyBsi_5z7yqJLGZ",
+                                      "width": 400,
+                                      "height": 225
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "overlay": {
+                              "musicItemThumbnailOverlayRenderer": {
+                                "content": {
+                                  "musicPlayButtonRenderer": {
+                                    "playNavigationEndpoint": {
+                                      "watchEndpoint": {
+                                        "videoId": "kXYiU_JCYtU",
+                                        "watchEndpointMusicSupportedConfigs": {
+                                          "watchEndpointMusicConfig": {
+                                            "musicVideoType": "MUSIC_VIDEO_TYPE_OMV"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "flexColumns": [
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Numb",
+                                        "navigationEndpoint": {
+                                          "watchEndpoint": {
+                                            "videoId": "kXYiU_JCYtU",
+                                            "watchEndpointMusicSupportedConfigs": {
+                                              "watchEndpointMusicConfig": {
+                                                "musicVideoType": "MUSIC_VIDEO_TYPE_OMV"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Linkin Park",
+                                        "navigationEndpoint": {
+                                          "browseEndpoint": {
+                                            "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                                            "browseEndpointContextSupportedConfigs": {
+                                              "browseEndpointContextMusicConfig": {
+                                                "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "text": " • "
+                                      },
+                                      {
+                                        "text": "2.8B views"
+                                      },
+                                      {
+                                        "text": " • "
+                                      },
+                                      {
+                                        "text": "3:08"
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ],
+                            "playlistItemData": {
+                              "videoId": "kXYiU_JCYtU"
+                            }
+                          }
+                        }
+                      ],
+                      "continuations": [
+                        {
+                          "nextContinuationData": {
+                            "continuation": "ErgDEhNMaW5raW4gUGFyayBNZXRlb3JhGqADRWdXS0FRSVFBVWdVYWhBUUNSQUZFQU1RQkJBS0VCQVFGUkFSZ2dFTFduWllhbXd5TUc1Q05sR0NBUXRQVGsxbFRYWk1Sbmh1VFlJQkMydFlXV2xWWDBwRFdYUlZnZ0VMZGs1Wk5IQmhOa1pLYjNPQ0FRdEhSVWRwWlZWQ05HSXpZNElCQzB4VlFuZHFWbVZ5V1ROdmdnRUxjRkYwYnpodWNGTlZRekNDQVF0cFp5MW1lVkZ4WmpVeE1JSUJDek4wTWxkclEzVmtkMlpaZ2dFTFZWbzNkMkpUVGtzMVF6Q0NBUXN4WjB4cmMyWk1ORFZQWjRJQkN6UlVkMUZoTkd4d1dVTm5nZ0VMZHpoVVdHNDJXbVkxV1ZXQ0FRdEROMjVGZUUxdGJVOXlZNElCQzJRM1FuTTVOMVp0YlhoRmdnRUxRbkk1TVdoWFZYSnRTVW1DQVF0NWIwTkVOWGRhUldkdk5JSUJDM1pxVm10WWJIaHpUemhSZ2dFTFZtVXhURTVLUlVsTFZVV0NBUXRFUVdOQlVsSjRaVTV6TkElM0QlM0QY8erQLg%3D%3D"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "header": {}
+              }
+            },
+            "tabIdentifier": "music_search_catalog"
+          }
+        }
+      ]
+    }
+  }
+}

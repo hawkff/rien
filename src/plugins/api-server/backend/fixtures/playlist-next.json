@@ -1,0 +1,436 @@
+{
+  "onResponseReceivedActions": [
+    {
+      "appendContinuationItemsAction": {
+        "continuationItems": [
+          {
+            "musicResponsiveListItemRenderer": {
+              "thumbnail": {
+                "musicThumbnailRenderer": {
+                  "thumbnail": {
+                    "thumbnails": [
+                      {
+                        "url": "https://yt3.googleusercontent.com/MaNaifGD0tk_nZYakbB4ivNdwt8aPS06_FUU-fZ3ZApCCiI4opGN1Ia08GNEpi1nJeriaWXoo61Ri4YyjQ=w54",
+                        "width": 120,
+                        "height": 120
+                      }
+                    ]
+                  }
+                }
+              },
+              "overlay": {
+                "musicItemThumbnailOverlayRenderer": {
+                  "content": {
+                    "musicPlayButtonRenderer": {
+                      "playNavigationEndpoint": {
+                        "watchEndpoint": {
+                          "videoId": "tWILHncPb8c",
+                          "playlistId": "OLAK5uy_k7mmOSpP63ccIRmgod4PkMPARvWuYw6dA",
+                          "playlistSetVideoId": "A6F6DAFA12B21169",
+                          "watchEndpointMusicSupportedConfigs": {
+                            "watchEndpointMusicConfig": {
+                              "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "flexColumns": [
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "P5hng Me A*wy (Mike Shinoda Reanimation) (feat. Stephen Richards)",
+                          "navigationEndpoint": {
+                            "watchEndpoint": {
+                              "videoId": "tWILHncPb8c",
+                              "playlistId": "OLAK5uy_k7mmOSpP63ccIRmgod4PkMPARvWuYw6dA",
+                              "watchEndpointMusicSupportedConfigs": {
+                                "watchEndpointMusicConfig": {
+                                  "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "Linkin Park",
+                          "navigationEndpoint": {
+                            "browseEndpoint": {
+                              "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                              "browseEndpointContextSupportedConfigs": {
+                                "browseEndpointContextMusicConfig": {
+                                  "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "12M plays"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "Hybrid Theory (20th Anniversary Edition)",
+                          "navigationEndpoint": {
+                            "browseEndpoint": {
+                              "browseId": "MPREb_k5TrR5XehBO",
+                              "browseEndpointContextSupportedConfigs": {
+                                "browseEndpointContextMusicConfig": {
+                                  "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "fixedColumns": [
+                {
+                  "musicResponsiveListItemFixedColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "4:38"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "playlistItemData": {
+                "playlistSetVideoId": "A6F6DAFA12B21169",
+                "videoId": "tWILHncPb8c"
+              },
+              "multiSelectCheckbox": {
+                "checkboxRenderer": {
+                  "onSelectionChangeCommand": {
+                    "updateMultiSelectStateCommand": {
+                      "multiSelectParams": "CAISKU9MQUs1dXlfazdtbU9TcFA2M2NjSVJtZ29kNFBrTVBBUnZXdVl3NmRB",
+                      "multiSelectItem": "Ch8KC3RXSUxIbmNQYjhjEhBBNkY2REFGQTEyQjIxMTY5"
+                    }
+                  },
+                  "checkedState": "CHECKBOX_CHECKED_STATE_UNCHECKED"
+                }
+              }
+            }
+          },
+          {
+            "musicResponsiveListItemRenderer": {
+              "thumbnail": {
+                "musicThumbnailRenderer": {
+                  "thumbnail": {
+                    "thumbnails": [
+                      {
+                        "url": "https://yt3.googleusercontent.com/lijlrFj65toZ4hDg7D-rhVL06W3_vSXhOxmWBrJjLqN8PfrM6mBBjckM3YNGB6TY7GestPevfOAciPP_ww=w54",
+                        "width": 120,
+                        "height": 120
+                      }
+                    ]
+                  }
+                }
+              },
+              "overlay": {
+                "musicItemThumbnailOverlayRenderer": {
+                  "content": {
+                    "musicPlayButtonRenderer": {
+                      "playNavigationEndpoint": {
+                        "watchEndpoint": {
+                          "videoId": "jwW3k7EgPD8",
+                          "playlistId": "OLAK5uy_k7mmOSpP63ccIRmgod4PkMPARvWuYw6dA",
+                          "playlistSetVideoId": "28FD73CDB8580A72",
+                          "watchEndpointMusicSupportedConfigs": {
+                            "watchEndpointMusicConfig": {
+                              "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "flexColumns": [
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "Blackout",
+                          "navigationEndpoint": {
+                            "watchEndpoint": {
+                              "videoId": "jwW3k7EgPD8",
+                              "playlistId": "OLAK5uy_k7mmOSpP63ccIRmgod4PkMPARvWuYw6dA",
+                              "watchEndpointMusicSupportedConfigs": {
+                                "watchEndpointMusicConfig": {
+                                  "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "Linkin Park",
+                          "navigationEndpoint": {
+                            "browseEndpoint": {
+                              "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                              "browseEndpointContextSupportedConfigs": {
+                                "browseEndpointContextMusicConfig": {
+                                  "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "26M plays"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "A Thousand Suns",
+                          "navigationEndpoint": {
+                            "browseEndpoint": {
+                              "browseId": "MPREb_hQr8BeSQ4om",
+                              "browseEndpointContextSupportedConfigs": {
+                                "browseEndpointContextMusicConfig": {
+                                  "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "fixedColumns": [
+                {
+                  "musicResponsiveListItemFixedColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "4:40"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "playlistItemData": {
+                "playlistSetVideoId": "28FD73CDB8580A72",
+                "videoId": "jwW3k7EgPD8"
+              },
+              "multiSelectCheckbox": {
+                "checkboxRenderer": {
+                  "onSelectionChangeCommand": {
+                    "updateMultiSelectStateCommand": {
+                      "multiSelectParams": "CAISKU9MQUs1dXlfazdtbU9TcFA2M2NjSVJtZ29kNFBrTVBBUnZXdVl3NmRB",
+                      "multiSelectItem": "Ch8KC2p3VzNrN0VnUEQ4EhAyOEZENzNDREI4NTgwQTcy"
+                    }
+                  },
+                  "checkedState": "CHECKBOX_CHECKED_STATE_UNCHECKED"
+                }
+              }
+            }
+          },
+          {
+            "musicResponsiveListItemRenderer": {
+              "thumbnail": {
+                "musicThumbnailRenderer": {
+                  "thumbnail": {
+                    "thumbnails": [
+                      {
+                        "url": "https://yt3.googleusercontent.com/YhfFgdvtwfIcLi_2H54RP15T3IPiUZnNtlwvlomHsAmAMQMZhgXu11HoFWPcWAiJRfdChtrqrGRbQl3idA=w54",
+                        "width": 120,
+                        "height": 120
+                      }
+                    ]
+                  }
+                }
+              },
+              "overlay": {
+                "musicItemThumbnailOverlayRenderer": {
+                  "content": {
+                    "musicPlayButtonRenderer": {
+                      "playNavigationEndpoint": {
+                        "watchEndpoint": {
+                          "videoId": "dnRkQVvTnb8",
+                          "playlistId": "OLAK5uy_k7mmOSpP63ccIRmgod4PkMPARvWuYw6dA",
+                          "playlistSetVideoId": "2A4E8C6BB97AF377",
+                          "watchEndpointMusicSupportedConfigs": {
+                            "watchEndpointMusicConfig": {
+                              "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "flexColumns": [
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "Healing Foot",
+                          "navigationEndpoint": {
+                            "watchEndpoint": {
+                              "videoId": "dnRkQVvTnb8",
+                              "playlistId": "OLAK5uy_k7mmOSpP63ccIRmgod4PkMPARvWuYw6dA",
+                              "watchEndpointMusicSupportedConfigs": {
+                                "watchEndpointMusicConfig": {
+                                  "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "Linkin Park",
+                          "navigationEndpoint": {
+                            "browseEndpoint": {
+                              "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                              "browseEndpointContextSupportedConfigs": {
+                                "browseEndpointContextMusicConfig": {
+                                  "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "8.9M plays"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "musicResponsiveListItemFlexColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "Meteora 20th Anniversary Edition",
+                          "navigationEndpoint": {
+                            "browseEndpoint": {
+                              "browseId": "MPREb_DOhy8PyMH41",
+                              "browseEndpointContextSupportedConfigs": {
+                                "browseEndpointContextMusicConfig": {
+                                  "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "fixedColumns": [
+                {
+                  "musicResponsiveListItemFixedColumnRenderer": {
+                    "text": {
+                      "runs": [
+                        {
+                          "text": "3:32"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "playlistItemData": {
+                "playlistSetVideoId": "2A4E8C6BB97AF377",
+                "videoId": "dnRkQVvTnb8"
+              },
+              "multiSelectCheckbox": {
+                "checkboxRenderer": {
+                  "onSelectionChangeCommand": {
+                    "updateMultiSelectStateCommand": {
+                      "multiSelectParams": "CAISKU9MQUs1dXlfazdtbU9TcFA2M2NjSVJtZ29kNFBrTVBBUnZXdVl3NmRB",
+                      "multiSelectItem": "Ch8KC2RuUmtRVnZUbmI4EhAyQTRFOEM2QkI5N0FGMzc3"
+                    }
+                  },
+                  "checkedState": "CHECKBOX_CHECKED_STATE_UNCHECKED"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,322 @@
+{
+  "contents": {
+    "tabbedSearchResultsRenderer": {
+      "tabs": [
+        {
+          "tabRenderer": {
+            "title": "YT Music",
+            "selected": true,
+            "content": {
+              "sectionListRenderer": {
+                "contents": [
+                  {
+                    "musicCardShelfRenderer": {
+                      "thumbnail": {
+                        "musicThumbnailRenderer": {
+                          "thumbnail": {
+                            "thumbnails": [
+                              {
+                                "url": "https://yt3.googleusercontent.com/dNfpEZtqYYsrHaHpSE9ik5vGgUSVLKE5DycRz8VMLdIQV_GYz7GpGUkMnU9I0926zLRQEAIUwdsjYCuG=w544-",
+                                "width": 544,
+                                "height": 544
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "title": {
+                        "runs": [
+                          {
+                            "text": "Meteora",
+                            "navigationEndpoint": {
+                              "browseEndpoint": {
+                                "browseId": "MPREb_qMlbe7gLeuH",
+                                "browseEndpointContextSupportedConfigs": {
+                                  "browseEndpointContextMusicConfig": {
+                                    "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "subtitle": {
+                        "runs": [
+                          {
+                            "text": "Album"
+                          },
+                          {
+                            "text": " • "
+                          },
+                          {
+                            "text": "Linkin Park",
+                            "navigationEndpoint": {
+                              "browseEndpoint": {
+                                "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                                "browseEndpointContextSupportedConfigs": {
+                                  "browseEndpointContextMusicConfig": {
+                                    "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "text": " • "
+                          },
+                          {
+                            "text": "2003"
+                          }
+                        ]
+                      },
+                      "buttons": [
+                        {
+                          "buttonRenderer": {
+                            "isDisabled": false,
+                            "text": {
+                              "runs": [
+                                {
+                                  "text": "Play"
+                                }
+                              ]
+                            },
+                            "icon": {
+                              "iconType": "PLAY_ARROW"
+                            },
+                            "command": {
+                              "watchPlaylistEndpoint": {
+                                "playlistId": "OLAK5uy_nE-SkwNA6lYF99wd-MHzJVqThnUIJGe3I",
+                                "params": "wAEB"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "buttonRenderer": {
+                            "text": {
+                              "runs": [
+                                {
+                                  "text": "Shuffle"
+                                }
+                              ]
+                            },
+                            "icon": {
+                              "iconType": "MUSIC_SHUFFLE"
+                            },
+                            "command": {
+                              "watchPlaylistEndpoint": {
+                                "playlistId": "OLAK5uy_nE-SkwNA6lYF99wd-MHzJVqThnUIJGe3I",
+                                "params": "wAEB8gECKAE%3D"
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "onTap": {
+                        "browseEndpoint": {
+                          "browseId": "MPREb_qMlbe7gLeuH",
+                          "browseEndpointContextSupportedConfigs": {
+                            "browseEndpointContextMusicConfig": {
+                              "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                            }
+                          }
+                        }
+                      },
+                      "endIcon": {
+                        "iconType": "CHEVRON_RIGHT"
+                      },
+                      "thumbnailOverlay": {
+                        "musicItemThumbnailOverlayRenderer": {
+                          "content": {
+                            "musicPlayButtonRenderer": {
+                              "playNavigationEndpoint": {
+                                "watchPlaylistEndpoint": {
+                                  "playlistId": "OLAK5uy_nE-SkwNA6lYF99wd-MHzJVqThnUIJGe3I"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "itemSectionRenderer": {
+                      "contents": [
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "thumbnail": {
+                              "musicThumbnailRenderer": {
+                                "thumbnail": {
+                                  "thumbnails": [
+                                    {
+                                      "url": "https://lh3.googleusercontent.com/uE72emEZFH3TVtCZoIFYKmnf7vsb42RYQxb4X-lonyqPQuS_mLtKpLfBQ5JdHwUijfQo06BtSB7LoQ=w544-h5",
+                                      "width": 120,
+                                      "height": 120
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "flexColumns": [
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Linkin Park"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Artist"
+                                      },
+                                      {
+                                        "text": " • "
+                                      },
+                                      {
+                                        "text": "175M monthly audience"
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ],
+                            "navigationEndpoint": {
+                              "browseEndpoint": {
+                                "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                                "browseEndpointContextSupportedConfigs": {
+                                  "browseEndpointContextMusicConfig": {
+                                    "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "itemSectionRenderer": {
+                      "contents": [
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "thumbnail": {
+                              "musicThumbnailRenderer": {
+                                "thumbnail": {
+                                  "thumbnails": [
+                                    {
+                                      "url": "https://yt3.googleusercontent.com/dNfpEZtqYYsrHaHpSE9ik5vGgUSVLKE5DycRz8VMLdIQV_GYz7GpGUkMnU9I0926zLRQEAIUwdsjYCuG=w544-",
+                                      "width": 120,
+                                      "height": 120
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "overlay": {
+                              "musicItemThumbnailOverlayRenderer": {
+                                "content": {
+                                  "musicPlayButtonRenderer": {
+                                    "playNavigationEndpoint": {
+                                      "watchEndpoint": {
+                                        "videoId": "rKdgl8OUKpk",
+                                        "watchEndpointMusicSupportedConfigs": {
+                                          "watchEndpointMusicConfig": {
+                                            "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "flexColumns": [
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Figure.09",
+                                        "navigationEndpoint": {
+                                          "watchEndpoint": {
+                                            "videoId": "rKdgl8OUKpk",
+                                            "watchEndpointMusicSupportedConfigs": {
+                                              "watchEndpointMusicConfig": {
+                                                "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "Song"
+                                      },
+                                      {
+                                        "text": " • "
+                                      },
+                                      {
+                                        "text": "Linkin Park",
+                                        "navigationEndpoint": {
+                                          "browseEndpoint": {
+                                            "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                                            "browseEndpointContextSupportedConfigs": {
+                                              "browseEndpointContextMusicConfig": {
+                                                "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "musicResponsiveListItemFlexColumnRenderer": {
+                                  "text": {
+                                    "runs": [
+                                      {
+                                        "text": "56M plays"
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ],
+                            "playlistItemData": {
+                              "videoId": "rKdgl8OUKpk"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "header": {}
+              }
+            },
+            "tabIdentifier": "music_search_catalog"
+          }
+        }
+      ]
+    }
+  }
+}

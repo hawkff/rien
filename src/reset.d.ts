@@ -2,6 +2,7 @@ import '@total-typescript/ts-reset';
 
 import type * as config from './config';
 import type { t } from '@/i18n';
+import type { CurrentLyrics } from '@/plugins/synced-lyrics/types';
 import type { LikeType } from '@/types/datahost-get-state';
 import type { VideoDataChanged } from '@/types/video-data-changed';
 import type { ipcRenderer as electronIpcRenderer } from 'electron';
@@ -37,6 +38,7 @@ declare global {
     togglePictureInPicture: () => void;
     reload: () => void;
     getLikeStatus: () => LikeType;
+    getSyncedLyrics?: () => CurrentLyrics | null;
     i18n: {
       t: typeof t;
     };

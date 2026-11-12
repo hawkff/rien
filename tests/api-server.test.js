@@ -80,3 +80,56 @@ test('A token signed with a secret from an older version is refused', async () =
     await app.close();
   }
 });
+
+test('A search through the API gives plain items', async () => {
+  test.setTimeout(120_000);
+  const port = await freePort();
+  const api = `http://127.0.0.1:${port}/api/v1`;
+  const userData = test.info().outputPath('profile');
+  mkdirSync(userData, { recursive: true });
+  // No hostname: the server listens on this computer only by default
+  writeFileSync(
+    path.join(userData, 'config.json'),
+    JSON.stringify({
+      plugins: {
+        'api-server': { enabled: true, port, authStrategy: 'NONE' },
+      },
+    }),
+  );
+
+  const app = await electron.launch({
+    cwd: appPath,
+    args: [
+      appPath,
+      `--user-data-dir=${userData}`,
+      '--no-sandbox',
+      '--disable-gpu',
+      '--whitelisted-ips=',
+      '--disable-dev-shm-usage',
+    ],
+  });
+  try {
+    // The page answers searches once it has loaded
+    await expect(async () => {
+      const response = await fetch(
+        `${api}/browse/search?q=Linkin%20Park%20Numb&filter=songs`,
+      );
+      expect(response.status).toBe(200);
+      const { items } = await response.json();
+      expect(items[0]).toMatchObject({
+        type: 'song',
+        id: expect.stringMatching(/^[\w-]{11}$/),
+        artists: [expect.objectContaining({ name: expect.any(String) })],
+      });
+    }).toPass({ timeout: 90_000 });
+
+    const playNow = await fetch(`${api}/play-now`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    });
+    expect(playNow.status).toBe(400);
+  } finally {
+    await app.close();
+  }
+});

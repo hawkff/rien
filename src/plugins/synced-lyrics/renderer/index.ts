@@ -3,7 +3,7 @@ import { waitForElement } from '@/utils/wait-for-element';
 
 import { disposeReactiveRoot } from './reactive-root';
 import { setConfig, setCurrentTime } from './renderer';
-import { fetchLyrics } from './store';
+import { fetchLyrics, lyricsStore } from './store';
 import { selectors, tabStates } from './utils';
 
 import type { SyncedLyricsPluginConfig } from '../types';
@@ -94,9 +94,30 @@ export const renderer = createRenderer<
     ctx.ipc.on('peard:update-song-info', (info: SongInfo) => {
       fetchLyrics(info);
     });
+
+    // For the API server. Plain copies: the store's proxies can't leave the page.
+    window.getSyncedLyrics = () => {
+      const { provider, current } = lyricsStore;
+      if (current.state !== 'done' || !current.data) return null;
+      const { title, artists, lyrics, lines } = current.data;
+      return {
+        provider,
+        title,
+        artists: [...artists],
+        lines:
+          lines?.map(({ timeInMs, duration, text }) => ({
+            timeMs: timeInMs,
+            // The last line has no end: it lasts until the song does
+            durationMs: Number.isFinite(duration) ? duration : null,
+            text,
+          })) ?? null,
+        plain: lyrics ?? null,
+      };
+    };
   },
 
   stop() {
+    delete window.getSyncedLyrics;
     disposeReactiveRoot();
   },
 });

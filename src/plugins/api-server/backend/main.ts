@@ -14,7 +14,12 @@ import { registerCallback } from '@/providers/song-info';
 import { createBackend } from '@/utils';
 
 import { API_VERSION } from './api-version';
-import { registerAuth, registerControl, registerWebsocket } from './routes';
+import {
+  registerAuth,
+  registerBrowse,
+  registerControl,
+  registerWebsocket,
+} from './routes';
 import { JWTPayloadSchema } from './scheme';
 
 import {
@@ -148,6 +153,7 @@ export const backend = createBackend<BackendType, APIServerConfig>({
         ) as Promise<LikeType>,
       () => this.volumeState,
     );
+    registerBrowse(this.app, backendCtx, () => this.songInfo);
     registerAuth(this.app, backendCtx);
     registerWebsocket(this.app, backendCtx, upgradeWebSocket);
 

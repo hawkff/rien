@@ -126,6 +126,19 @@ async function onApiLoaded() {
   window.ipcRenderer.on('peard:play', (_) => {
     api?.playVideo();
   });
+  // The event the site's own links send, so the page plays without loading
+  window.ipcRenderer.on(
+    'peard:play-target',
+    (_, watchEndpoint: { videoId?: string; playlistId?: string }) => {
+      document.querySelector('ytmusic-app')?.dispatchEvent(
+        new CustomEvent('yt-navigate', {
+          bubbles: true,
+          composed: true,
+          detail: { endpoint: { watchEndpoint } },
+        }),
+      );
+    },
+  );
   window.ipcRenderer.on('peard:pause', (_) => {
     api?.pauseVideo();
   });
