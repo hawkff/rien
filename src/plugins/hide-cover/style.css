@@ -1,0 +1,52 @@
+/* #song-image shows only in Song mode, so Video mode stays untouched. Its
+   children are the cover and Ambient Mode's blurred copy of it; the box itself
+   covers the player's gray background. */
+body[hide-cover] #song-image.ytmusic-player {
+  background: var(--ytmusic-background, #030303);
+}
+
+body[hide-cover] #song-image.ytmusic-player > *,
+/* The phone layout's backdrop: a blurred copy of the cover under a gradient. */
+body[hide-cover] .background-image.ytmusic-player-page {
+  visibility: hidden;
+}
+
+/* The phone layout keeps the play controls in the cover's column, so Hidden
+   stays Black there. Elsewhere the column shrinks to a strip that keeps the
+   Song/Video switch, and the side panel takes the width below it. */
+body[hide-cover='hidden'][hide-cover-song]
+  ytmusic-player-page:not([is-mweb-modernization-enabled]) {
+  & .content.ytmusic-player-page {
+    flex-direction: column;
+  }
+
+  & #main-panel.ytmusic-player-page {
+    flex: none;
+    height: 72px;
+    padding: 0 !important;
+    overflow: hidden;
+    visibility: hidden;
+  }
+
+  /* Places the switch at the strip's corner instead of the player's. */
+  & ytmusic-player.ytmusic-player-page {
+    position: static;
+  }
+
+  & #main-panel .video-switch-button {
+    top: 0;
+    left: 0;
+  }
+
+  & #main-panel .video-switch-button,
+  & #main-panel #av-id {
+    visibility: visible;
+  }
+
+  & .side-panel.ytmusic-player-page {
+    flex: 1;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+}

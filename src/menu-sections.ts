@@ -25,6 +25,7 @@ export const pluginSections = {
     'ambient-mode',
     'blur-nav-bar',
     'clock',
+    'hide-cover',
     'transparent-player',
     'visualizer',
   ],
