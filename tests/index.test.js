@@ -13,6 +13,8 @@ test('Pear Desktop App - With default settings, app is launched and visible', as
       '--disable-gpu',
       '--whitelisted-ips=',
       '--disable-dev-shm-usage',
+      // A profile of its own, so saved settings don't change what it checks
+      `--user-data-dir=${test.info().outputPath('profile')}`,
     ],
   });
 
@@ -34,6 +36,12 @@ test('Pear Desktop App - With default settings, app is launched and visible', as
       'https://music.\u0079\u006f\u0075\u0074\u0075\u0062\u0065.com',
     ),
   ).toBe(true);
+
+  // Google's sign-in rejects an Electron window that claims to be Chrome
+  // ("This browser or app may not be secure") and accepts Electron's own
+  expect(await window.evaluate(() => navigator.userAgent)).toContain(
+    ' Electron/',
+  );
 
   await app.close();
 });

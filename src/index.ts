@@ -55,7 +55,6 @@ import {
   guestTitle,
   removeGuestProfiles,
 } from '@/utils/guest-profile';
-import { browserUserAgent } from '@/utils/user-agent';
 
 import type { PluginConfig } from '@/types/plugins';
 
@@ -145,8 +144,6 @@ if (is.linux()) {
   // for wayland
   app.commandLine.appendSwitch('class', 'io.github.hawkff.rien');
 }
-
-app.userAgentFallback = browserUserAgent(app.userAgentFallback);
 
 if (disableHardwareAcceleration) {
   if (is.dev()) console.log('Disabling hardware acceleration');
