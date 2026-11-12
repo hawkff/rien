@@ -47,6 +47,13 @@ export const SearchPageSchema = z.object({
   continuation: Continuation,
 });
 
+export const QueueItemsSchema = z.object({
+  items: z.array(ItemSchema),
+  current: z.number().nullable().openapi({
+    description: 'The index of the song that plays',
+  }),
+});
+
 export const SearchQuerySchema = z.object({
   q: z.string().min(1).max(500),
   filter: z

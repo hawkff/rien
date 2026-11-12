@@ -482,3 +482,39 @@ export const parseArtist = (id: string, response: Json) => {
   }
   return { artist, sections };
 };
+
+// The player's queue, with the index of the song that plays
+export const parseQueue = (response: Json) => {
+  const queue: Item[] = [];
+  let current: number | null = null;
+  for (const entry of array(at(response, 'items'))) {
+    const item =
+      object(at(entry, 'playlistPanelVideoRenderer')) ??
+      object(
+        at(
+          entry,
+          'playlistPanelVideoWrapperRenderer',
+          'primaryRenderer',
+          'playlistPanelVideoRenderer',
+        ),
+      );
+    const watch = watchOf(item?.navigationEndpoint);
+    const videoId = string(item?.videoId) ?? watch?.videoId;
+    if (!item || !videoId) continue;
+    const below = runs(item.longBylineText);
+    if (item.selected === true) current = queue.length;
+    queue.push({
+      type: watch?.type ?? 'song',
+      id: videoId,
+      title: joined(item.title),
+      subtitle: below.map((run) => run.text).join(''),
+      ...details(below),
+      duration: seconds(joined(item.lengthText)),
+      thumbnail: thumbnailOf(item.thumbnail),
+      playlistId: watch?.playlistId ?? null,
+      slot: string(item.playlistSetVideoId) ?? null,
+      available: true,
+    });
+  }
+  return { items: queue, current };
+};

@@ -1,0 +1,248 @@
+{
+  "items": [
+    {
+      "playlistPanelVideoRenderer": {
+        "title": {
+          "runs": [
+            {
+              "text": "Foreword"
+            }
+          ]
+        },
+        "longBylineText": {
+          "runs": [
+            {
+              "text": "Linkin Park",
+              "navigationEndpoint": {
+                "browseEndpoint": {
+                  "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                  "browseEndpointContextSupportedConfigs": {
+                    "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "text": " • "
+            },
+            {
+              "text": "9.9M views"
+            },
+            {
+              "text": " • "
+            },
+            {
+              "text": "29K likes"
+            }
+          ]
+        },
+        "thumbnail": {
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/U6R-twDkrcI/hq720.jpg?sqp=-oaymwEKCNUGEN8DIABIWg&rs=AMzJL3nYlcrqkK0HJBCJe2fod",
+              "width": 853,
+              "height": 479
+            }
+          ]
+        },
+        "lengthText": {
+          "runs": [
+            {
+              "text": "0:14"
+            }
+          ]
+        },
+        "selected": false,
+        "navigationEndpoint": {
+          "watchEndpoint": {
+            "videoId": "U6R-twDkrcI",
+            "playlistId": "OLAK5uy_nE-SkwNA6lYF99wd-MHzJVqThnUIJGe3I",
+            "index": 0,
+            "playlistSetVideoId": "96E0CCD447DC4DDB",
+            "watchEndpointMusicSupportedConfigs": {
+              "watchEndpointMusicConfig": {
+                "hasPersistentPlaylistPanel": true,
+                "musicVideoType": "MUSIC_VIDEO_TYPE_OMV"
+              }
+            }
+          }
+        },
+        "videoId": "U6R-twDkrcI",
+        "shortBylineText": {
+          "runs": [
+            {
+              "text": "Linkin Park"
+            }
+          ]
+        },
+        "playlistSetVideoId": "96E0CCD447DC4DDB",
+        "canReorder": true
+      }
+    },
+    {
+      "playlistPanelVideoRenderer": {
+        "title": {
+          "runs": [
+            {
+              "text": "Don't Stay"
+            }
+          ]
+        },
+        "longBylineText": {
+          "runs": [
+            {
+              "text": "Linkin Park",
+              "navigationEndpoint": {
+                "browseEndpoint": {
+                  "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                  "browseEndpointContextSupportedConfigs": {
+                    "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "text": " • "
+            },
+            {
+              "text": "51M views"
+            },
+            {
+              "text": " • "
+            },
+            {
+              "text": "306K likes"
+            }
+          ]
+        },
+        "thumbnail": {
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/oWfGOVWrueo/hq720.jpg?sqp=-oaymwEKCNUGEN8DIABIWg&rs=AMzJL3lAqHcUMx6o-wG2ws5Pc",
+              "width": 853,
+              "height": 479
+            }
+          ]
+        },
+        "lengthText": {
+          "runs": [
+            {
+              "text": "3:08"
+            }
+          ]
+        },
+        "selected": false,
+        "navigationEndpoint": {
+          "watchEndpoint": {
+            "videoId": "oWfGOVWrueo",
+            "playlistId": "OLAK5uy_nE-SkwNA6lYF99wd-MHzJVqThnUIJGe3I",
+            "index": 1,
+            "playlistSetVideoId": "78AC3D8DB3DFA4F8",
+            "watchEndpointMusicSupportedConfigs": {
+              "watchEndpointMusicConfig": {
+                "hasPersistentPlaylistPanel": true,
+                "musicVideoType": "MUSIC_VIDEO_TYPE_OMV"
+              }
+            }
+          }
+        },
+        "videoId": "oWfGOVWrueo",
+        "shortBylineText": {
+          "runs": [
+            {
+              "text": "Linkin Park"
+            }
+          ]
+        },
+        "playlistSetVideoId": "78AC3D8DB3DFA4F8",
+        "canReorder": true
+      }
+    },
+    {
+      "playlistPanelVideoRenderer": {
+        "title": {
+          "runs": [
+            {
+              "text": "Somewhere I Belong"
+            }
+          ]
+        },
+        "longBylineText": {
+          "runs": [
+            {
+              "text": "Linkin Park",
+              "navigationEndpoint": {
+                "browseEndpoint": {
+                  "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                  "browseEndpointContextSupportedConfigs": {
+                    "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "text": " • "
+            },
+            {
+              "text": "544M views"
+            },
+            {
+              "text": " • "
+            },
+            {
+              "text": "2.8M likes"
+            }
+          ]
+        },
+        "thumbnail": {
+          "thumbnails": [
+            {
+              "url": "https://i.ytimg.com/vi/zsCD5XCu6CM/hq720.jpg?sqp=-oaymwEKCNUGEN8DIABIWg&rs=AMzJL3niQa8Bhs60GjeWp9Q3-",
+              "width": 853,
+              "height": 479
+            }
+          ]
+        },
+        "lengthText": {
+          "runs": [
+            {
+              "text": "3:46"
+            }
+          ]
+        },
+        "selected": true,
+        "navigationEndpoint": {
+          "watchEndpoint": {
+            "videoId": "zsCD5XCu6CM",
+            "playlistId": "OLAK5uy_nE-SkwNA6lYF99wd-MHzJVqThnUIJGe3I",
+            "index": 2,
+            "playlistSetVideoId": "5F06E02DCCE52CE9",
+            "watchEndpointMusicSupportedConfigs": {
+              "watchEndpointMusicConfig": {
+                "hasPersistentPlaylistPanel": true,
+                "musicVideoType": "MUSIC_VIDEO_TYPE_OMV"
+              }
+            }
+          }
+        },
+        "videoId": "zsCD5XCu6CM",
+        "shortBylineText": {
+          "runs": [
+            {
+              "text": "Linkin Park"
+            }
+          ]
+        },
+        "playlistSetVideoId": "5F06E02DCCE52CE9",
+        "canReorder": true
+      }
+    }
+  ],
+  "autoPlaying": false
+}

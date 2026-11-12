@@ -9,11 +9,13 @@ import {
 } from '@/types/datahost-get-state';
 
 import { API_VERSION } from '../api-version';
+import { type Json, parseQueue } from '../browse';
 import {
   AddSongToQueueSchema,
   GoBackSchema,
   GoForwardScheme,
   MoveSongInQueueSchema,
+  QueueItemsSchema,
   QueueParamsSchema,
   SearchSchema,
   SeekSchema,
@@ -431,6 +433,19 @@ const routes = {
       },
     },
   }),
+  queueItems: createRoute({
+    method: 'get',
+    path: `/api/${API_VERSION}/queue/items`,
+    summary: 'get the queue as plain items',
+    description:
+      'The queue as plain items, the same as the browse routes give, with the index of the song that plays',
+    responses: {
+      200: {
+        description: 'Success',
+        content: { 'application/json': { schema: QueueItemsSchema } },
+      },
+    },
+  }),
   queueInfo: createRoute({
     method: 'get',
     path: `/api/${API_VERSION}/queue`,
@@ -767,6 +782,17 @@ export const register = (
   };
   app.openapi(routes.oldQueueInfo, queueInfo);
   app.openapi(routes.queueInfo, queueInfo);
+
+  app.openapi(routes.queueItems, async (ctx) => {
+    const queue = await new Promise<QueueResponse>((resolve) => {
+      ipcMain.once('peard:get-queue-response', (_, response: QueueResponse) =>
+        resolve(response),
+      );
+      controller.requestQueueInformation();
+    });
+    ctx.status(200);
+    return ctx.json(parseQueue((queue ?? {}) as Json));
+  });
 
   app.openapi(routes.nextSongInfo, async (ctx) => {
     const queueResponsePromise = new Promise<QueueResponse>((resolve) => {

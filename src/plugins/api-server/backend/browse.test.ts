@@ -8,6 +8,7 @@ import {
   parseAlbum,
   parseArtist,
   parsePlaylist,
+  parseQueue,
   parseSearch,
   seconds,
 } from './browse';
@@ -150,4 +151,18 @@ test('a playlist gives its songs with their places, then the next page', () => {
   expect(next.playlist).toBeNull();
   expect(next.tracks.length).toBeGreaterThan(0);
   expect(next.tracks.every((track) => track.slot)).toBe(true);
+});
+
+test('the queue gives its songs and which one plays', () => {
+  const { items, current } = parseQueue(fixture('queue'));
+  expect(items[0]).toMatchObject({
+    id: 'U6R-twDkrcI',
+    title: 'Foreword',
+    artists: [linkinPark],
+    duration: 14,
+    playlistId: 'OLAK5uy_nE-SkwNA6lYF99wd-MHzJVqThnUIJGe3I',
+    slot: '96E0CCD447DC4DDB',
+  });
+  expect(current).toBe(2);
+  expect(items[2].title).toBe('Somewhere I Belong');
 });
