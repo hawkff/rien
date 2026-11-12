@@ -228,6 +228,21 @@ export const mainMenuTemplate = async (
             },
             {
               label: t(
+                'main.menu.options.submenu.visual-tweaks.submenu.newer-player-bar.label',
+              ),
+              toolTip: t(
+                'main.menu.options.submenu.visual-tweaks.submenu.newer-player-bar.tooltip',
+              ),
+              type: 'checkbox',
+              checked: config.get('options.newerPlayerBar'),
+              click(item: MenuItem) {
+                config.setMenuOption('options.newerPlayerBar', item.checked);
+                // The site picks its bar while the page loads
+                win.webContents.reload();
+              },
+            },
+            {
+              label: t(
                 'main.menu.options.submenu.visual-tweaks.submenu.custom-window-title.label',
               ),
               async click() {

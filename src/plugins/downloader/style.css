@@ -1,0 +1,5 @@
+/* The site's own Download is Premium's offline copy, which does nothing in
+   the app; the Downloader's item stands in for it */
+ytmusic-menu-service-item-download-renderer {
+  display: none !important;
+}

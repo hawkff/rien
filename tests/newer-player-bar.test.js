@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { test, expect, _electron as electron } from '@playwright/test';
@@ -7,23 +8,23 @@ const appPath = path.resolve(import.meta.dirname, '..');
 // ytmusic-miniplayer as its top bar, first in the document.
 const bar = 'ytmusic-app-layout > ytmusic-miniplayer';
 
-// The site builds the newer player bar (ytmusic-miniplayer) for some profiles
-// only, chosen by an experiment flag. This sets the flag before the site's
-// scripts read it.
-const forceNewerBar = () =>
-  new MutationObserver(() => {
-    const flags = window.ytcfg?.get?.('EXPERIMENT_FLAGS');
-    if (flags) flags.music_web_enable_wiz_miniplayer = true;
-  }).observe(document, { childList: true, subtree: true });
-
 test('The newer player bar takes the page background and follows commands from outside the page', async () => {
   test.setTimeout(240_000);
 
+  // The site builds the newer player bar (ytmusic-miniplayer) for some
+  // profiles only, chosen by an experiment flag. The app's Newer player bar
+  // option sets it.
+  const profile = test.info().outputPath('profile');
+  mkdirSync(profile, { recursive: true });
+  writeFileSync(
+    path.join(profile, 'config.json'),
+    JSON.stringify({ options: { newerPlayerBar: true } }),
+  );
   const app = await electron.launch({
     cwd: appPath,
     args: [
       appPath,
-      `--user-data-dir=${test.info().outputPath('profile')}`,
+      `--user-data-dir=${profile}`,
       '--no-sandbox',
       '--disable-gpu',
       '--whitelisted-ips=',
@@ -32,7 +33,6 @@ test('The newer player bar takes the page background and follows commands from o
   });
   try {
     const window = await app.firstWindow();
-    await window.addInitScript(forceNewerBar);
     await window.goto(
       'https://music.\u0079\u006f\u0075\u0074\u0075\u0062\u0065.com/watch?v=5NV6Rdv1a3I',
     );

@@ -568,4 +568,23 @@ const initObserver = async () => {
   });
 };
 
+// The site builds one of two player bars, by an experiment flag that it gives
+// each account. Options > Visual tweaks > Newer player bar sets the flag as soon
+// as the page's config holds it, before the site reads it.
+if (window.mainConfig.get('options.newerPlayerBar')) {
+  const observer = new MutationObserver(() => {
+    const { ytcfg } = window as {
+      ytcfg?: { get?: (key: string) => Record<string, unknown> | undefined };
+    };
+    const flags = ytcfg?.get?.('EXPERIMENT_FLAGS');
+    if (!flags) return;
+    flags.music_web_enable_wiz_miniplayer = true;
+    // Once a bar is built, the site has read the flag
+    if (document.querySelector('ytmusic-miniplayer, ytmusic-player-bar')) {
+      observer.disconnect();
+    }
+  });
+  observer.observe(document, { childList: true, subtree: true });
+}
+
 initObserver().then(preload).then(main);

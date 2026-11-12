@@ -94,6 +94,21 @@ tp-yt-paper-dialog {
   height: 18px;
 }
 
+/* Menus, dropdowns and dialogs take the page's black too, with a thin edge to
+   stand out from it. The site gives them grays of their own. */
+html {
+  --paper-listbox-background-color: var(--ytmusic-background) !important;
+  --paper-menu-background-color: var(--ytmusic-background) !important;
+  --paper-dialog-background-color: var(--ytmusic-background) !important;
+  --ytmusic-dropdown-background: var(--ytmusic-background) !important;
+  --ytmusic-dialog-background-color: var(--ytmusic-background) !important;
+  --ytmusic-menu-popup-background: var(--ytmusic-background) !important;
+}
+ytmusic-menu-popup-renderer tp-yt-paper-listbox,
+tp-yt-paper-dialog {
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 16%) !important;
+}
+
 /* The player bar takes the page's background, as the rest of the app does.
    The site gives it a gray of its own. */
 ytmusic-app {

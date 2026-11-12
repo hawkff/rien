@@ -4,6 +4,7 @@ import { createPlugin } from '@/utils';
 import { onConfigChange, onMainLoad } from './main';
 import { onMenu } from './menu';
 import { onPlayerApiReady, onRendererLoad } from './renderer';
+import style from './style.css?inline';
 
 export type DownloaderPluginConfig = {
   enabled: boolean;
@@ -40,6 +41,7 @@ export default createPlugin({
   description: () => t('plugins.downloader.description'),
   restartNeeded: true,
   config: defaultConfig,
+  stylesheets: [style],
   menu: onMenu,
   backend: {
     start: onMainLoad,

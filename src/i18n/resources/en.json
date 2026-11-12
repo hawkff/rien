@@ -194,6 +194,10 @@
                   "placeholder": "Example: {{applicationName}}"
                 }
               },
+              "newer-player-bar": {
+                "label": "Newer player bar",
+                "tooltip": "Always the bar with the song on the left and the controls in the middle, whatever the site picks for the account. The page reloads."
+              },
               "remove-upgrade-button": "Remove upgrade button",
               "theme": {
                 "dialog": {

@@ -23,6 +23,7 @@ export interface DefaultConfig {
     startAtLogin: boolean;
     disableHardwareAcceleration: boolean;
     removeUpgradeButton: boolean;
+    newerPlayerBar: boolean;
     restartOnConfigChanges: boolean;
     trayClickPlayPause: boolean;
     autoResetAppCache: boolean;
@@ -59,6 +60,7 @@ export const defaultConfig: DefaultConfig = {
     startAtLogin: false,
     disableHardwareAcceleration: false,
     removeUpgradeButton: false,
+    newerPlayerBar: false,
     restartOnConfigChanges: false,
     trayClickPlayPause: false,
     autoResetAppCache: false,
