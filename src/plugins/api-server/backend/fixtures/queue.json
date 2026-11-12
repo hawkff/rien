@@ -244,5 +244,189 @@
       }
     }
   ],
-  "autoPlaying": false
+  "autoPlaying": false,
+  "automixItems": [
+    {
+      "playlistPanelVideoRenderer": {
+        "title": {
+          "runs": [
+            {
+              "text": "Somewhere I Belong"
+            }
+          ]
+        },
+        "longBylineText": {
+          "runs": [
+            {
+              "text": "Linkin Park",
+              "navigationEndpoint": {
+                "browseEndpoint": {
+                  "browseId": "UCxgN32UVVztKAQd2HkXzBtw",
+                  "browseEndpointContextSupportedConfigs": {
+                    "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "text": " • "
+            },
+            {
+              "text": "Meteora",
+              "navigationEndpoint": {
+                "browseEndpoint": {
+                  "browseId": "MPREb_qMlbe7gLeuH",
+                  "browseEndpointContextSupportedConfigs": {
+                    "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "text": " • "
+            },
+            {
+              "text": "2003"
+            }
+          ]
+        },
+        "thumbnail": {
+          "thumbnails": [
+            {
+              "url": "https://yt3.googleusercontent.com/dNfpEZtqYYsrHaHpSE9ik5vGgUSVLKE5DycRz8VMLdIQV_GYz7GpGUkMnU9I0926zL",
+              "width": 544,
+              "height": 544
+            }
+          ]
+        },
+        "lengthText": {
+          "runs": [
+            {
+              "text": "3:34"
+            }
+          ]
+        },
+        "selected": false,
+        "navigationEndpoint": {
+          "watchEndpoint": {
+            "videoId": "-YQ8IbVIwPM",
+            "playlistId": "RDAMVMBLZWkjBXfN8",
+            "index": 1,
+            "playlistSetVideoId": "56B44F6D10557CC6",
+            "watchEndpointMusicSupportedConfigs": {
+              "watchEndpointMusicConfig": {
+                "hasPersistentPlaylistPanel": true,
+                "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+              }
+            }
+          }
+        },
+        "videoId": "-YQ8IbVIwPM",
+        "shortBylineText": {
+          "runs": [
+            {
+              "text": "Linkin Park"
+            }
+          ]
+        },
+        "playlistSetVideoId": "56B44F6D10557CC6",
+        "canReorder": true
+      }
+    },
+    {
+      "playlistPanelVideoRenderer": {
+        "title": {
+          "runs": [
+            {
+              "text": "Bring Me To Life"
+            }
+          ]
+        },
+        "longBylineText": {
+          "runs": [
+            {
+              "text": "Evanescence",
+              "navigationEndpoint": {
+                "browseEndpoint": {
+                  "browseId": "UC1ObIyFsDJn62iAZYLWcNxA",
+                  "browseEndpointContextSupportedConfigs": {
+                    "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "text": " • "
+            },
+            {
+              "text": "Fallen",
+              "navigationEndpoint": {
+                "browseEndpoint": {
+                  "browseId": "MPREb_Ol2Ip1ndtbE",
+                  "browseEndpointContextSupportedConfigs": {
+                    "browseEndpointContextMusicConfig": {
+                      "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "text": " • "
+            },
+            {
+              "text": "2003"
+            }
+          ]
+        },
+        "thumbnail": {
+          "thumbnails": [
+            {
+              "url": "https://yt3.googleusercontent.com/DMgrzZ84TP0DawBf7NwNbqzQg2-TY_prMUPh7WvjTOOPLxyiTryNgzxBFCkyZhKG0H",
+              "width": 544,
+              "height": 544
+            }
+          ]
+        },
+        "lengthText": {
+          "runs": [
+            {
+              "text": "3:56"
+            }
+          ]
+        },
+        "selected": false,
+        "navigationEndpoint": {
+          "watchEndpoint": {
+            "videoId": "-eGM0IJc70Y",
+            "playlistId": "RDAMVMBLZWkjBXfN8",
+            "index": 2,
+            "playlistSetVideoId": "289F4A46DF0A30D2",
+            "watchEndpointMusicSupportedConfigs": {
+              "watchEndpointMusicConfig": {
+                "hasPersistentPlaylistPanel": true,
+                "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+              }
+            }
+          }
+        },
+        "videoId": "-eGM0IJc70Y",
+        "shortBylineText": {
+          "runs": [
+            {
+              "text": "Evanescence"
+            }
+          ]
+        },
+        "playlistSetVideoId": "289F4A46DF0A30D2",
+        "canReorder": true
+      }
+    }
+  ]
 }

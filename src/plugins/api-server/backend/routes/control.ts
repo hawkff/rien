@@ -433,6 +433,23 @@ const routes = {
       },
     },
   }),
+  songCover: createRoute({
+    method: 'get',
+    path: `/api/${API_VERSION}/song/cover`,
+    summary: 'get the current cover',
+    description: "The current song's cover as PNG",
+    responses: {
+      200: {
+        description: 'Success',
+        content: {
+          'image/png': { schema: z.string().openapi({ format: 'binary' }) },
+        },
+      },
+      204: {
+        description: 'No song or no cover',
+      },
+    },
+  }),
   queueItems: createRoute({
     method: 'get',
     path: `/api/${API_VERSION}/queue/items`,
@@ -759,6 +776,15 @@ export const register = (
   };
   app.openapi(routes.oldSongInfo, songInfo);
   app.openapi(routes.songInfo, songInfo);
+  app.openapi(routes.songCover, async (ctx) => {
+    const png = (await songInfoGetter())?.image?.toPNG();
+    if (!png?.length) {
+      ctx.status(204);
+      return ctx.body(null);
+    }
+    ctx.header('Content-Type', 'image/png');
+    return ctx.body(new Uint8Array(png), 200);
+  });
 
   // Queue
   const queueInfo = async (ctx: Context) => {

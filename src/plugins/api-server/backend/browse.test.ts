@@ -153,8 +153,8 @@ test('a playlist gives its songs with their places, then the next page', () => {
   expect(next.tracks.every((track) => track.slot)).toBe(true);
 });
 
-test('the queue gives its songs and which one plays', () => {
-  const { items, current } = parseQueue(fixture('queue'));
+test('the queue gives its songs, which one plays, and the encore', () => {
+  const { items, current, encore } = parseQueue(fixture('queue'));
   expect(items[0]).toMatchObject({
     id: 'U6R-twDkrcI',
     title: 'Foreword',
@@ -165,4 +165,8 @@ test('the queue gives its songs and which one plays', () => {
   });
   expect(current).toBe(2);
   expect(items[2].title).toBe('Somewhere I Belong');
+  expect(encore.map((item) => item.title)).toEqual([
+    'Somewhere I Belong',
+    'Bring Me To Life',
+  ]);
 });

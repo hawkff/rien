@@ -483,27 +483,25 @@ export const parseArtist = (id: string, response: Json) => {
   return { artist, sections };
 };
 
-// The player's queue, with the index of the song that plays
-export const parseQueue = (response: Json) => {
-  const queue: Item[] = [];
-  let current: number | null = null;
-  for (const entry of array(at(response, 'items'))) {
-    const item =
-      object(at(entry, 'playlistPanelVideoRenderer')) ??
-      object(
-        at(
-          entry,
-          'playlistPanelVideoWrapperRenderer',
-          'primaryRenderer',
-          'playlistPanelVideoRenderer',
-        ),
-      );
-    const watch = watchOf(item?.navigationEndpoint);
-    const videoId = string(item?.videoId) ?? watch?.videoId;
-    if (!item || !videoId) continue;
-    const below = runs(item.longBylineText);
-    if (item.selected === true) current = queue.length;
-    queue.push({
+// A song of the player's queue, and whether it plays
+const queueItem = (entry: Json) => {
+  const item =
+    object(at(entry, 'playlistPanelVideoRenderer')) ??
+    object(
+      at(
+        entry,
+        'playlistPanelVideoWrapperRenderer',
+        'primaryRenderer',
+        'playlistPanelVideoRenderer',
+      ),
+    );
+  const watch = watchOf(item?.navigationEndpoint);
+  const videoId = string(item?.videoId) ?? watch?.videoId;
+  if (!item || !videoId) return null;
+  const below = runs(item.longBylineText);
+  return {
+    selected: item.selected === true,
+    item: {
       type: watch?.type ?? 'song',
       id: videoId,
       title: joined(item.title),
@@ -514,7 +512,24 @@ export const parseQueue = (response: Json) => {
       playlistId: watch?.playlistId ?? null,
       slot: string(item.playlistSetVideoId) ?? null,
       available: true,
-    });
+    } satisfies Item,
+  };
+};
+
+// The player's queue with the index of the song that plays, and the songs
+// the site plays after it while autoplay is on
+export const parseQueue = (response: Json) => {
+  const items: Item[] = [];
+  let current: number | null = null;
+  for (const entry of array(at(response, 'items'))) {
+    const found = queueItem(entry);
+    if (!found) continue;
+    if (found.selected) current = items.length;
+    items.push(found.item);
   }
-  return { items: queue, current };
+  const encore = array(at(response, 'automixItems'))
+    .map(queueItem)
+    .filter((found) => found !== null)
+    .map((found) => found.item);
+  return { items, current, encore };
 };

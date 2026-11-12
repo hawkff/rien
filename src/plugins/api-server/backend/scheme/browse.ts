@@ -52,6 +52,10 @@ export const QueueItemsSchema = z.object({
   current: z.number().nullable().openapi({
     description: 'The index of the song that plays',
   }),
+  encore: z.array(ItemSchema).openapi({
+    description:
+      'The songs the site plays after the queue while autoplay is on, else empty',
+  }),
 });
 
 export const SearchQuerySchema = z.object({

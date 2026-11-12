@@ -5,6 +5,8 @@ export interface QueueResponse {
   items?: QueueItem[];
   autoPlaying?: boolean;
   continuation?: string;
+  // The songs the site plays after the queue, while autoplay is on
+  automixItems?: unknown[];
 }
 
 export interface WatchNextResponse {

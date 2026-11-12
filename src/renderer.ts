@@ -214,10 +214,12 @@ async function onApiLoaded() {
 
   window.ipcRenderer.on('peard:get-queue', () => {
     const queue = document.querySelector<QueueElement>('#queue');
+    const state = queue?.queue.store.store.getState().queue;
     window.ipcRenderer.send('peard:get-queue-response', {
       items: queue?.queue.getItems(),
       autoPlaying: queue?.queue.autoPlaying,
       continuation: queue?.queue.continuation,
+      automixItems: state?.autoplay ? state.automixItems : [],
     } satisfies QueueResponse);
   });
 
