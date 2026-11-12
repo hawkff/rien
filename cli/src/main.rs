@@ -1,0 +1,446 @@
+// ytmpc: Rien's terminal client. One-shot commands over Rien's API server.
+mod items;
+mod rien;
+
+use std::{env, fs, path::PathBuf};
+
+use anyhow::{Context, Result, bail};
+use serde::Deserialize;
+use serde_json::{Value, json};
+
+use crate::{
+    items::{print_items, say, song, time},
+    rien::{Method, Rien},
+};
+
+const HELP: &str = "\
+ytmpc: Rien's terminal client
+
+Usage: ytmpc [command] [--json]
+
+  status                     what plays (the default)
+  watch                      print changes as they happen
+  play [ID] [--list LIST]    resume, or play a song, an album or a playlist
+                             (from one of its songs with --list)
+  toggle | next | previous   play or pause, skip, go back
+  search QUERY [--filter KIND] [--next TOKEN]
+                             KIND: all, songs, videos, albums, artists, playlists
+  album ID | artist ID | playlist ID [--next TOKEN]
+  queue                      the queue, the playing song marked
+  queue add ID [--up-next] | queue go N | queue rm N | queue clear
+  lyrics                     the current song's lyrics, from Synced Lyrics
+  download [ID]              download the current song, or ID
+  pair                       ask Rien for access again
+
+--json prints Rien's answer as JSON, for scripts and agents.
+Rien's API server must be on (Plugins > API Server), without HTTPS:
+ytmpc talks to it over plain HTTP on this computer.
+Settings: ~/.config/ytmpc/config.toml, address = \"127.0.0.1:26538\"
+";
+
+#[derive(Deserialize, Default)]
+struct Config {
+    address: Option<String>,
+}
+
+fn config_dir() -> PathBuf {
+    env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .filter(|dir| dir.is_absolute())
+        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+        .unwrap_or_default()
+        .join("ytmpc")
+}
+
+/// Removes `name` from the arguments and tells whether it was there.
+fn flag(args: &mut Vec<String>, name: &str) -> bool {
+    let before = args.len();
+    args.retain(|arg| arg != name);
+    args.len() != before
+}
+
+/// Removes `name` and the value after it from the arguments.
+fn option(args: &mut Vec<String>, name: &str) -> Result<Option<String>> {
+    let Some(at) = args.iter().position(|arg| arg == name) else {
+        return Ok(None);
+    };
+    if at + 1 >= args.len() {
+        bail!("{name} needs a value");
+    }
+    let value = args.remove(at + 1);
+    args.remove(at);
+    Ok(Some(value))
+}
+
+/// What `play` gets: a video ID is 11 characters; an album's browse ID starts
+/// with MPRE; anything else is a playlist ID, with or without VL.
+enum Target {
+    Song(String),
+    Album(String),
+    List(String),
+}
+
+fn target(id: &str) -> Target {
+    if id.len() == 11
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        Target::Song(id.to_owned())
+    } else if id.starts_with("MPRE") {
+        Target::Album(id.to_owned())
+    } else {
+        Target::List(id.strip_prefix("VL").unwrap_or(id).to_owned())
+    }
+}
+
+/// A JSON object of the fields that have a value: the API refuses null for an
+/// optional field.
+fn fields(pairs: &[(&str, Option<&str>)]) -> Value {
+    Value::Object(
+        pairs
+            .iter()
+            .filter_map(|(key, value)| value.map(|value| (key.to_string(), json!(value))))
+            .collect(),
+    )
+}
+
+fn number(value: Option<&String>) -> Result<usize> {
+    value
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|number| *number > 0)
+        .context("needs a position: 1 is the first song")
+}
+
+fn query(text: &str) -> String {
+    let mut out = String::new();
+    for byte in text.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+fn main() {
+    if let Err(error) = run() {
+        eprintln!("ytmpc: {}", items::clean(&format!("{error:#}")));
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<()> {
+    let mut args: Vec<String> = env::args().skip(1).collect();
+    if flag(&mut args, "--help")
+        || flag(&mut args, "-h")
+        || args.first().is_some_and(|arg| arg == "help")
+    {
+        print!("{HELP}");
+        return Ok(());
+    }
+    let as_json = flag(&mut args, "--json");
+    let up_next = flag(&mut args, "--up-next");
+    let filter = option(&mut args, "--filter")?;
+    let next = option(&mut args, "--next")?;
+    let list = option(&mut args, "--list")?;
+
+    let dir = config_dir();
+    let config: Config = match fs::read_to_string(dir.join("config.toml")) {
+        Ok(text) => toml::from_str(&text).context("~/.config/ytmpc/config.toml has an error")?,
+        Err(_) => Config::default(),
+    };
+    let mut rien = Rien::new(
+        config.address.unwrap_or_else(|| "127.0.0.1:26538".into()),
+        dir,
+    );
+
+    // Prints JSON as is, or hands it to the human printer
+    let show = |answer: Option<Value>, human: &dyn Fn(&Value)| match (answer, as_json) {
+        (Some(answer), true) => println!("{answer}"),
+        (Some(answer), false) => human(&answer),
+        (None, true) => println!("null"),
+        (None, false) => {}
+    };
+    let continuation = |next: &Option<String>| {
+        next.as_deref()
+            .map(|token| format!("continuation={}", query(token)))
+            .unwrap_or_default()
+    };
+    // Commands that change something print Rien's answer only as JSON
+    let act = |answer: Option<Value>| {
+        if as_json {
+            println!("{}", answer.unwrap_or(Value::Null));
+        }
+    };
+    let print_next = |answer: &Value| {
+        if let Some(token) = answer["continuation"].as_str() {
+            say(&format!("more: --next {token}"));
+        }
+    };
+
+    let command = args.first().cloned().unwrap_or_else(|| "status".into());
+    let rest = &args[1.min(args.len())..];
+    match command.as_str() {
+        "status" => {
+            let answer = rien.request(Method::Get, "/api/v1/song", None)?;
+            if answer.is_none() && !as_json {
+                println!("Nothing plays.");
+            }
+            show(answer, &|song_info| say(&song(song_info)));
+        }
+        "watch" => rien.watch(|event| {
+            if as_json {
+                println!("{event}");
+            } else if let Some(info) = event.get("song").filter(|info| info.is_object()) {
+                say(&song(info));
+            } else if let Some(playing) = event["isPlaying"].as_bool() {
+                println!("{}", if playing { "▶" } else { "⏸" });
+            }
+            Ok(())
+        })?,
+        "play" => match rest.first().map(|id| target(id)) {
+            None if list.is_none() => {
+                act(rien.request(Method::Post, "/api/v1/play", None)?);
+            }
+            None => {
+                let body = fields(&[("playlistId", list.as_deref())]);
+                act(rien.request(Method::Post, "/api/v1/play-now", Some(&body))?);
+            }
+            Some(Target::Song(video_id)) => {
+                let body = fields(&[
+                    ("videoId", Some(&video_id)),
+                    ("playlistId", list.as_deref()),
+                ]);
+                act(rien.request(Method::Post, "/api/v1/play-now", Some(&body))?);
+            }
+            Some(Target::List(playlist_id)) => {
+                act(rien.request(
+                    Method::Post,
+                    "/api/v1/play-now",
+                    Some(&json!({ "playlistId": playlist_id })),
+                )?);
+            }
+            Some(Target::Album(album_id)) => {
+                let album = rien
+                    .request(
+                        Method::Get,
+                        &format!("/api/v1/browse/album/{album_id}"),
+                        None,
+                    )?
+                    .unwrap_or_default();
+                let playlist_id = album["album"]["playlistId"]
+                    .as_str()
+                    .context("Rien found no list to play for this album")?
+                    .to_owned();
+                act(rien.request(
+                    Method::Post,
+                    "/api/v1/play-now",
+                    Some(&json!({ "playlistId": playlist_id })),
+                )?);
+            }
+        },
+        "toggle" => {
+            act(rien.request(Method::Post, "/api/v1/toggle-play", None)?);
+        }
+        "next" => {
+            act(rien.request(Method::Post, "/api/v1/next", None)?);
+        }
+        "previous" | "prev" => {
+            act(rien.request(Method::Post, "/api/v1/previous", None)?);
+        }
+        "search" => {
+            if rest.is_empty() {
+                bail!("search needs words to look for");
+            }
+            let path = format!(
+                "/api/v1/browse/search?q={}&filter={}&{}",
+                query(&rest.join(" ")),
+                query(filter.as_deref().unwrap_or("all")),
+                continuation(&next)
+            );
+            show(rien.request(Method::Get, &path, None)?, &|answer| {
+                print_items(&answer["items"], None);
+                print_next(answer);
+            });
+        }
+        "album" | "artist" | "playlist" => {
+            let id = rest.first().context("needs an ID")?;
+            let path = format!(
+                "/api/v1/browse/{command}/{}?{}",
+                query(id),
+                continuation(&next)
+            );
+            show(
+                rien.request(Method::Get, &path, None)?,
+                &|answer| match command.as_str() {
+                    "album" => {
+                        let album = &answer["album"];
+                        say(&format!(
+                            "{} · {}",
+                            album["title"].as_str().unwrap_or_default(),
+                            album["subtitle"].as_str().unwrap_or_default()
+                        ));
+                        say(album["stats"].as_str().unwrap_or_default());
+                        print_items(&answer["tracks"], None);
+                    }
+                    "artist" => {
+                        let artist = &answer["artist"];
+                        say(&format!(
+                            "{} · {}",
+                            artist["name"].as_str().unwrap_or_default(),
+                            artist["stats"].as_str().unwrap_or_default()
+                        ));
+                        for section in answer["sections"].as_array().into_iter().flatten() {
+                            say(&format!(
+                                "\n{}",
+                                section["title"].as_str().unwrap_or_default()
+                            ));
+                            print_items(&section["items"], None);
+                            if let Some(more) = section["more"].as_str() {
+                                say(&format!("all: {more}"));
+                            }
+                        }
+                    }
+                    _ => {
+                        if let Some(playlist) = answer["playlist"].as_object() {
+                            let text = |key: &str| {
+                                playlist
+                                    .get(key)
+                                    .and_then(Value::as_str)
+                                    .unwrap_or_default()
+                            };
+                            say(&format!("{} · {}", text("title"), text("subtitle")));
+                            say(text("stats"));
+                        }
+                        print_items(&answer["tracks"], None);
+                        print_next(answer);
+                    }
+                },
+            );
+        }
+        "queue" => match rest.first().map(String::as_str) {
+            None => show(
+                rien.request(Method::Get, "/api/v1/queue/items", None)?,
+                &|answer| {
+                    let current = answer["current"].as_u64().map(|index| index as usize);
+                    print_items(&answer["items"], current);
+                },
+            ),
+            Some("add") => {
+                let id = rest.get(1).context("queue add needs a video ID")?;
+                let position = if up_next {
+                    "INSERT_AFTER_CURRENT_VIDEO"
+                } else {
+                    "INSERT_AT_END"
+                };
+                let body = json!({ "videoId": id, "insertPosition": position });
+                act(rien.request(Method::Post, "/api/v1/queue", Some(&body))?);
+            }
+            Some("go") => {
+                let index = number(rest.get(1))? - 1;
+                act(rien.request(
+                    Method::Patch,
+                    "/api/v1/queue",
+                    Some(&json!({ "index": index })),
+                )?);
+            }
+            Some("rm") => {
+                let index = number(rest.get(1))? - 1;
+                act(rien.request(Method::Delete, &format!("/api/v1/queue/{index}"), None)?);
+            }
+            Some("clear") => {
+                act(rien.request(Method::Delete, "/api/v1/queue", None)?);
+            }
+            Some(other) => bail!("unknown queue command: {other} (see ytmpc help)"),
+        },
+        "lyrics" => {
+            let answer = rien.request(Method::Get, "/api/v1/lyrics", None)?;
+            if answer.is_none() && !as_json {
+                println!("No lyrics for this song yet.");
+            }
+            show(answer, &|lyrics| match lyrics["lines"].as_array() {
+                Some(lines) => {
+                    for line in lines {
+                        let at = line["timeMs"].as_u64().unwrap_or(0) / 1000;
+                        say(&format!(
+                            "[{}] {}",
+                            time(at),
+                            line["text"].as_str().unwrap_or_default()
+                        ));
+                    }
+                }
+                None => say(lyrics["plain"].as_str().unwrap_or_default()),
+            });
+        }
+        "download" => {
+            let body = fields(&[("videoId", rest.first().map(String::as_str))]);
+            act(rien.request(Method::Post, "/api/v1/download", Some(&body))?);
+            if !as_json {
+                println!("Downloading in Rien.");
+            }
+        }
+        "pair" => rien.pair()?,
+        other => bail!("unknown command: {other} (see ytmpc help)"),
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn strings(args: &[&str]) -> Vec<String> {
+        args.iter().map(|arg| arg.to_string()).collect()
+    }
+
+    #[test]
+    fn flags_and_options_leave_the_rest() {
+        let mut args = strings(&["search", "--filter", "songs", "linkin", "--json", "park"]);
+        assert!(flag(&mut args, "--json"));
+        assert_eq!(
+            option(&mut args, "--filter").unwrap().as_deref(),
+            Some("songs")
+        );
+        assert_eq!(args, strings(&["search", "linkin", "park"]));
+        assert!(option(&mut strings(&["album", "--next"]), "--next").is_err());
+    }
+
+    #[test]
+    fn play_targets() {
+        assert!(matches!(target("BLZWkjBXfN8"), Target::Song(_)));
+        assert!(matches!(target("MPREb_qMlbe7gLeuH"), Target::Album(_)));
+        assert!(
+            matches!(target("VLPLd9p7ZJWGPtmbjHzxJm7dGQKy-QV0Q4xJ"), Target::List(id) if id == "PLd9p7ZJWGPtmbjHzxJm7dGQKy-QV0Q4xJ")
+        );
+        assert!(matches!(
+            target("OLAK5uy_nE-SkwNA6lYF99wd-MHzJVqThnUIJGe3I"),
+            Target::List(_)
+        ));
+    }
+
+    #[test]
+    fn queries_are_escaped() {
+        assert_eq!(
+            query("linkin park & co/é"),
+            "linkin%20park%20%26%20co%2F%C3%A9"
+        );
+    }
+
+    #[test]
+    fn fields_leave_out_missing_values() {
+        assert_eq!(
+            fields(&[("videoId", Some("x")), ("playlistId", None)]),
+            json!({ "videoId": "x" })
+        );
+    }
+
+    #[test]
+    fn positions_start_at_one() {
+        assert_eq!(number(Some(&"2".to_string())).unwrap(), 2);
+        assert!(number(Some(&"0".to_string())).is_err());
+        assert!(number(None).is_err());
+    }
+}
