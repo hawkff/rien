@@ -37,11 +37,13 @@ pub enum Action {
     VolumeUpMore,
     Mute,
     Repeat,
+    SaveSet,
+    Saved,
     Help,
 }
 
 /// Each action's name in config.toml and its line in the key list
-pub const ACTIONS: [(Action, &str, &str); 30] = [
+pub const ACTIONS: [(Action, &str, &str); 32] = [
     (Action::Quit, "quit", "quit"),
     (Action::Search, "search", "search"),
     (Action::Filter, "filter", "search filter"),
@@ -71,6 +73,8 @@ pub const ACTIONS: [(Action, &str, &str); 30] = [
     (Action::VolumeUpMore, "volume-up-more", "volume +5"),
     (Action::Mute, "mute", "mute"),
     (Action::Repeat, "repeat", "repeat mode"),
+    (Action::SaveSet, "save-set", "save the set"),
+    (Action::Saved, "saved", "saved sets"),
     (Action::Help, "help", "this list"),
 ];
 
@@ -114,6 +118,8 @@ const DEFAULTS: &[(&str, Action)] = &[
     ("=", Action::VolumeUpMore),
     ("m", Action::Mute),
     ("L", Action::Repeat),
+    ("w", Action::SaveSet),
+    ("o", Action::Saved),
     ("?", Action::Help),
 ];
 

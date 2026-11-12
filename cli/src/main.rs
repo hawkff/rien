@@ -1,6 +1,7 @@
 // ytmpc: Rien's terminal client. One-shot commands over Rien's API server.
 mod items;
 mod rien;
+mod saved;
 mod tui;
 
 use std::{
@@ -17,7 +18,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{
-    items::{print_items, say, song, time},
+    items::{clean, print_items, say, song, time},
     rien::{Method, Rien},
 };
 
@@ -37,6 +38,8 @@ Usage: ytmpc [command] [--json]
   album ID | artist ID | playlist ID [--next TOKEN]
   queue                      the queue, the playing song marked
   queue add ID [--up-next] | queue go N | queue rm N | queue clear
+  queue save NAME | queue load NAME [--append] | queue saved | queue forget NAME
+                             sets kept in ~/.local/share/ytmpc/sets
   lyrics                     the current song's lyrics, from Synced Lyrics
   download [ID]              download the current song, or ID
   pair                       ask Rien for access again
@@ -44,7 +47,14 @@ Usage: ytmpc [command] [--json]
 --json prints Rien's answer as JSON, for scripts and agents.
 Rien's API server must be on (Plugins > API Server), without HTTPS:
 ytmpc talks to it over plain HTTP on this computer.
-Settings: ~/.config/ytmpc/config.toml, address = \"127.0.0.1:26538\"
+Settings, in ~/.config/ytmpc:
+  config.toml   address = \"127.0.0.1:26538\"
+                mouse = true      the wheel and clicks in the full-screen client
+                [keys]            key = action, with mpv's key names; \"\" unbinds
+                                  (? in the full-screen client lists them)
+  theme.toml    background, text, text_dim, text_faint, accent, selection,
+                rule, played, warning, error = \"#rrggbb\" (background \"none\":
+                the terminal's own)
 ";
 
 #[derive(Deserialize, Default)]
@@ -53,6 +63,9 @@ struct Config {
     /// Key name to action for the full-screen client, mpv style
     #[serde(default)]
     keys: std::collections::HashMap<String, String>,
+    /// The wheel and clicks in the full-screen client
+    #[serde(default)]
+    mouse: bool,
 }
 
 fn config_dir() -> PathBuf {
@@ -183,6 +196,7 @@ fn run() -> Result<()> {
     }
     let as_json = flag(&mut args, "--json");
     let up_next = flag(&mut args, "--up-next");
+    let append = flag(&mut args, "--append");
     let filter = option(&mut args, "--filter")?;
     let next = option(&mut args, "--next")?;
     let list = option(&mut args, "--list")?;
@@ -204,7 +218,19 @@ fn run() -> Result<()> {
         // Asks for access before the screen changes, so the prompt shows
         rien.request(Method::Get, "/api/v1/song", None)?;
         let feed = Rien::new(address, dir.clone()).quiet();
-        return tui::run(rien.quiet(), feed, &dir.join("theme.toml"), &config.keys);
+        let state = env::var_os("XDG_STATE_HOME")
+            .map(PathBuf::from)
+            .filter(|dir| dir.is_absolute())
+            .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/state")))
+            .unwrap_or_default()
+            .join("ytmpc");
+        let options = tui::Options {
+            theme: &dir.join("theme.toml"),
+            keys: &config.keys,
+            mouse: config.mouse,
+            state: &state,
+        };
+        return tui::run(rien.quiet(), feed, options);
     }
 
     // Prints JSON as is, or hands it to the human printer
@@ -403,6 +429,60 @@ fn run() -> Result<()> {
             }
             Some("clear") => {
                 act(rien.request(Method::Delete, "/api/v1/queue", None)?);
+            }
+            Some("save") => {
+                let name = rest[1..].join(" ");
+                let set = rien
+                    .request(Method::Get, "/api/v1/queue/items", None)?
+                    .unwrap_or_default();
+                let count = saved::save(&name, &items::items(&set["items"]))?;
+                if as_json {
+                    println!("null");
+                } else {
+                    say(&format!("Saved {count} songs as \"{name}\"."));
+                }
+            }
+            Some("load") => {
+                let name = rest[1..].join(" ");
+                let songs = saved::load(&name)?;
+                saved::play(&mut rien, &songs, append)?;
+                if as_json {
+                    println!("null");
+                } else {
+                    say(&if append {
+                        format!("Added \"{name}\", {} songs, to the set.", songs.len())
+                    } else {
+                        format!("Playing \"{name}\", {} songs.", songs.len())
+                    });
+                }
+            }
+            Some("saved") => {
+                let (sets, broken) = saved::list()?;
+                for path in &broken {
+                    eprintln!("ytmpc: {} can't be read as a saved set", clean(path));
+                }
+                if as_json {
+                    let list: Vec<Value> = sets
+                        .iter()
+                        .map(|(name, songs)| json!({ "name": name, "songs": songs }))
+                        .collect();
+                    println!("{}", Value::Array(list));
+                } else if sets.is_empty() {
+                    println!("No saved sets yet: ytmpc queue save NAME");
+                }
+                for (name, songs) in sets.iter().filter(|_| !as_json) {
+                    let total: u64 = songs.iter().filter_map(|song| song.duration).sum();
+                    say(&format!("{name}  {} songs  {}", songs.len(), time(total)));
+                }
+            }
+            Some("forget") => {
+                let name = rest[1..].join(" ");
+                saved::forget(&name)?;
+                if as_json {
+                    println!("null");
+                } else {
+                    say(&format!("Forgot \"{name}\"."));
+                }
             }
             Some(other) => bail!("unknown queue command: {other} (see ytmpc help)"),
         },

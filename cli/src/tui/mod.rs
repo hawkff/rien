@@ -19,7 +19,11 @@ use image::DynamicImage;
 use ratatui::crossterm::event::{
     self, Event as TermEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers,
 };
-use ratatui_image::{picker::Picker, protocol::StatefulProtocol};
+use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
+use ratatui_image::{
+    picker::{Capability, Picker, cap_parser::QueryStdioOptions},
+    protocol::StatefulProtocol,
+};
 use serde_json::{Value, json};
 
 pub use self::{
@@ -30,6 +34,7 @@ use crate::{
     items::Item,
     query,
     rien::{Method, Rien},
+    saved,
 };
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -83,6 +88,8 @@ pub enum Row {
 /// opened from it, with the list the album or playlist plays
 pub struct Page {
     pub id: u64,
+    /// The first row shown; it moves only to keep the selection in view
+    pub offset: std::cell::Cell<usize>,
     pub title: String,
     pub rows: Vec<Row>,
     pub selected: usize,
@@ -104,6 +111,7 @@ impl Page {
             .unwrap_or(0);
         Self {
             id: PAGES.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+            offset: Default::default(),
             title,
             rows,
             selected,
@@ -179,6 +187,8 @@ pub struct Lyric {
 pub struct App {
     pub query: String,
     pub editing: bool,
+    /// The name being typed for the set to save
+    pub saving: Option<String>,
     pub filter: Filter,
     pub pages: Vec<Page>,
     pub set: Vec<Item>,
@@ -187,6 +197,8 @@ pub struct App {
     pub current: Option<usize>,
     /// Over the set, then the encore
     pub set_selected: usize,
+    /// The set's first row shown while it has the focus
+    pub set_offset: std::cell::Cell<usize>,
     pub song: Option<Song>,
     pub lyrics: Option<Result<Vec<Lyric>, String>>,
     pub pane: Pane,
@@ -234,6 +246,11 @@ pub enum Job {
         slot: Option<String>,
         video_id: String,
     },
+    /// Plays a saved set, or adds it to the end of the set
+    LoadSaved {
+        name: String,
+        append: bool,
+    },
     /// Puts a song into the set, waits until it is there, then skips to it
     /// if asked: Rien answers before the page has added the song
     Queue {
@@ -245,6 +262,7 @@ pub enum Job {
 
 pub enum Event {
     Key(KeyEvent),
+    Mouse(MouseEvent),
     Resize,
     Feed(Value),
     FeedLost(String),
@@ -272,12 +290,14 @@ impl App {
         Self {
             query: String::new(),
             editing: true,
+            saving: None,
             filter: Filter::All,
             pages: Vec::new(),
             set: Vec::new(),
             encore: Vec::new(),
             current: None,
             set_selected: 0,
+            set_offset: Default::default(),
             song: None,
             lyrics: None,
             pane: Pane::Results,
@@ -409,6 +429,19 @@ impl App {
                         }
                         self.act(jobs, Method::Post, "/api/v1/play-now", Some(body));
                     }
+                    "saved" => {
+                        self.send(
+                            jobs,
+                            Job::LoadSaved {
+                                name: id,
+                                append: false,
+                            },
+                            Method::Get,
+                            String::new(),
+                            None,
+                        );
+                        self.say(format!("Playing {title}"));
+                    }
                     "album" | "artist" | "playlist" => {
                         let path = format!("/api/v1/browse/{kind}/{}", query(&id));
                         let from = self.page().map_or(0, |page| page.id);
@@ -437,6 +470,20 @@ impl App {
         };
         let Some(item) = picked else { return };
         let (kind, id, title) = (item.kind.clone(), item.id.clone(), item.title.clone());
+        if kind == "saved" {
+            self.send(
+                jobs,
+                Job::LoadSaved {
+                    name: id,
+                    append: true,
+                },
+                Method::Get,
+                String::new(),
+                None,
+            );
+            self.say(format!("Adding {title} to the set"));
+            return;
+        }
         if !matches!(kind.as_str(), "song" | "video" | "episode") {
             self.say("Only songs go into the set one by one; Enter plays a whole list");
             return;
@@ -515,6 +562,43 @@ impl App {
         match action {
             Action::Quit => self.quit = true,
             Action::Help => self.help = true,
+            Action::SaveSet => self.saving = Some(String::new()),
+            Action::Saved => {
+                let rows = match saved::list() {
+                    Ok((sets, broken)) => {
+                        if !broken.is_empty() {
+                            self.say(format!("Can't read as a saved set: {}", broken.join(", ")));
+                        }
+                        sets.into_iter()
+                            .map(|(name, songs)| {
+                                Row::Item(Item {
+                                    kind: "saved".into(),
+                                    id: name.clone(),
+                                    title: name,
+                                    subtitle: format!("{} songs", songs.len()),
+                                    artists: Vec::new(),
+                                    album: None,
+                                    duration: Some(
+                                        songs.iter().filter_map(|song| song.duration).sum(),
+                                    ),
+                                    slot: None,
+                                    available: true,
+                                })
+                            })
+                            .collect()
+                    }
+                    Err(error) => {
+                        self.say(format!("{error:#}"));
+                        return;
+                    }
+                };
+                // Opening them again shows them again, not one more page
+                if self.page().is_some_and(|page| page.title == "SAVED SETS") {
+                    self.pages.pop();
+                }
+                self.pages.push(Page::new("SAVED SETS".into(), rows, None));
+                self.pane = Pane::Results;
+            }
             Action::Search => {
                 self.editing = true;
                 self.query.clear();
@@ -605,6 +689,25 @@ impl App {
             self.quit = true;
             return;
         }
+        if let Some(name) = self.saving.as_mut() {
+            match key.code {
+                KeyCode::Enter => {
+                    let name = std::mem::take(name);
+                    self.saving = None;
+                    match saved::save(&name, &self.set) {
+                        Ok(count) => self.say(format!("Saved {count} songs as {name}")),
+                        Err(error) => self.say(format!("{error:#}")),
+                    }
+                }
+                KeyCode::Esc => self.saving = None,
+                KeyCode::Backspace => {
+                    name.pop();
+                }
+                KeyCode::Char(c) if !ctrl => name.push(c),
+                _ => {}
+            }
+            return;
+        }
         if self.editing {
             match key.code {
                 KeyCode::Enter => {
@@ -636,6 +739,54 @@ impl App {
             Some(action) => self.perform(action, jobs, page_rows),
             None if self.keys.starts(&name) => self.pending = Some(name),
             None => {}
+        }
+    }
+
+    /// With the mouse on: the wheel moves the selection of the pane under
+    /// the pointer, a click selects a row, and a click on the selected row
+    /// plays or opens it
+    fn mouse(&mut self, event: MouseEvent, hits: &view::Hits, jobs: &Sender<Request>) {
+        if self.editing || self.saving.is_some() || self.help {
+            return;
+        }
+        match event.kind {
+            MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
+                if let Some(pane) = hits.pane(event.column) {
+                    self.pane = pane;
+                }
+                let by = if event.kind == MouseEventKind::ScrollDown {
+                    3
+                } else {
+                    -3
+                };
+                self.move_selection(by, jobs);
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                let Some((pane, index)) = hits.at(event.column, event.row) else {
+                    return;
+                };
+                let selected = match pane {
+                    Pane::Results => self.page().map(|page| page.selected),
+                    Pane::Set => Some(self.set_selected),
+                    Pane::Lyrics => None,
+                };
+                if self.pane == pane && selected == Some(index) {
+                    return self.enter(jobs);
+                }
+                self.pane = pane;
+                match pane {
+                    Pane::Results => {
+                        if let Some(page) = self.pages.last_mut() {
+                            page.selected = index;
+                        }
+                    }
+                    Pane::Set => self.set_selected = index,
+                    Pane::Lyrics => {}
+                }
+                // Near the end of a search or playlist, the next page loads
+                self.move_selection(0, jobs);
+            }
+            _ => {}
         }
     }
 
@@ -825,7 +976,7 @@ impl App {
             }
             Job::Action => self.refresh(jobs),
             // The worker answers covers with Event::Cover
-            Job::Cover | Job::Queue { .. } | Job::Edit { .. } => {}
+            Job::Cover | Job::Queue { .. } | Job::Edit { .. } | Job::LoadSaved { .. } => {}
         }
     }
 }
@@ -933,6 +1084,13 @@ fn queue(
     }
 }
 
+fn load_saved(rien: &mut Rien, name: &str, append: bool) -> Result<Option<Value>, String> {
+    saved::load(name)
+        .and_then(|songs| saved::play(rien, &songs, append))
+        .map(|()| None)
+        .map_err(|error| format!("{error:#}"))
+}
+
 fn worker(mut rien: Rien, requests: Receiver<Request>, events: Sender<Event>) {
     for request in requests {
         let event = match request.job {
@@ -948,6 +1106,9 @@ fn worker(mut rien: Rien, requests: Receiver<Request>, events: Sender<Event>) {
                 up_next,
                 then_next,
             } => Event::Answer(Job::Set, queue(&mut rien, &video_id, up_next, then_next)),
+            Job::LoadSaved { name, append } => {
+                Event::Answer(Job::Action, load_saved(&mut rien, &name, append))
+            }
             Job::Edit {
                 remove,
                 index,
@@ -970,12 +1131,24 @@ fn worker(mut rien: Rien, requests: Receiver<Request>, events: Sender<Event>) {
     }
 }
 
-pub fn run(
-    rien: Rien,
-    feed: Rien,
-    theme_path: &Path,
-    key_table: &HashMap<String, String>,
-) -> Result<()> {
+/// Whether the terminal said its background is light (OSC 11)
+fn light_background(capabilities: &[Capability]) -> bool {
+    capabilities.iter().any(|capability| {
+        matches!(capability, Capability::Background(r, g, b)
+            if 0.2126 * *r as f32 + 0.7152 * *g as f32 + 0.0722 * *b as f32 > 150.0)
+    })
+}
+
+/// Rien's address, the settings and where the client keeps its notes
+pub struct Options<'a> {
+    pub theme: &'a Path,
+    pub keys: &'a HashMap<String, String>,
+    pub mouse: bool,
+    pub state: &'a Path,
+}
+
+pub fn run(rien: Rien, feed: Rien, options: Options) -> Result<()> {
+    let (theme_path, key_table) = (options.theme, options.keys);
     let theme = Theme::load(theme_path)?;
     let keys = Keys::new(key_table)?;
     let (events_tx, events) = mpsc::channel();
@@ -991,20 +1164,53 @@ pub fn run(
     let picker = if multiplexed {
         Picker::halfblocks()
     } else {
-        Picker::from_query_stdio().unwrap_or_else(|_| Picker::halfblocks())
+        let asking = QueryStdioOptions {
+            terminal_background_color_osc: true,
+            ..Default::default()
+        };
+        Picker::from_query_stdio_with_options(asking).unwrap_or_else(|_| Picker::halfblocks())
     };
+    // The bundled colors are made for a dark background; a light one gets a
+    // note, once
+    let light = light_background(picker.capabilities());
+    let noted = options.state.join("light-terminal-noted");
+    let note_light = light && theme.background == ratatui::style::Color::Reset && !noted.exists();
+    if note_light {
+        let _ = std::fs::create_dir_all(options.state).and_then(|()| std::fs::write(&noted, ""));
+    }
+    if options.mouse
+        && let Err(error) = ratatui::crossterm::execute!(
+            std::io::stdout(),
+            ratatui::crossterm::event::EnableMouseCapture
+        )
+    {
+        ratatui::restore();
+        return Err(error.into());
+    }
     let mut cover: Option<StatefulProtocol> = None;
 
     // Two workers, so a slow search or cover can't hold up the player's keys
     let (player_tx, player_requests) = mpsc::channel();
     let (browse_tx, browse_requests) = mpsc::channel();
     let browse_rien = rien.clone();
+    let (loads_tx, loads_requests) = mpsc::channel();
+    let (load_rien, to_screen) = (rien.clone(), events_tx.clone());
+    thread::spawn(move || worker(load_rien, loads_requests, to_screen));
     let to_screen = events_tx.clone();
     thread::spawn(move || worker(rien, player_requests, to_screen));
     let to_screen = events_tx.clone();
     thread::spawn(move || worker(browse_rien, browse_requests, to_screen));
     thread::spawn(move || {
         for request in requests {
+            // A saved set can take a while to load: loads have a worker of their
+            // own, one after another, so the player keeps its keys and two sets
+            // don't mix
+            if matches!(request.job, Job::LoadSaved { .. }) {
+                if loads_tx.send(request).is_err() {
+                    return;
+                }
+                continue;
+            }
             let browsing = matches!(
                 request.job,
                 Job::Search { .. } | Job::More { .. } | Job::Open { .. } | Job::Cover | Job::Lyrics
@@ -1052,6 +1258,7 @@ pub fn run(
         while let Ok(event) = event::read() {
             let event = match event {
                 TermEvent::Key(key) => Event::Key(key),
+                TermEvent::Mouse(mouse) => Event::Mouse(mouse),
                 TermEvent::Resize(..) => Event::Resize,
                 _ => continue,
             };
@@ -1063,13 +1270,21 @@ pub fn run(
 
     let mut app = App::new(keys);
     app.refresh(&jobs);
+    if note_light {
+        app.say("This terminal looks light; ytmpc's colors are made for dark ones. theme.toml can set them all (see ytmpc help).");
+    }
+    let mut hits = view::Hits::default();
     let mut set_checked = Instant::now();
     let result = (|| -> Result<()> {
         loop {
             let size = terminal.size()?;
-            terminal.draw(|frame| view::draw(frame, &app, &theme, &mut cover))?;
+            terminal.draw(|frame| {
+                hits = view::Hits::default();
+                view::draw(frame, &app, &theme, &mut cover, &mut hits);
+            })?;
             match events.recv_timeout(Duration::from_millis(500)) {
                 Ok(Event::Key(key)) => app.key(key, &jobs, view::list_rows(size.height) as isize),
+                Ok(Event::Mouse(mouse)) => app.mouse(mouse, &hits, &jobs),
                 Ok(Event::Resize) => {}
                 Ok(Event::Feed(event)) => app.feed(&event, &jobs),
                 Ok(Event::FeedLost(reason)) => {
@@ -1113,6 +1328,12 @@ pub fn run(
             }
         }
     })();
+    if options.mouse {
+        let _ = ratatui::crossterm::execute!(
+            std::io::stdout(),
+            ratatui::crossterm::event::DisableMouseCapture
+        );
+    }
     ratatui::restore();
     result
 }
@@ -1247,6 +1468,67 @@ mod tests {
         assert_eq!(app.pages.len(), 1);
         app.answer(opened(search), Ok(Some(album)), &jobs);
         assert_eq!(app.pages.len(), 2);
+    }
+
+    #[test]
+    fn w_asks_for_a_name_and_esc_lets_go() {
+        let (jobs, _requests) = mpsc::channel::<Request>();
+        let mut app = app();
+        app.editing = false;
+        app.key(KeyEvent::from(KeyCode::Char('w')), &jobs, 10);
+        assert_eq!(app.saving.as_deref(), Some(""));
+        for c in "Late q".chars() {
+            app.key(KeyEvent::from(KeyCode::Char(c)), &jobs, 10);
+        }
+        assert_eq!(app.saving.as_deref(), Some("Late q"));
+        assert!(!app.quit);
+        app.key(KeyEvent::from(KeyCode::Esc), &jobs, 10);
+        assert_eq!(app.saving, None);
+    }
+
+    #[test]
+    fn a_click_selects_and_a_second_one_plays() {
+        let (jobs, requests) = mpsc::channel::<Request>();
+        let mut app = app();
+        app.editing = false;
+        app.set = vec![item("song", "a"), item("song", "b")];
+        let line = |y| ratatui::layout::Rect {
+            x: 50,
+            y,
+            width: 30,
+            height: 1,
+        };
+        let hits = view::Hits {
+            rows: vec![(line(3), Pane::Set, 0), (line(4), Pane::Set, 1)],
+        };
+        let click = |row| MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 60,
+            row,
+            modifiers: KeyModifiers::NONE,
+        };
+        app.mouse(click(4), &hits, &jobs);
+        assert_eq!((app.pane, app.set_selected), (Pane::Set, 1));
+        assert!(requests.try_recv().is_err());
+        app.mouse(click(4), &hits, &jobs);
+        assert!(matches!(
+            requests.try_recv().unwrap().job,
+            Job::Edit {
+                remove: false,
+                index: 1,
+                ..
+            }
+        ));
+        // Outside the rows nothing happens
+        app.mouse(click(9), &hits, &jobs);
+        assert_eq!(app.set_selected, 1);
+    }
+
+    #[test]
+    fn light_backgrounds_are_told_from_dark_ones() {
+        assert!(light_background(&[Capability::Background(250, 250, 245)]));
+        assert!(!light_background(&[Capability::Background(0, 11, 30)]));
+        assert!(!light_background(&[]));
     }
 
     #[test]

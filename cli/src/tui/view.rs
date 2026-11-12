@@ -14,6 +14,30 @@ use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 use super::{Action, App, Pane, Row, Theme};
 use crate::items::{Item, clean, time};
 
+/// Where the rows of the lists were drawn, for the mouse: the row's line,
+/// its pane and its index there
+#[derive(Default)]
+pub struct Hits {
+    pub rows: Vec<(Rect, Pane, usize)>,
+}
+
+impl Hits {
+    pub fn at(&self, column: u16, row: u16) -> Option<(Pane, usize)> {
+        self.rows
+            .iter()
+            .find(|(area, _, _)| area.y == row && column >= area.x && column < area.x + area.width)
+            .map(|&(_, pane, index)| (pane, index))
+    }
+
+    /// The pane whose rows span this column
+    pub fn pane(&self, column: u16) -> Option<Pane> {
+        self.rows
+            .iter()
+            .find(|(area, _, _)| column >= area.x && column < area.x + area.width)
+            .map(|&(_, pane, _)| pane)
+    }
+}
+
 /// The layout switches to three panes from this width
 pub const WIDE: u16 = 120;
 
@@ -150,8 +174,8 @@ fn item_row(
         ));
     }
     let right = match (item.kind.as_str(), item.duration) {
-        ("song" | "video" | "episode", Some(seconds)) => time(seconds),
-        ("song" | "video" | "episode", None) => String::new(),
+        ("song" | "video" | "episode" | "saved", Some(seconds)) => time(seconds),
+        ("song" | "video" | "episode" | "saved", None) => String::new(),
         (kind, _) => kind.to_owned(),
     };
     let mut line = spread(left, Span::styled(right, Style::new().fg(dim)), width);
@@ -159,6 +183,28 @@ fn item_row(
         line = line.style(Style::new().bg(theme.selection));
     }
     line
+}
+
+/// The rows that fit, from the first one shown before, moved only as far as
+/// it takes to keep `selected` in view: rows stay put under the pointer
+fn stable(
+    count: usize,
+    selected: usize,
+    height: usize,
+    offset: &std::cell::Cell<usize>,
+) -> std::ops::Range<usize> {
+    if count <= height {
+        offset.set(0);
+        return 0..count;
+    }
+    let mut top = offset.get().min(count - height);
+    if selected < top {
+        top = selected;
+    } else if selected >= top + height {
+        top = selected + 1 - height;
+    }
+    offset.set(top);
+    top..top + height
 }
 
 /// The rows that fit, scrolled so `focus` stays near the middle
@@ -186,7 +232,7 @@ fn heading(label: &str, info: &str, focused: bool, theme: &Theme, width: u16) ->
     )
 }
 
-fn results(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
+fn results(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, hits: &mut Hits) {
     let focused = app.pane == Pane::Results && !app.editing;
     let mut lines = Vec::new();
     match app.page() {
@@ -232,7 +278,15 @@ fn results(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
                     number
                 })
                 .collect();
-            for at in window(page.rows.len(), page.selected, height) {
+            for at in stable(page.rows.len(), page.selected, height, &page.offset) {
+                if matches!(page.rows[at], Row::Item(_)) {
+                    let line = Rect {
+                        y: area.y + lines.len() as u16,
+                        height: 1,
+                        ..area
+                    };
+                    hits.rows.push((line, Pane::Results, at));
+                }
                 lines.push(match &page.rows[at] {
                     Row::Heading(title) => Line::styled(
                         format!("  {}", clean(title)),
@@ -261,7 +315,7 @@ enum SetLine {
     Rule,
 }
 
-fn set(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
+fn set(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, hits: &mut Hits) {
     let focused = app.pane == Pane::Set && !app.editing;
     let total: u64 = app.set.iter().filter_map(|item| item.duration).sum();
     let info = format!("{} · {}", app.set.len(), time(total));
@@ -283,7 +337,26 @@ fn set(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
         app.current.unwrap_or(0)
     };
     let height = area.height.saturating_sub(1) as usize;
-    for at in window(rows.len(), focus, height) {
+    // The focused set stays put under the pointer; otherwise it follows the
+    // playing song
+    let shown = if focused {
+        stable(rows.len(), focus, height, &app.set_offset)
+    } else {
+        let shown = window(rows.len(), focus, height);
+        app.set_offset.set(shown.start);
+        shown
+    };
+    for at in shown {
+        let line = Rect {
+            y: area.y + lines.len() as u16,
+            height: 1,
+            ..area
+        };
+        match rows[at] {
+            SetLine::Set(index) => hits.rows.push((line, Pane::Set, index)),
+            SetLine::Encore(index) => hits.rows.push((line, Pane::Set, app.set.len() + index)),
+            SetLine::Rule => {}
+        }
         lines.push(match rows[at] {
             SetLine::Set(index) => {
                 let mark = match app.current {
@@ -473,6 +546,18 @@ fn sections(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
 }
 
 fn search_line(app: &App, theme: &Theme, width: u16) -> Line<'static> {
+    if let Some(name) = &app.saving {
+        let left = vec![
+            Span::styled("save the set as: ", Style::new().fg(theme.dim)),
+            Span::styled(clean(name), Style::new().fg(theme.text)),
+            Span::styled("▏", Style::new().fg(theme.text)),
+        ];
+        let label = Span::styled(
+            "SAVE",
+            Style::new().fg(theme.dim).add_modifier(Modifier::BOLD),
+        );
+        return spread(left, label, width);
+    }
     let mut left = vec![Span::styled("/ ", Style::new().fg(theme.dim))];
     if app.query.is_empty() && !app.editing {
         left.push(Span::styled("search", Style::new().fg(theme.faint)));
@@ -594,6 +679,12 @@ fn hints(app: &App, theme: &Theme, width: u16) -> Line<'static> {
         let color = if error { theme.error } else { theme.dim };
         return Line::styled(fit(&clean(message), width as usize), Style::new().fg(color));
     }
+    if app.saving.is_some() {
+        return Line::styled(
+            fit("⏎ save   esc cancel", width as usize),
+            Style::new().fg(theme.faint),
+        );
+    }
     if app.editing {
         return Line::styled(
             fit("⏎ search   esc done   ^u clear", width as usize),
@@ -652,7 +743,13 @@ fn hints(app: &App, theme: &Theme, width: u16) -> Line<'static> {
     )
 }
 
-pub fn draw(frame: &mut Frame, app: &App, theme: &Theme, cover: &mut Option<StatefulProtocol>) {
+pub fn draw(
+    frame: &mut Frame,
+    app: &App,
+    theme: &Theme,
+    cover: &mut Option<StatefulProtocol>,
+    hits: &mut Hits,
+) {
     let area = frame.area();
     frame.render_widget(Block::new().style(Style::new().bg(theme.background)), area);
     let [top, top_rule, middle, bottom_rule, now, next, keys] = Layout::vertical([
@@ -700,7 +797,7 @@ pub fn draw(frame: &mut Frame, app: &App, theme: &Theme, cover: &mut Option<Stat
         if app.pane == Pane::Lyrics {
             lyrics(frame, center, app, theme);
         } else {
-            results(frame, center, app, theme);
+            results(frame, center, app, theme, hits);
         }
         // The cover sits above the set, sized for a square; a wide one fits in
         // at its own height
@@ -723,14 +820,14 @@ pub fn draw(frame: &mut Frame, app: &App, theme: &Theme, cover: &mut Option<Stat
                     art,
                     cover,
                 );
-                set(frame, rest, app, theme);
+                set(frame, rest, app, theme, hits);
             }
-            None => set(frame, right, app, theme),
+            None => set(frame, right, app, theme, hits),
         }
     } else {
         match app.pane {
-            Pane::Results => results(frame, middle, app, theme),
-            Pane::Set => set(frame, middle, app, theme),
+            Pane::Results => results(frame, middle, app, theme, hits),
+            Pane::Set => set(frame, middle, app, theme, hits),
             Pane::Lyrics => lyrics(frame, middle, app, theme),
         }
     }
@@ -758,7 +855,15 @@ mod tests {
     fn screen(app: &App, width: u16, height: u16) -> Vec<String> {
         let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
         terminal
-            .draw(|frame| draw(frame, app, &Theme::default(), &mut None))
+            .draw(|frame| {
+                draw(
+                    frame,
+                    app,
+                    &Theme::default(),
+                    &mut None,
+                    &mut Hits::default(),
+                )
+            })
             .unwrap();
         let buffer = terminal.backend().buffer().clone();
         (0..height)
@@ -829,6 +934,18 @@ mod tests {
             "{}",
             lines[10]
         );
+    }
+
+    #[test]
+    fn scrolling_moves_only_as_far_as_needed() {
+        let offset = std::cell::Cell::new(0);
+        assert_eq!(stable(30, 0, 10, &offset), 0..10);
+        // A selection inside the shown rows doesn't move them
+        assert_eq!(stable(30, 8, 10, &offset), 0..10);
+        assert_eq!(stable(30, 12, 10, &offset), 3..13);
+        assert_eq!(stable(30, 5, 10, &offset), 3..13);
+        assert_eq!(stable(30, 1, 10, &offset), 1..11);
+        assert_eq!(stable(5, 4, 10, &offset), 0..5);
     }
 
     #[test]
