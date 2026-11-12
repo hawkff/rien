@@ -878,8 +878,8 @@ export const register = (
   });
 
   app.openapi(routes.addSongToQueue, (ctx) => {
-    const { videoId, insertPosition } = ctx.req.valid('json');
-    controller.addSongToQueue(videoId, insertPosition);
+    const { videoId, videoIds, insertPosition } = ctx.req.valid('json');
+    controller.addSongToQueue(videoIds ?? [videoId!], insertPosition);
 
     ctx.status(204);
     return ctx.body(null);

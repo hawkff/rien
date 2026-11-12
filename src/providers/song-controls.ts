@@ -26,16 +26,6 @@ const parseBooleanFromArgsType = (args: ArgsType<boolean>) => {
   }
 };
 
-const parseStringFromArgsType = (args: ArgsType<string>) => {
-  if (typeof args === 'string') {
-    return args;
-  } else if (Array.isArray(args)) {
-    return args[0];
-  } else {
-    return null;
-  }
-};
-
 export const getSongControls = (win: BrowserWindow) => {
   return {
     // Playback
@@ -108,15 +98,19 @@ export const getSongControls = (win: BrowserWindow) => {
       });
     },
     // Queue
-    addSongToQueue: (videoId: string, queueInsertPosition: string) => {
-      const videoIdValue = parseStringFromArgsType(videoId);
-      if (videoIdValue === null) return;
+    // Also reached through the protocol handler, with the IDs as strings
+    addSongToQueue: (
+      videoIds: string | string[] | undefined,
+      queueInsertPosition: string,
+    ) => {
+      const ids = Array.isArray(videoIds)
+        ? videoIds
+        : videoIds
+          ? [videoIds]
+          : [];
+      if (!ids.length) return;
 
-      win.webContents.send(
-        'peard:add-to-queue',
-        videoIdValue,
-        queueInsertPosition,
-      );
+      win.webContents.send('peard:add-to-queue', ids, queueInsertPosition);
     },
     moveSongInQueue: (
       fromIndex: ArgsType<number>,

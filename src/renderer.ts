@@ -225,7 +225,7 @@ async function onApiLoaded() {
 
   window.ipcRenderer.on(
     'peard:add-to-queue',
-    (_, videoId: string, queueInsertPosition: string) => {
+    (_, videoIds: string | string[], queueInsertPosition: string) => {
       const queue = document.querySelector<QueueElement>('#queue');
       const app = document.querySelector<MusicPlayerAppElement>('ytmusic-app');
       if (!app) return;
@@ -237,7 +237,7 @@ async function onApiLoaded() {
         .fetch('/music/get_queue', {
           queueContextParams: store.getState().queue.queueContextParams,
           queueInsertPosition,
-          videoIds: [videoId],
+          videoIds: Array.isArray(videoIds) ? videoIds : [videoIds],
         })
         .then((result) => {
           if (
