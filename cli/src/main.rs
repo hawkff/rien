@@ -1,5 +1,6 @@
 // ytmpc: Rien's terminal client. One-shot commands over Rien's API server.
 mod items;
+mod library;
 mod rien;
 mod saved;
 mod tui;
@@ -40,13 +41,26 @@ Usage: ytmpc [command] [--json]
   queue add ID [--up-next] | queue go N | queue rm N | queue clear
   queue save NAME | queue load NAME [--append] | queue saved | queue forget NAME
                              sets kept in ~/.local/share/ytmpc/sets
+  library [KIND] [--all] [--next TOKEN]
+                             the signed-in library; KIND: songs (default),
+                             albums, artists, subscriptions, playlists, likes,
+                             history
+  library export [FILE]      all of it as JSON, playlists' songs included
+  library remove ID...       songs or albums out of the library
+  library dedupe [songs | likes | PLAYLIST]
+                             a video twice, or one song as several, out
+  unlike ID...               songs out of the liked ones
+  playlist remove ID SLOT... | playlist delete ID
+  undo [--list]              take back the last applied change
+                             Changes are dry runs until --apply, which saves a
+                             snapshot of the library first
   lyrics                     the current song's lyrics, from Synced Lyrics
   download [ID]              download the current song, or ID
   pair                       ask Rien for access again
 
 --json prints Rien's answer as JSON, for scripts and agents.
-Rien's API server must be on (Plugins > Other apps and services > API Server), without HTTPS:
-ytmpc talks to it over plain HTTP on this computer.
+Rien's API server must be on (Plugins > Other apps and services > API Server),
+without HTTPS: ytmpc talks to it over plain HTTP on this computer.
 Settings, in ~/.config/ytmpc:
   config.toml   address = \"127.0.0.1:26538\"
                 mouse = true      the wheel and clicks in the full-screen client
@@ -137,7 +151,7 @@ fn number(value: Option<&String>) -> Result<usize> {
         .context("needs a position: 1 is the first song")
 }
 
-fn query(text: &str) -> String {
+pub(crate) fn query(text: &str) -> String {
     let mut out = String::new();
     for byte in text.bytes() {
         match byte {
@@ -148,6 +162,16 @@ fn query(text: &str) -> String {
         }
     }
     out
+}
+
+/// A playlist's title; an error when Rien finds no such playlist
+fn playlist_title(rien: &mut Rien, id: &str) -> Result<String> {
+    let path = format!("/api/v1/browse/playlist/{}", query(id));
+    let first = rien.request(Method::Get, &path, None)?.unwrap_or_default();
+    match first["playlist"]["title"].as_str() {
+        Some(title) if !title.is_empty() => Ok(title.to_owned()),
+        _ => bail!("Rien found no playlist {id}"),
+    }
 }
 
 /// Opens Rien (on macOS through Launch Services, elsewhere from PATH) and
@@ -197,6 +221,10 @@ fn run() -> Result<()> {
         return Ok(());
     }
     let as_json = flag(&mut args, "--json");
+    let apply = flag(&mut args, "--apply");
+    let every_page = flag(&mut args, "--all");
+    // `undo --list` takes no value, unlike `play --list LIST`
+    let undo_list = args.first().is_some_and(|arg| arg == "undo") && flag(&mut args, "--list");
     let up_next = flag(&mut args, "--up-next");
     let append = flag(&mut args, "--append");
     let filter = option(&mut args, "--filter")?;
@@ -344,6 +372,98 @@ fn run() -> Result<()> {
                 print_next(answer);
             });
         }
+        "playlist" if rest.first().is_some_and(|arg| arg == "remove") => {
+            let id = rest.get(1).context("playlist remove needs a playlist ID")?;
+            if rest.len() < 3 {
+                bail!("playlist remove needs the slots or video IDs to remove");
+            }
+            playlist_title(&mut rien, id)?;
+            let tracks = library::all(
+                &mut rien,
+                &format!("/api/v1/browse/playlist/{}", query(id)),
+                "tracks",
+            )?;
+            let change = library::remove_from_playlist(id, &rest[2..], &tracks)?;
+            library::run(&mut rien, change, apply, as_json)?;
+        }
+        "playlist" if rest.first().is_some_and(|arg| arg == "delete") => {
+            let id = rest.get(1).context("playlist delete needs a playlist ID")?;
+            let title = playlist_title(&mut rien, id)?;
+            let path = format!("/api/v1/browse/playlist/{}", query(id));
+            let tracks = library::all(&mut rien, &path, "tracks")?;
+            let change = library::delete_playlist(id, &title, &tracks);
+            library::run(&mut rien, change, apply, as_json)?;
+        }
+        "library" => match rest.first().map(String::as_str) {
+            Some("export") => {
+                let value = library::export(&mut rien)?;
+                let file =
+                    library::write_export(&value, rest.get(1).map(String::as_str), "exports")?;
+                if as_json {
+                    println!("{}", json!({ "file": file }));
+                } else {
+                    say(&format!("Saved the library to {}", file.display()));
+                }
+            }
+            Some("remove") => {
+                if rest.len() < 2 {
+                    bail!("library remove needs the IDs of songs or albums");
+                }
+                let songs = library::all(&mut rien, "/api/v1/library/songs", "items")?;
+                let albums = library::all(&mut rien, "/api/v1/library/albums", "items")?;
+                let change = library::remove_from_library(&rest[1..], &songs, &albums)?;
+                library::run(&mut rien, change, apply, as_json)?;
+            }
+            Some("dedupe") => {
+                let list = rest.get(1).map_or("songs", String::as_str);
+                let path = match list {
+                    "songs" | "likes" => format!("/api/v1/library/{list}"),
+                    id => {
+                        playlist_title(&mut rien, id)?;
+                        format!("/api/v1/browse/playlist/{}", query(id))
+                    }
+                };
+                let key = if matches!(list, "songs" | "likes") {
+                    "items"
+                } else {
+                    "tracks"
+                };
+                let values = library::all(&mut rien, &path, key)?;
+                let change = library::dedupe(list, &values)?;
+                library::run(&mut rien, change, apply, as_json)?;
+            }
+            kind => {
+                let kind = kind.unwrap_or("songs");
+                if !library::KINDS.contains(&kind) {
+                    bail!("unknown library list: {kind} (see ytmpc help)");
+                }
+                let path = format!("/api/v1/library/{kind}");
+                if every_page {
+                    let items = Value::Array(library::all(&mut rien, &path, "items")?);
+                    show(
+                        Some(json!({ "items": items, "continuation": null })),
+                        &|answer| {
+                            print_items(&answer["items"], None);
+                        },
+                    );
+                } else {
+                    let path = format!("{path}?{}", continuation(&next));
+                    show(rien.request(Method::Get, &path, None)?, &|answer| {
+                        print_items(&answer["items"], None);
+                        print_next(answer);
+                    });
+                }
+            }
+        },
+        "unlike" => {
+            if rest.is_empty() {
+                bail!("unlike needs the video IDs of liked songs");
+            }
+            let likes = library::all(&mut rien, "/api/v1/library/likes", "items")?;
+            let change = library::unlike(rest, &likes)?;
+            library::run(&mut rien, change, apply, as_json)?;
+        }
+        "undo" => library::undo(&mut rien, undo_list, as_json)?,
         "album" | "artist" | "playlist" => {
             let id = rest.first().context("needs an ID")?;
             let path = format!(

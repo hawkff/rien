@@ -32,13 +32,37 @@ struct File {
     songs: Vec<Song>,
 }
 
-pub fn dir() -> PathBuf {
+/// $XDG_DATA_HOME/ytmpc, ~/.local/share/ytmpc by default
+pub fn data_dir() -> PathBuf {
     env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
         .filter(|dir| dir.is_absolute())
         .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))
         .unwrap_or_default()
-        .join("ytmpc/sets")
+        .join("ytmpc")
+}
+
+pub fn dir() -> PathBuf {
+    data_dir().join("sets")
+}
+
+/// Writes a file beside it under a name of its own and renames it over it,
+/// so a failed write keeps the old file and two writes at once don't mix
+pub fn write_file(path: &std::path::Path, text: &str) -> Result<()> {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos());
+    let partial = path.with_extension(format!("{}-{nanos}.partial", std::process::id()));
+    let written = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&partial)
+        .and_then(|mut out| std::io::Write::write_all(&mut out, text.as_bytes()))
+        .and_then(|()| fs::rename(&partial, path));
+    if written.is_err() {
+        let _ = fs::remove_file(&partial);
+    }
+    written.with_context(|| format!("Can't save {}", path.display()))
 }
 
 /// A name is a file name too: letters, digits, spaces, - _ and . only
@@ -87,23 +111,7 @@ pub fn save(name: &str, items: &[Item]) -> Result<usize> {
         name: name.to_owned(),
         songs,
     };
-    // Written beside it under a name of its own and renamed over it, so a
-    // failed write keeps the old set and two saves at once don't mix
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |since| since.as_nanos());
-    let partial = path.with_extension(format!("json.{}-{nanos}.partial", std::process::id()));
-    let text = serde_json::to_string_pretty(&file)?;
-    let written = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&partial)
-        .and_then(|mut out| std::io::Write::write_all(&mut out, text.as_bytes()))
-        .and_then(|()| fs::rename(&partial, &path));
-    if written.is_err() {
-        let _ = fs::remove_file(&partial);
-    }
-    written.with_context(|| format!("Can't save {}", path.display()))?;
+    write_file(&path, &serde_json::to_string_pretty(&file)?)?;
     Ok(file.songs.len())
 }
 

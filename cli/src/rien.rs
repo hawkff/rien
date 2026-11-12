@@ -39,6 +39,10 @@ fn agent(timeout: Duration) -> Agent {
 }
 
 impl Rien {
+    pub fn address(&self) -> &str {
+        &self.address
+    }
+
     /// The same client without notes on stderr
     pub fn quiet(mut self) -> Self {
         self.quiet = true;
