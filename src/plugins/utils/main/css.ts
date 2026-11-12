@@ -47,8 +47,10 @@ export const injectCSSAsFile = async (
   });
 };
 
+// On the DOM, not on the load event: a page whose images arrive slowly or
+// never (a slow proxy) would otherwise go without the app's styles
 const setupCssInjection = (webContents: Electron.WebContents) => {
-  webContents.on('did-finish-load', () => {
+  webContents.on('dom-ready', () => {
     isLoaded = true;
 
     cssToInject.forEach(async (callback, css) => {

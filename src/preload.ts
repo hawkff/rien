@@ -75,7 +75,8 @@ window.addEventListener('keydown', (event) => {
 // leads back to it, so they get a button. It sits in a strip of its own at the
 // top, beside the traffic lights on macOS, and the page moves down to make
 // room: Google's "unusual traffic" page puts its captcha in the corner the
-// button would cover.
+// button would cover. Google's sign-in also gets a button for signing in with
+// cookies, for accounts whose passkeys the window can't use.
 if (
   location.protocol === 'https:' &&
   location.hostname !== 'music.\u0079\u006f\u0075\u0074\u0075\u0062\u0065.com'
@@ -93,22 +94,38 @@ if (
     host.dataset.backToMusic = '';
     const root = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = `button {
+    // One line in the 48 px strip at any window width: labels that don't fit
+    // end in an ellipsis
+    style.textContent = `div {
       position: fixed; z-index: 2147483647; top: 8px; left: ${is.macOS() ? 84 : 16}px;
+      right: 8px; display: flex; gap: 8px;
+    }
+    button {
+      min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
       padding: 6px 14px; border: 1px solid rgb(128 128 128 / 40%); border-radius: 18px;
       background: #303030; color: #fff; font: 500 14px system-ui, sans-serif;
       cursor: pointer;
     }
     button:hover { background: #454545; }
     button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }`;
-    const button = Object.assign(document.createElement('button'), {
-      type: 'button',
-      textContent: `‹ ${t('main.menu.navigation.submenu.back-to-music')}`,
-    });
-    button.addEventListener('click', () =>
+    const strip = document.createElement('div');
+    const button = (text: string, click: () => void) => {
+      const element = Object.assign(document.createElement('button'), {
+        type: 'button',
+        textContent: text,
+      });
+      element.addEventListener('click', click);
+      strip.append(element);
+    };
+    button(`‹ ${t('main.menu.navigation.submenu.back-to-music')}`, () =>
       ipcRenderer.send('peard:back-to-music'),
     );
-    root.append(style, button);
+    if (location.hostname === 'accounts.google.com') {
+      button(t('main.menu.navigation.submenu.sign-in-with-cookies'), () =>
+        ipcRenderer.send('peard:sign-in-with-cookies'),
+      );
+    }
+    root.append(style, strip);
     document.body.append(host);
   });
 }

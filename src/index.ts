@@ -38,6 +38,7 @@ import musicPlayerCss from '@/music-player.css?inline';
 import { defaultAuthProxyConfig } from '@/plugins/auth-proxy-adapter/config';
 import { fileExists, injectCSS, injectCSSAsFile } from '@/plugins/utils/main';
 import { restart, setupAppControls } from '@/providers/app-controls';
+import { signInWithCookies } from '@/providers/cookie-sign-in';
 import {
   APP_PROTOCOL,
   handleProtocol,
@@ -198,6 +199,12 @@ ipcMain.handle('peard:get-main-plugin-names', async () =>
 
 // Pages outside the music site, such as Google's sign-in, get a button that
 // leads to the last music page in the window's history.
+// Google's sign-in gets a button that opens the paste box for cookies.
+ipcMain.on('peard:sign-in-with-cookies', ({ sender }) => {
+  const win = BrowserWindow.fromWebContents(sender);
+  if (win) signInWithCookies(win).catch(console.error);
+});
+
 ipcMain.on('peard:back-to-music', ({ sender }) => {
   const index = sender.navigationHistory
     .getAllEntries()
