@@ -39,11 +39,13 @@ pub enum Action {
     Repeat,
     SaveSet,
     Saved,
+    Library,
+    Undo,
     Help,
 }
 
 /// Each action's name in config.toml and its line in the key list
-pub const ACTIONS: [(Action, &str, &str); 32] = [
+pub const ACTIONS: [(Action, &str, &str); 34] = [
     (Action::Quit, "quit", "quit"),
     (Action::Search, "search", "search"),
     (Action::Filter, "filter", "search filter"),
@@ -59,7 +61,11 @@ pub const ACTIONS: [(Action, &str, &str); 32] = [
     (Action::Enter, "enter", "play or open"),
     (Action::Add, "add", "add to the set"),
     (Action::AddNext, "add-next", "play next"),
-    (Action::Remove, "remove", "remove from the set"),
+    (
+        Action::Remove,
+        "remove",
+        "remove from the set or a library list",
+    ),
     (Action::Pause, "pause", "play or pause"),
     (Action::SeekForward, "seek-forward", "5 s forward"),
     (Action::SeekBack, "seek-back", "5 s back"),
@@ -75,6 +81,8 @@ pub const ACTIONS: [(Action, &str, &str); 32] = [
     (Action::Repeat, "repeat", "repeat mode"),
     (Action::SaveSet, "save-set", "save the set"),
     (Action::Saved, "saved", "saved sets"),
+    (Action::Library, "library", "the library"),
+    (Action::Undo, "undo", "take back a library change"),
     (Action::Help, "help", "this list"),
 ];
 
@@ -120,6 +128,8 @@ const DEFAULTS: &[(&str, Action)] = &[
     ("L", Action::Repeat),
     ("w", Action::SaveSet),
     ("o", Action::Saved),
+    ("b", Action::Library),
+    ("u", Action::Undo),
     ("?", Action::Help),
 ];
 

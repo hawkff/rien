@@ -4,7 +4,8 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    thread,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::{Context, Result, bail};
@@ -205,8 +206,42 @@ fn write_log(path: &Path, batches: &[Batch]) -> Result<()> {
     saved::write_file(path, &text)
 }
 
-// shortcut: two ytmpc that change the library at the same moment can each
-// rewrite the log and lose the other's batch; add a lock file if that happens
+/// The system's lock on `undo.lock` beside the log while a change or an undo
+/// runs, so two ytmpc (the full-screen client and a command) can't write over
+/// each other's batches. It goes when dropped, or when its ytmpc stops.
+struct Lock(#[allow(dead_code)] fs::File);
+
+fn lock() -> Result<Lock> {
+    lock_at(log_path().with_extension("lock"), Duration::from_secs(15))
+}
+
+fn lock_at(path: PathBuf, wait: Duration) -> Result<Lock> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&path)
+        .with_context(|| format!("Can't open {}", path.display()))?;
+    let started = Instant::now();
+    loop {
+        match file.try_lock() {
+            Ok(()) => return Ok(Lock(file)),
+            Err(fs::TryLockError::WouldBlock) if started.elapsed() < wait => {
+                thread::sleep(Duration::from_millis(200));
+            }
+            Err(fs::TryLockError::WouldBlock) => {
+                bail!("Another ytmpc is changing the library; try again when it is done")
+            }
+            Err(fs::TryLockError::Error(error)) => {
+                return Err(error).with_context(|| format!("Can't lock {}", path.display()));
+            }
+        }
+    }
+}
+
 fn push(path: &Path, batch: Batch) -> Result<()> {
     let mut batches = read_log(path)?;
     batches.push(batch);
@@ -253,12 +288,36 @@ pub fn run(rien: &mut Rien, change: Change, apply: bool, as_json: bool) -> Resul
         }
         return Ok(());
     }
-    // A log that can't be read or written stops the change before anything changes
-    let log = log_path();
-    write_log(&log, &read_log(&log)?)?;
     if !as_json {
         eprintln!("Saving a snapshot of the library first…");
     }
+    let snapshot = commit(rien, &change)?;
+    if as_json {
+        println!(
+            "{}",
+            json!({ "applied": true, "what": change.what, "changes": ids, "snapshot": snapshot })
+        );
+    } else {
+        say(&format!(
+            "Done. The library before it: {}. ytmpc undo takes it back.",
+            snapshot.display()
+        ));
+    }
+    Ok(())
+}
+
+/// Applies a change without a word on the terminal: a snapshot of the library
+/// first, then the calls in order, logging the undo of each one that went
+/// through. Gives the snapshot's file.
+pub fn commit(rien: &mut Rien, change: &Change) -> Result<PathBuf> {
+    // An empty change would log no batch, and undo would take back an older one
+    if change.steps.is_empty() {
+        bail!("Nothing to change");
+    }
+    let _lock = lock()?;
+    // A log that can't be read or written stops the change before anything changes
+    let log = log_path();
+    write_log(&log, &read_log(&log)?)?;
     let snapshot = write_export(&export(rien)?, None, "snapshots")?;
     // The log learns of each call that went through before the next goes out
     let mut batch = Batch {
@@ -309,18 +368,7 @@ pub fn run(rien: &mut Rien, change: Change, apply: bool, as_json: bool) -> Resul
             }));
         }
     }
-    if as_json {
-        println!(
-            "{}",
-            json!({ "applied": true, "what": change.what, "changes": ids, "snapshot": snapshot })
-        );
-    } else {
-        say(&format!(
-            "Done. The library before it: {}. ytmpc undo takes it back.",
-            snapshot.display()
-        ));
-    }
-    Ok(())
+    Ok(snapshot)
 }
 
 /// The undo of a call that went out, narrowed to the tokens the site took
@@ -364,7 +412,7 @@ fn sent_any(batch: &Batch) -> bool {
 /// Takes back the last applied batch, or lists the batches
 pub fn undo(rien: &mut Rien, list: bool, as_json: bool) -> Result<()> {
     let path = log_path();
-    let mut batches = read_log(&path)?;
+    let batches = read_log(&path)?;
     if list {
         if as_json {
             println!("{}", serde_json::to_value(&batches)?);
@@ -381,6 +429,21 @@ pub fn undo(rien: &mut Rien, list: bool, as_json: bool) -> Result<()> {
         }
         return Ok(());
     }
+    let what = take_back(rien)?;
+    if as_json {
+        println!("{}", json!({ "undone": what }));
+    } else {
+        say(&format!("Took back: {what}"));
+    }
+    Ok(())
+}
+
+/// Takes back the last applied batch without a word on the terminal, and
+/// says what it was
+pub fn take_back(rien: &mut Rien) -> Result<String> {
+    let _lock = lock()?;
+    let path = log_path();
+    let mut batches = read_log(&path)?;
     let Some(mut batch) = batches.pop() else {
         bail!("Nothing to undo");
     };
@@ -450,12 +513,7 @@ pub fn undo(rien: &mut Rien, list: bool, as_json: bool) -> Result<()> {
         replace_last(&path, batch.clone())?;
     }
     write_log(&path, &batches)?;
-    if as_json {
-        println!("{}", json!({ "undone": batch.what }));
-    } else {
-        say(&format!("Took back: {}", batch.what));
-    }
-    Ok(())
+    Ok(batch.what)
 }
 
 fn token(item: &Value, key: &str) -> Option<String> {
@@ -877,6 +935,17 @@ mod tests {
             json!({ "status": "INDIFFERENT", "videoId": "aaaaaaaaaaa" })
         );
         assert!(unlike(&["bbbbbbbbbbb".into()], &likes).is_err());
+    }
+
+    #[test]
+    fn one_ytmpc_at_a_time_changes_the_library() {
+        let dir = std::env::temp_dir().join(format!("ytmpc-lock-{}", std::process::id()));
+        let path = dir.join("undo.lock");
+        let held = lock_at(path.clone(), Duration::ZERO).unwrap();
+        assert!(lock_at(path.clone(), Duration::ZERO).is_err());
+        drop(held);
+        assert!(lock_at(path, Duration::ZERO).is_ok());
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

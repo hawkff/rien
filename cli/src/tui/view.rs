@@ -176,6 +176,8 @@ fn item_row(
     let right = match (item.kind.as_str(), item.duration) {
         ("song" | "video" | "episode" | "saved", Some(seconds)) => time(seconds),
         ("song" | "video" | "episode" | "saved", None) => String::new(),
+        // The LIBRARY page's lists need no label
+        ("library", _) => String::new(),
         (kind, _) => kind.to_owned(),
     };
     let mut line = spread(left, Span::styled(right, Style::new().fg(dim)), width);
@@ -533,7 +535,17 @@ fn sections(frame: &mut Frame, area: Rect, app: &App, theme: &Theme) {
     };
     let results = app.pane != Pane::Lyrics;
     let last = app.pages.len().saturating_sub(1);
-    lines.push(Line::styled(" SEARCH", on(results && app.pages.len() <= 1)));
+    // The first page is a search, or a page opened before any (LIBRARY, SAVED SETS)
+    let first = app
+        .pages
+        .first()
+        .map(|page| page.title.as_str())
+        .filter(|title| !title.starts_with("SEARCH"))
+        .map_or_else(
+            || " SEARCH".to_owned(),
+            |title| format!(" {}", clean(title)),
+        );
+    lines.push(Line::styled(first, on(results && app.pages.len() <= 1)));
     for (at, page) in app.pages.iter().enumerate().skip(1) {
         let name = fit(&clean(&page.title), area.width.saturating_sub(3) as usize);
         lines.push(Line::styled(
@@ -672,6 +684,15 @@ fn next_line(app: &App, theme: &Theme, width: u16) -> Line<'static> {
 }
 
 fn hints(app: &App, theme: &Theme, width: u16) -> Line<'static> {
+    if let Some((question, _, _)) = &app.confirm {
+        return Line::styled(
+            fit(
+                &format!("y yes   any other key no   {}", clean(question)),
+                width as usize,
+            ),
+            Style::new().fg(theme.warning),
+        );
+    }
     if let Some((message, _)) = &app.message {
         let error = message.starts_with("Rien answered")
             || message.starts_with("Can't reach")
@@ -692,12 +713,31 @@ fn hints(app: &App, theme: &Theme, width: u16) -> Line<'static> {
         );
     }
     // The keys as bound now, so a changed key shows here too
+    let removes = app.page().is_some_and(|page| {
+        page.editable
+            || page
+                .library
+                .as_deref()
+                .is_some_and(|list| matches!(list, "songs" | "albums" | "likes"))
+    });
     let pairs: &[(&[Action], &str)] = match app.pane {
+        Pane::Results if removes => &[
+            (&[Action::Enter], "play/open"),
+            (&[Action::Add], "add"),
+            (&[Action::Remove], "remove"),
+            (&[Action::Undo], "undo"),
+            (&[Action::NextPane], "set"),
+            (&[Action::Back], "back"),
+            (&[Action::Pause], "pause"),
+            (&[Action::Help], "keys"),
+            (&[Action::Quit], "quit"),
+        ],
         Pane::Results => &[
             (&[Action::Enter], "play/open"),
             (&[Action::Add], "add"),
             (&[Action::AddNext], "next"),
             (&[Action::NextPane], "set"),
+            (&[Action::Library], "library"),
             (&[Action::Search], "search"),
             (&[Action::Filter], "filter"),
             (&[Action::Back], "back"),

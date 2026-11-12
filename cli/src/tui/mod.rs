@@ -32,7 +32,7 @@ pub use self::{
 };
 use crate::{
     items::Item,
-    query,
+    library, query,
     rien::{Method, Rien},
     saved,
 };
@@ -99,6 +99,10 @@ pub struct Page {
     pub continuation: Option<String>,
     more: Option<String>,
     loading: bool,
+    /// The library list it shows (songs, likes…), where d removes from it
+    pub library: Option<String>,
+    /// A playlist, where d removes the song from it
+    pub editable: bool,
 }
 
 static PAGES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -119,6 +123,8 @@ impl Page {
             continuation: None,
             more: None,
             loading: false,
+            library: None,
+            editable: false,
         }
     }
 
@@ -213,6 +219,12 @@ pub struct App {
     lyrics_retry: Option<Instant>,
     feed_lost: bool,
     pending: Option<String>,
+    /// A change to the library that waits for y
+    pub confirm: Option<Confirm>,
+    /// The row a library change took off the screen, back if the change fails
+    taken: Option<(u64, usize, Row)>,
+    /// A library change runs; the next waits for it
+    changing: bool,
     quit: bool,
 }
 
@@ -251,6 +263,10 @@ pub enum Job {
         name: String,
         append: bool,
     },
+    /// Changes the library after a yes, as `ytmpc library …` with --apply
+    /// does: a snapshot first, then the change, logged for undo. The answer
+    /// is a line to show.
+    Library(LibraryEdit),
     /// Puts a song into the set, waits until it is there, then skips to it
     /// if asked: Rien answers before the page has added the song
     Queue {
@@ -259,6 +275,30 @@ pub enum Job {
         then_next: bool,
     },
 }
+
+/// The question of a change that waits for y, the change, and the row
+/// (page and index) it takes away
+pub type Confirm = (String, Job, Option<(u64, usize)>);
+
+/// What the keys change in the library
+#[derive(Debug, PartialEq)]
+pub enum LibraryEdit {
+    Remove(String),
+    Unlike(String),
+    FromPlaylist { playlist: String, slot: String },
+    Undo,
+}
+
+/// The library's lists, with the names the LIBRARY page gives them
+const LIBRARY: [(&str, &str); 7] = [
+    ("songs", "Songs"),
+    ("albums", "Albums"),
+    ("artists", "Artists"),
+    ("subscriptions", "Subscriptions"),
+    ("playlists", "Playlists"),
+    ("likes", "Liked songs"),
+    ("history", "History"),
+];
 
 pub enum Event {
     Key(KeyEvent),
@@ -310,6 +350,9 @@ impl App {
             lyrics_retry: None,
             feed_lost: false,
             pending: None,
+            confirm: None,
+            taken: None,
+            changing: false,
             quit: false,
         }
     }
@@ -442,7 +485,23 @@ impl App {
                         );
                         self.say(format!("Playing {title}"));
                     }
+                    "library" => {
+                        let from = self.page().map_or(0, |page| page.id);
+                        let path = format!("/api/v1/library/{}", query(&id));
+                        let job = Job::Open {
+                            title: format!("LIBRARY · {}", title.to_uppercase()),
+                            kind,
+                            id,
+                            from,
+                        };
+                        self.send(jobs, job, Method::Get, path, None);
+                    }
                     "album" | "artist" | "playlist" => {
+                        // An artist of the library's list opens as the artist
+                        let id = match id.strip_prefix("MPLA") {
+                            Some(channel) if kind == "artist" => channel.to_owned(),
+                            _ => id,
+                        };
                         let path = format!("/api/v1/browse/{kind}/{}", query(&id));
                         let from = self.page().map_or(0, |page| page.id);
                         let job = Job::Open {
@@ -498,6 +557,43 @@ impl App {
             "{} {title}",
             if up_next { "Next:" } else { "Added:" }
         ));
+    }
+
+    /// d in a list: asks before it removes a song or album from the library,
+    /// unlikes a liked song, or removes a song from a playlist
+    fn ask_remove(&mut self) {
+        if self.changing {
+            return self.say("The last library change is still going");
+        }
+        let Some(page) = self.page() else { return };
+        let Some(item) = page.item() else { return };
+        let (title, id) = (item.title.clone(), item.id.clone());
+        let edit = match page.library.as_deref() {
+            Some("songs" | "albums") => Some((
+                format!("Remove {title} from the library?"),
+                LibraryEdit::Remove(id),
+            )),
+            Some("likes") => Some((format!("Unlike {title}?"), LibraryEdit::Unlike(id))),
+            _ if page.editable => item.slot.clone().map(|slot| {
+                (
+                    format!("Remove {title} from this playlist?"),
+                    LibraryEdit::FromPlaylist {
+                        playlist: page.playlist_id.clone().unwrap_or_default(),
+                        slot,
+                    },
+                )
+            }),
+            _ => None,
+        };
+        let row = (page.id, page.selected);
+        match edit {
+            Some((question, edit)) => {
+                self.confirm = Some((question, Job::Library(edit), Some(row)));
+            }
+            None => self.say(
+                "d removes from the set, the library's songs, albums and likes, and playlists",
+            ),
+        }
     }
 
     fn volume(&mut self, jobs: &Sender<Request>, by: i64) {
@@ -599,6 +695,37 @@ impl App {
                 self.pages.push(Page::new("SAVED SETS".into(), rows, None));
                 self.pane = Pane::Results;
             }
+            Action::Library => {
+                let rows = LIBRARY
+                    .iter()
+                    .map(|(kind, name)| {
+                        Row::Item(Item {
+                            kind: "library".into(),
+                            id: (*kind).into(),
+                            title: (*name).into(),
+                            subtitle: String::new(),
+                            artists: Vec::new(),
+                            album: None,
+                            duration: None,
+                            slot: None,
+                            available: true,
+                        })
+                    })
+                    .collect();
+                if self.page().is_some_and(|page| page.title == "LIBRARY") {
+                    self.pages.pop();
+                }
+                self.pages.push(Page::new("LIBRARY".into(), rows, None));
+                self.pane = Pane::Results;
+            }
+            Action::Undo if self.changing => self.say("The last library change is still going"),
+            Action::Undo => {
+                self.confirm = Some((
+                    "Take back the last library change?".into(),
+                    Job::Library(LibraryEdit::Undo),
+                    None,
+                ));
+            }
             Action::Search => {
                 self.editing = true;
                 self.query.clear();
@@ -632,6 +759,7 @@ impl App {
             Action::Enter => self.enter(jobs),
             Action::Add => self.add(jobs, false),
             Action::AddNext => self.add(jobs, true),
+            Action::Remove if self.pane == Pane::Results => self.ask_remove(),
             Action::Remove => {
                 if self.pane == Pane::Set && self.set_selected < self.set.len() {
                     // Gone from the screen at once, so the next key acts on
@@ -687,6 +815,25 @@ impl App {
         let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
         if ctrl && key.code == KeyCode::Char('c') {
             self.quit = true;
+            return;
+        }
+        // A change to the library goes ahead on y only
+        if let Some((_, job, row)) = self.confirm.take() {
+            // Only a plain y: Ctrl+y or Alt+y are other keys
+            if key.code != KeyCode::Char('y') || !key.modifiers.is_empty() {
+                self.say("Nothing changed");
+                return;
+            }
+            if let Some((id, at)) = row
+                && let Some(page) = self.pages.iter_mut().find(|found| found.id == id)
+                && at < page.rows.len()
+            {
+                self.taken = Some((id, at, page.rows.remove(at)));
+                page.selected = page.selected.min(page.rows.len().saturating_sub(1));
+            }
+            self.changing = true;
+            self.send(jobs, job, Method::Get, String::new(), None);
+            self.say("Saving a snapshot of the library, then changing it…");
             return;
         }
         if let Some(name) = self.saving.as_mut() {
@@ -841,6 +988,18 @@ impl App {
                             page.loading = false;
                         }
                     }
+                    // The row comes back: the change didn't take it away. A change
+                    // that may have gone through leaves it out until the list opens again.
+                    Job::Library(_) => {
+                        self.changing = false;
+                        if error.contains("may have gone through") {
+                            self.taken = None;
+                        } else if let Some((id, at, row)) = self.taken.take()
+                            && let Some(page) = self.pages.iter_mut().find(|found| found.id == id)
+                        {
+                            page.rows.insert(at.min(page.rows.len()), row);
+                        }
+                    }
                     _ => {}
                 }
                 self.say(error);
@@ -919,6 +1078,10 @@ impl App {
                 }
                 let answer = answer.unwrap_or_default();
                 let (rows, list) = match kind.as_str() {
+                    "library" => (
+                        items(&answer["items"]).into_iter().map(Row::Item).collect(),
+                        None,
+                    ),
                     "album" => (
                         items(&answer["tracks"])
                             .into_iter()
@@ -964,17 +1127,47 @@ impl App {
                         None,
                     ),
                 };
+                let list = if kind == "library" && id == "likes" {
+                    Some("LM".to_owned())
+                } else {
+                    list
+                };
                 let mut page = Page::new(title, rows, list);
+                let continuation = answer["continuation"].as_str().map(str::to_owned);
                 if kind == "playlist" {
-                    let continuation = answer["continuation"].as_str().map(str::to_owned);
                     page = page.with_more(
                         continuation,
                         format!("/api/v1/browse/playlist/{}?", query(&id)),
                     );
+                    // Liked songs are unliked, other playlists edited by slot
+                    if id == "VLLM" || id == "LM" {
+                        page.library = Some("likes".into());
+                    } else {
+                        page.editable = true;
+                    }
+                } else if kind == "library" {
+                    page = page.with_more(continuation, format!("/api/v1/library/{}?", query(&id)));
+                    page.library = Some(id);
                 }
                 self.pages.push(page);
             }
             Job::Action => self.refresh(jobs),
+            Job::Library(edit) => {
+                self.taken = None;
+                self.changing = false;
+                if let Some(Value::String(text)) = answer {
+                    let text = if edit == LibraryEdit::Undo {
+                        // The open list still lacks what came back
+                        format!("{text}; open the list again to see it")
+                    } else {
+                        match self.keys.first(Action::Undo) {
+                            Some(key) => format!("{text}. {key} takes it back"),
+                            None => text,
+                        }
+                    };
+                    self.say(text);
+                }
+            }
             // The worker answers covers with Event::Cover
             Job::Cover | Job::Queue { .. } | Job::Edit { .. } | Job::LoadSaved { .. } => {}
         }
@@ -1084,6 +1277,40 @@ fn queue(
     }
 }
 
+/// Makes a library change the way `ytmpc … --apply` does, and says how it went
+fn library_edit(rien: &mut Rien, edit: &LibraryEdit) -> Result<Option<Value>, String> {
+    let done = |change: library::Change, rien: &mut Rien| {
+        library::commit(rien, &change)?;
+        Ok(format!("Done: {}", change.what))
+    };
+    let result: Result<String> = match edit {
+        LibraryEdit::Remove(id) => (|| {
+            let songs = library::all(rien, "/api/v1/library/songs", "items")?;
+            let albums = library::all(rien, "/api/v1/library/albums", "items")?;
+            done(
+                library::remove_from_library(std::slice::from_ref(id), &songs, &albums)?,
+                rien,
+            )
+        })(),
+        LibraryEdit::Unlike(id) => (|| {
+            let likes = library::all(rien, "/api/v1/library/likes", "items")?;
+            done(library::unlike(std::slice::from_ref(id), &likes)?, rien)
+        })(),
+        LibraryEdit::FromPlaylist { playlist, slot } => (|| {
+            let path = format!("/api/v1/browse/playlist/{}", query(playlist));
+            let tracks = library::all(rien, &path, "tracks")?;
+            done(
+                library::remove_from_playlist(playlist, std::slice::from_ref(slot), &tracks)?,
+                rien,
+            )
+        })(),
+        LibraryEdit::Undo => library::take_back(rien).map(|what| format!("Took back: {what}")),
+    };
+    result
+        .map(|text| Some(Value::String(text)))
+        .map_err(|error| format!("{error:#}"))
+}
+
 fn load_saved(rien: &mut Rien, name: &str, append: bool) -> Result<Option<Value>, String> {
     saved::load(name)
         .and_then(|songs| saved::play(rien, &songs, append))
@@ -1108,6 +1335,10 @@ fn worker(mut rien: Rien, requests: Receiver<Request>, events: Sender<Event>) {
             } => Event::Answer(Job::Set, queue(&mut rien, &video_id, up_next, then_next)),
             Job::LoadSaved { name, append } => {
                 Event::Answer(Job::Action, load_saved(&mut rien, &name, append))
+            }
+            Job::Library(edit) => {
+                let answer = library_edit(&mut rien, &edit);
+                Event::Answer(Job::Library(edit), answer)
             }
             Job::Edit {
                 remove,
@@ -1205,7 +1436,7 @@ pub fn run(rien: Rien, feed: Rien, options: Options) -> Result<()> {
             // A saved set can take a while to load: loads have a worker of their
             // own, one after another, so the player keeps its keys and two sets
             // don't mix
-            if matches!(request.job, Job::LoadSaved { .. }) {
+            if matches!(request.job, Job::LoadSaved { .. } | Job::Library(_)) {
                 if loads_tx.send(request).is_err() {
                     return;
                 }
@@ -1522,6 +1753,182 @@ mod tests {
         // Outside the rows nothing happens
         app.mouse(click(9), &hits, &jobs);
         assert_eq!(app.set_selected, 1);
+    }
+
+    #[test]
+    fn b_opens_the_library_and_enter_opens_a_list() {
+        let (jobs, requests) = mpsc::channel::<Request>();
+        let mut app = app();
+        app.editing = false;
+        app.key(KeyEvent::from(KeyCode::Char('b')), &jobs, 10);
+        app.key(KeyEvent::from(KeyCode::Char('b')), &jobs, 10);
+        assert_eq!(app.pages.len(), 1);
+        let page = app.page().unwrap();
+        assert_eq!(page.title, "LIBRARY");
+        assert_eq!(page.rows.len(), 7);
+        app.key(KeyEvent::from(KeyCode::Enter), &jobs, 10);
+        let request = requests.try_recv().unwrap();
+        assert_eq!(request.path, "/api/v1/library/songs");
+        assert!(
+            matches!(&request.job, Job::Open { kind, id, .. } if kind == "library" && id == "songs")
+        );
+    }
+
+    fn song_value() -> Value {
+        json!({
+            "type": "song", "id": "bbbbbbbbbbb", "title": "Faint", "subtitle": "", "artists": [],
+            "album": null, "duration": 162, "available": true
+        })
+    }
+
+    fn library_page(app: &mut App, jobs: &Sender<Request>, kind: &str, id: &str, answer: Value) {
+        let from = app.page().map_or(0, |page| page.id);
+        let job = Job::Open {
+            title: "x".into(),
+            kind: kind.into(),
+            id: id.into(),
+            from,
+        };
+        app.answer(job, Ok(Some(answer)), jobs);
+    }
+
+    #[test]
+    fn d_asks_before_a_library_change_and_only_y_makes_it() {
+        let (jobs, requests) = mpsc::channel::<Request>();
+        let mut app = app();
+        app.editing = false;
+        let song = serde_json::to_value(json!({
+            "type": "song", "id": "aaaaaaaaaaa", "title": "Numb", "subtitle": "", "artists": [],
+            "album": null, "duration": 185, "available": true
+        }))
+        .unwrap();
+        library_page(
+            &mut app,
+            &jobs,
+            "library",
+            "songs",
+            json!({ "items": [song], "continuation": "tok" }),
+        );
+        let page = app.page().unwrap();
+        assert_eq!(page.library.as_deref(), Some("songs"));
+        assert_eq!(page.continuation.as_deref(), Some("tok"));
+        app.key(KeyEvent::from(KeyCode::Char('d')), &jobs, 10);
+        assert!(
+            matches!(&app.confirm, Some((question, _, _)) if question == "Remove Numb from the library?")
+        );
+        app.key(KeyEvent::from(KeyCode::Char('n')), &jobs, 10);
+        assert!(app.confirm.is_none());
+        assert!(requests.try_recv().is_err());
+        assert_eq!(app.page().unwrap().rows.len(), 1);
+        app.key(KeyEvent::from(KeyCode::Char('d')), &jobs, 10);
+        app.key(KeyEvent::from(KeyCode::Char('y')), &jobs, 10);
+        assert!(matches!(
+            requests.try_recv().unwrap().job,
+            Job::Library(LibraryEdit::Remove(id)) if id == "aaaaaaaaaaa"
+        ));
+        assert!(app.page().unwrap().rows.is_empty());
+        // A second change waits for the first
+        library_page(
+            &mut app,
+            &jobs,
+            "library",
+            "songs",
+            json!({ "items": [song_value()] }),
+        );
+        app.key(KeyEvent::from(KeyCode::Char('d')), &jobs, 10);
+        assert!(app.confirm.is_none());
+        app.pages.pop();
+        // A change that may have gone through keeps the row out
+        app.changing = true;
+        app.taken = Some((app.page().unwrap().id, 0, Row::Item(item("song", "x"))));
+        app.answer(
+            Job::Library(LibraryEdit::Remove("x".into())),
+            Err("Rien answered 503: The page didn't answer in time; the change may have gone through".into()),
+            &jobs,
+        );
+        assert!(app.taken.is_none() && !app.changing);
+        assert!(app.page().unwrap().rows.is_empty());
+        // A change that fails puts the row back
+        app.taken = Some((
+            app.page().unwrap().id,
+            0,
+            Row::Item(item("song", "aaaaaaaaaaa")),
+        ));
+        app.answer(
+            Job::Library(LibraryEdit::Remove("aaaaaaaaaaa".into())),
+            Err("Rien answered 503".into()),
+            &jobs,
+        );
+        assert_eq!(app.page().unwrap().rows.len(), 1);
+    }
+
+    #[test]
+    fn d_unlikes_liked_songs_and_edits_other_playlists_by_slot() {
+        let (jobs, requests) = mpsc::channel::<Request>();
+        let mut app = app();
+        app.editing = false;
+        let track = json!({
+            "type": "song", "id": "aaaaaaaaaaa", "title": "Numb", "subtitle": "", "artists": [],
+            "album": null, "duration": 185, "available": true, "slot": "S1"
+        });
+        library_page(
+            &mut app,
+            &jobs,
+            "playlist",
+            "VLLM",
+            json!({ "tracks": [track.clone()] }),
+        );
+        app.key(KeyEvent::from(KeyCode::Char('d')), &jobs, 10);
+        app.key(KeyEvent::from(KeyCode::Char('y')), &jobs, 10);
+        assert!(matches!(
+            requests.try_recv().unwrap().job,
+            Job::Library(LibraryEdit::Unlike(_))
+        ));
+        // The next change waits for this one's answer
+        app.answer(
+            Job::Library(LibraryEdit::Unlike("aaaaaaaaaaa".into())),
+            Ok(Some(Value::String("Done".into()))),
+            &jobs,
+        );
+        library_page(
+            &mut app,
+            &jobs,
+            "playlist",
+            "PLx",
+            json!({ "tracks": [track] }),
+        );
+        assert!(app.page().unwrap().editable);
+        app.key(KeyEvent::from(KeyCode::Char('d')), &jobs, 10);
+        app.key(KeyEvent::from(KeyCode::Char('y')), &jobs, 10);
+        assert_eq!(
+            requests.try_recv().unwrap().job_edit(),
+            Some(LibraryEdit::FromPlaylist {
+                playlist: "PLx".into(),
+                slot: "S1".into()
+            })
+        );
+    }
+
+    #[test]
+    fn u_asks_before_taking_a_change_back() {
+        let (jobs, requests) = mpsc::channel::<Request>();
+        let mut app = app();
+        app.editing = false;
+        app.key(KeyEvent::from(KeyCode::Char('u')), &jobs, 10);
+        app.key(KeyEvent::from(KeyCode::Char('y')), &jobs, 10);
+        assert_eq!(
+            requests.try_recv().unwrap().job_edit(),
+            Some(LibraryEdit::Undo)
+        );
+    }
+
+    impl Request {
+        fn job_edit(self) -> Option<LibraryEdit> {
+            match self.job {
+                Job::Library(edit) => Some(edit),
+                _ => None,
+            }
+        }
     }
 
     #[test]
