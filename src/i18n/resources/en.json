@@ -44,12 +44,14 @@
     },
     "dialog": {
       "cookies": {
-        "label": "Paste the music site's cookies from a browser where you're signed in: the JSON that StorageAce or another cookie extension exports, or the cookie header of a request to the site in DevTools > Network. Anyone with these cookies is signed in as you, so paste them only here.",
+        "formats": "Either the JSON that StorageAce or another cookie extension exports, or the cookie header of a request to the site in DevTools > Network.",
+        "label": "Paste the music site's cookies from a browser where you're signed in.",
         "partly": "{{failed}} of {{count}} cookies couldn't be set, so the sign-in may be incomplete. The app restarts now.",
         "placeholder": "JSON, or name=value; name=value",
         "signed-out": "These cookies have no SAPISID, so the browser they come from isn't signed in to the music site.",
         "title": "Sign in with cookies",
-        "unreadable": "That text holds no cookies of the music site or Google. Paste the JSON export or the cookie header."
+        "unreadable": "That text holds no cookies of the music site or Google. Paste the JSON export or the cookie header.",
+        "warning": "Anyone with these cookies is signed in as you, so paste them only here."
       },
       "hide-menu-enabled": {
         "detail": "Menu is hidden, use 'Alt' to show it (or 'Escape' if using In-App Menu)",

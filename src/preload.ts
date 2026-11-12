@@ -121,7 +121,7 @@ if (
       ipcRenderer.send('peard:back-to-music'),
     );
     if (location.hostname === 'accounts.google.com') {
-      button(t('main.menu.navigation.submenu.sign-in-with-cookies'), () =>
+      button(t('main.dialog.cookies.title'), () =>
         ipcRenderer.send('peard:sign-in-with-cookies'),
       );
     }

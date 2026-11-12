@@ -11,10 +11,15 @@ import { restart } from './app-controls';
 import promptOptions from './prompt-options';
 
 export const signInWithCookies = async (win: BrowserWindow) => {
+  // The box shows one line of plain text, so the longer text goes in as HTML
+  const paragraph = (key: string) =>
+    `<p>${t(key).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>`;
   const text = await prompt(
     {
       title: t('main.dialog.cookies.title'),
-      label: t('main.dialog.cookies.label'),
+      label: `<div style="white-space: normal; text-align: left">${['label', 'formats', 'warning'].map((key) => paragraph(`main.dialog.cookies.${key}`)).join('')}</div>`,
+      useHtmlLabel: true,
+      height: 330,
       type: 'input',
       // They open the account to anyone who sees them
       inputAttrs: {
