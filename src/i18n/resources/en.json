@@ -68,8 +68,36 @@
         "title": "Restart Required"
       },
       "proxy-exits": {
-        "bad": "Rien can't use these as proxy exits: {{bad}}. Write socks5://host:port, socks4://, http:// or https://, without a login.",
-        "none": "Add two or more proxy exits first: Options > Advanced options > Proxy exits."
+        "none": "Add two or more proxy exits first: Options > Advanced options > Proxy exits.",
+        "editor": {
+          "add": "Add",
+          "add-placeholder": "Paste or type addresses, such as socks5://host:1080",
+          "bad-line": "Line {{line}} isn't a proxy address: {{text}}",
+          "bad-more": "({{count}} more)",
+          "cancel": "Cancel",
+          "clean-up": "Clean up",
+          "clean-up-tooltip": "Keeps the addresses, one per line, and drops everything else",
+          "count-one": "1 exit, {{on}} on",
+          "count-other": "{{count}} exits, {{on}} on",
+          "empty": "No exits yet. Paste addresses below, or switch to Text.",
+          "in-use": "in use",
+          "intro": "Rien moves to the next exit when the music site asks you to confirm you're not a bot or keeps refusing a song. While any exit is on, the exits replace Set proxy, and Rien never falls back to a direct connection. Some VPN services give each of their servers a SOCKS5 address, such as socks5://exit-1.example:1080.",
+          "list": "List",
+          "move-down": "Move down",
+          "move-up": "Move up",
+          "not-addresses": "Not proxy addresses: {{bad}}. Write socks5://host:port, socks4://, http:// or https://, without a login.",
+          "on": "On",
+          "remove": "Remove",
+          "save": "Save",
+          "shuffle": "Shuffle",
+          "text": "Text",
+          "text-help": "One exit per line. A # in front switches an exit off; other lines starting with # are skipped and not kept.",
+          "title": "Proxy exits",
+          "use": "Use",
+          "use-tooltip": "Rien moves to this exit when you save",
+          "vim": "Vim keys",
+          "vim-help": "Vim: :w saves and closes, :q closes without saving."
+        }
       },
       "unresponsive": {
         "buttons": {
@@ -139,14 +167,7 @@
               },
               "override-user-agent": "Override User-Agent",
               "proxy-exits": {
-                "label": "Proxy exits…",
-                "prompt": {
-                  "empty": "While there are exits, they replace Set proxy. Leave this empty to stop using them.",
-                  "placeholder": "socks5://host:1080, socks5://other-host:1080",
-                  "servers": "Some VPN services give each of their servers a SOCKS5 address that works while you're connected, such as socks5://exit-1.example:1080. Rien falls back only to your other exits, never to a direct connection.",
-                  "title": "Proxy exits",
-                  "what": "Proxies Rien moves along when YouTube asks to confirm you're not a bot or keeps refusing a song. List them in the order to try, separated by commas."
-                }
+                "label": "Proxy exits…"
               },
               "restart-on-config-changes": "Restart on config changes",
               "set-proxy": {

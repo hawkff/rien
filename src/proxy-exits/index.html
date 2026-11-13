@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src file:; style-src 'unsafe-inline'"
+    />
+    <title>Proxy exits</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --page: #0f0f0f;
+        --panel: #181818;
+        --line: #2e2e2e;
+        --text: #f1f1f1;
+        --dim: #aaa;
+        --faint: #717171;
+        --accent: #3ea6ff;
+        --bad: #ff6b6b;
+        --bad-bg: rgb(255 80 80 / 12%);
+        font:
+          14px/1.45 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        height: 100vh;
+        margin: 0;
+        padding: 16px;
+        background: var(--page);
+        color: var(--text);
+      }
+
+      p {
+        margin: 0;
+      }
+
+      #intro,
+      #help {
+        color: var(--dim);
+      }
+
+      .bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .grow {
+        flex: 1;
+      }
+
+      button {
+        padding: 6px 12px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--panel);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+      }
+
+      button:hover:not(:disabled) {
+        background: #272727;
+      }
+
+      button:disabled {
+        color: var(--faint);
+        cursor: default;
+      }
+
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+
+      button.primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #0f0f0f;
+        font-weight: 600;
+      }
+
+      button.primary:hover:not(:disabled) {
+        background: #65b8ff;
+      }
+
+      .views button[aria-pressed='true'] {
+        border-color: var(--text);
+        background: var(--text);
+        color: #0f0f0f;
+      }
+
+      input[type='checkbox'] {
+        accent-color: var(--accent);
+      }
+
+      label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--dim);
+        cursor: pointer;
+      }
+
+      #list {
+        flex: 1;
+        min-height: 0;
+        margin: 0;
+        padding: 0;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        list-style: none;
+      }
+
+      #list li {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      #list li:hover {
+        background: var(--panel);
+      }
+
+      #list .empty {
+        padding: 16px;
+        color: var(--dim);
+      }
+
+      .mark,
+      #list button[name='use'] {
+        min-width: 5.5em;
+        text-align: center;
+      }
+
+      .mark {
+        color: var(--accent);
+        font-size: 12px;
+      }
+
+      .number {
+        min-width: 2.5em;
+        color: var(--faint);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .address {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        font:
+          13px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        user-select: text;
+      }
+
+      li.off .address {
+        color: var(--faint);
+        text-decoration: line-through;
+      }
+
+      li.current .address {
+        color: var(--accent);
+      }
+
+      #list li button {
+        padding: 2px 9px;
+        font-size: 12px;
+      }
+
+      #add {
+        display: flex;
+        gap: 8px;
+      }
+
+      #add input {
+        flex: 1;
+        min-width: 0;
+        padding: 7px 12px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--panel);
+        color: var(--text);
+        font:
+          13px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+      }
+
+      #text {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      #text .cm-editor {
+        height: 100%;
+      }
+
+      #status {
+        min-height: 1.45em;
+        color: var(--dim);
+      }
+
+      #status.bad {
+        color: var(--bad);
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+
+  <body>
+    <p id="intro"></p>
+    <div class="bar">
+      <div class="views bar">
+        <button type="button" id="show-list"></button>
+        <button type="button" id="show-text"></button>
+      </div>
+      <button type="button" id="shuffle"></button>
+      <button type="button" id="clean-up" hidden></button>
+      <span class="grow"></span>
+      <label id="vim-switch" hidden>
+        <input type="checkbox" id="vim" />
+        <span id="vim-label"></span>
+      </label>
+    </div>
+    <ul id="list"></ul>
+    <form id="add">
+      <input id="add-input" autocomplete="off" spellcheck="false" />
+      <button type="submit" id="add-button"></button>
+    </form>
+    <div id="text" hidden></div>
+    <p id="help" hidden></p>
+    <div class="bar">
+      <p id="status" class="grow" role="status"></p>
+      <button type="button" id="cancel"></button>
+      <button type="button" id="save" class="primary"></button>
+    </div>
+    <script src="editor.js"></script>
+  </body>
+</html>

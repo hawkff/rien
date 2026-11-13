@@ -22,7 +22,7 @@ import { relaunch, restart } from './providers/app-controls';
 import { signInWithCookies } from './providers/cookie-sign-in';
 import { startingPages } from './providers/extracted-data';
 import promptOptions from './providers/prompt-options';
-import { applyExits, nextExit } from './providers/proxy-exits';
+import { nextExit, openExitsEditor } from './providers/proxy-exits';
 import { installYtmpc } from './providers/ytmpc';
 import {
   accountArgs,
@@ -30,7 +30,6 @@ import {
   GUEST_SWITCH,
   guestArgs,
 } from './utils/guest-profile';
-import { parseExits } from './utils/proxy-exits';
 
 import packageJson from '../package.json';
 
@@ -561,8 +560,8 @@ export const mainMenuTemplate = async (
               label: t(
                 'main.menu.options.submenu.advanced-options.submenu.proxy-exits.label',
               ),
-              async click() {
-                await setProxyExits(win);
+              click() {
+                openExitsEditor(win);
               },
             },
             {
@@ -825,46 +824,6 @@ export const setApplicationMenu = async (win: Electron.BrowserWindow) => {
   const menu = Menu.buildFromTemplate(menuTemplate);
   Menu.setApplicationMenu(menu);
 };
-
-// The exits, separated by commas; they replace the one proxy while there are any
-async function setProxyExits(win: BrowserWindow) {
-  const key = 'main.menu.options.submenu.advanced-options.submenu.proxy-exits';
-  const paragraph = (text: string) =>
-    `<p>${text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>`;
-  const output = await prompt(
-    {
-      title: t(`${key}.prompt.title`),
-      label: `<div style="white-space: normal; text-align: left">${[
-        'what',
-        'servers',
-        'empty',
-      ]
-        .map((part) => paragraph(t(`${key}.prompt.${part}`)))
-        .join('')}</div>`,
-      useHtmlLabel: true,
-      value: (config.get('options.proxyExits') ?? []).join(', '),
-      type: 'input',
-      inputAttrs: { placeholder: t(`${key}.prompt.placeholder`) },
-      width: 560,
-      height: 380,
-      ...promptOptions(),
-    },
-    win,
-  );
-  if (typeof output !== 'string') return;
-  const { exits, bad } = parseExits(output);
-  if (bad.length > 0) {
-    await dialog.showMessageBox(win, {
-      type: 'error',
-      message: t('main.dialog.proxy-exits.bad', { bad: bad.join(', ') }),
-    });
-    return;
-  }
-  config.set('options.proxyExits', exits);
-  await applyExits();
-  // The song's stream is tied to the exit's address: it starts again
-  win.webContents.reload();
-}
 
 async function setProxy(item: Electron.MenuItem, win: BrowserWindow) {
   const output = await prompt(
