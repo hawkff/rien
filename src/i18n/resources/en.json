@@ -67,6 +67,10 @@
         "message": "\"{{pluginName}}\" needs to restart",
         "title": "Restart Required"
       },
+      "proxy-exits": {
+        "bad": "Rien can't use these as proxy exits: {{bad}}. Write socks5://host:port, socks4://, http:// or https://, without a login.",
+        "none": "Add two or more proxy exits first: Options > Advanced options > Proxy exits."
+      },
       "unresponsive": {
         "buttons": {
           "quit": "Quit",
@@ -129,7 +133,21 @@
               "disable-hardware-acceleration": "Disable hardware acceleration",
               "edit-config-json": "Edit config.json",
               "install-ytmpc": "Install the ytmpc command",
+              "next-exit": {
+                "label": "Use the next exit",
+                "tooltip": "Restarts the song through the next proxy exit"
+              },
               "override-user-agent": "Override User-Agent",
+              "proxy-exits": {
+                "label": "Proxy exits…",
+                "prompt": {
+                  "empty": "While there are exits, they replace Set proxy. Leave this empty to stop using them.",
+                  "placeholder": "socks5://host:1080, socks5://other-host:1080",
+                  "servers": "Some VPN services give each of their servers a SOCKS5 address that works while you're connected, such as socks5://exit-1.example:1080. Rien falls back only to your other exits, never to a direct connection.",
+                  "title": "Proxy exits",
+                  "what": "Proxies Rien moves along when YouTube asks to confirm you're not a bot or keeps refusing a song. List them in the order to try, separated by commas."
+                }
+              },
               "restart-on-config-changes": "Restart on config changes",
               "set-proxy": {
                 "label": "Set proxy",

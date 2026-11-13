@@ -18,30 +18,97 @@ const isBlocked = (response: Response) =>
   !!response.headers.get('content-type')?.startsWith('text/html');
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Whether a player answer is YouTube's "Sign in to confirm you're not a bot",
+ * in any language: it asks for a sign-in, and its "Learn more" opens this
+ * article. An age check asks for a sign-in too, with another article.
+ */
+export const isBotCheck = (answer: unknown) => {
+  const { playabilityStatus: status } =
+    (answer as {
+      playabilityStatus?: {
+        status?: string;
+        reason?: string;
+        errorScreen?: unknown;
+      };
+    } | null) ?? {};
+  return (
+    status?.status === 'LOGIN_REQUIRED' &&
+    (JSON.stringify(status.errorScreen ?? null).includes('/answer/3037019') ||
+      /not a bot/i.test(status.reason ?? ''))
+  );
+};
+const botCheck = async (response: Response) =>
+  response.ok &&
+  isBotCheck(
+    await response
+      .clone()
+      .json()
+      .catch((): null => null),
+  );
+
+// Asks Rien to move to its next proxy exit, if it has exits to move along
+type NextExit = (reason: 'bot-check' | 'refused') => Promise<boolean>;
+const askNextExit: NextExit = (reason) =>
+  window.ipcRenderer
+    .invoke('peard:next-exit', reason)
+    .then(Boolean, () => false);
+
 // Sends an API request up to eight times while Google refuses it. Only the
 // latest request of a kind tries again: the page shows every answer it gets,
 // and an answer that comes after a newer request's answer would replace it,
 // such as an earlier tab's content in the tab now open.
 const latest = new Map<string, object>();
+//
+// With proxy exits set, a song's player request moves to the next exit when
+// YouTube answers with its bot check, or refuses it twice in a row: those come
+// from a distrusted exit. Other requests stay on the exit, since a move in the
+// middle of a song would cut its stream, which is tied to the exit's address.
 export const retryBlocked =
-  (fetch: typeof window.fetch, wait = pause): typeof window.fetch =>
+  (
+    fetch: typeof window.fetch,
+    wait = pause,
+    nextExit: NextExit = askNextExit,
+  ): typeof window.fetch =>
   async (input, init) => {
     const target = apiUrl(input instanceof Request ? input.url : input);
     if (!target) return fetch(input, init);
+    const player = target.pathname === `${api}player`;
     const request = new Request(input, init);
     const turn = {};
     latest.set(target.pathname, turn);
     const current = () => latest.get(target.pathname) === turn;
     const first = await fetch(request.clone());
     let response = first;
-    for (
-      let attempt = 1;
-      attempt < attempts && isBlocked(response);
-      attempt++
-    ) {
-      await wait(attempt * 300);
+    let tries = 1;
+    // Refusals in a row on the exit in use, and moves to other exits
+    let refusals = 0;
+    let moves = 0;
+    for (;;) {
+      const refused = isBlocked(response);
+      const checked =
+        !refused && player && current() && (await botCheck(response));
+      if (!refused && !checked) break;
+      if (refused) refusals++;
+      // Only the latest request of its kind moves Rien's exit; Rien bounds
+      // the moves, and this bounds a request
+      let moved = false;
+      if ((checked || (player && refusals >= 2)) && moves < 10 && current()) {
+        moved = await nextExit(checked ? 'bot-check' : 'refused');
+        if (moved) {
+          moves++;
+          refusals = 0;
+        }
+      }
+      // A bot check with no exit to move to reaches the page
+      if (checked && !moved) break;
+      if (refused) {
+        if (tries >= attempts) break;
+        await wait(tries * 300);
+      }
       if (!current()) return first;
       response = await fetch(request.clone());
+      tries++;
     }
     return current() ? response : first;
   };

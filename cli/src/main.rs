@@ -300,6 +300,8 @@ fn run() -> Result<()> {
         "watch" => rien.watch(|event| {
             if as_json {
                 println!("{event}");
+            } else if event["type"] == "EXIT_CHANGED" {
+                say(&items::exit_change(&event));
             } else if let Some(info) = event.get("song").filter(|info| info.is_object()) {
                 say(&song(info));
             } else if let Some(playing) = event["isPlaying"].as_bool() {

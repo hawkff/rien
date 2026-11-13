@@ -91,6 +91,20 @@ pub fn print_items(value: &Value, current: Option<usize>) {
     }
 }
 
+/// The line for Rien's move to another proxy exit, from the live feed
+pub fn exit_change(value: &Value) -> String {
+    let why = match value["reason"].as_str() {
+        Some("bot-check") => "YouTube asked the last one to confirm it isn't a bot",
+        Some("refused") => "YouTube kept refusing the last one",
+        _ => "switched in Rien",
+    };
+    format!(
+        "Exit {} of {} now: {why}",
+        value["exit"].as_u64().unwrap_or(0),
+        value["of"].as_u64().unwrap_or(0)
+    )
+}
+
 /// The song line of `status`, from GET /song
 pub fn song(value: &Value) -> String {
     let text = |key: &str| value[key].as_str().unwrap_or_default();
@@ -145,6 +159,15 @@ mod tests {
         assert_eq!(
             line(1, &item, "→"),
             "→  1  Faint (Demo 2002) · Linkin Park · Meteora 20th Anniversary Edition  3:12  song Nh4T_4DJX4M"
+        );
+    }
+
+    #[test]
+    fn exit_lines() {
+        let change = serde_json::json!({ "type": "EXIT_CHANGED", "exit": 2, "of": 5, "proxy": "socks5://b:1080", "reason": "bot-check" });
+        assert_eq!(
+            exit_change(&change),
+            "Exit 2 of 5 now: YouTube asked the last one to confirm it isn't a bot"
         );
     }
 

@@ -14,6 +14,7 @@ import { API_VERSION } from '../api-version';
 import { JWTPayloadSchema } from '../scheme';
 
 import type { HonoApp } from '../types';
+import type { ExitChange } from '@/providers/proxy-exits';
 import type { BackendContext } from '@/types/contexts';
 import type { RepeatMode, VolumeState } from '@/types/datahost-get-state';
 import type { WebSocketLike, upgradeWebSocket } from '@hono/node-server';
@@ -28,6 +29,7 @@ enum DataTypes {
   VolumeChanged = 'VOLUME_CHANGED',
   RepeatChanged = 'REPEAT_CHANGED',
   ShuffleChanged = 'SHUFFLE_CHANGED',
+  ExitChanged = 'EXIT_CHANGED',
 }
 
 type PlayerState = {
@@ -52,7 +54,7 @@ export const register = (
 
   const sockets = new Set<WSContext<WebSocketLike>>();
 
-  const send = (type: DataTypes, state: Partial<PlayerState>) => {
+  const send = (type: DataTypes, state: Partial<PlayerState> | ExitChange) => {
     sockets.forEach((socket) =>
       socket.send(JSON.stringify({ type, ...state })),
     );
@@ -124,6 +126,11 @@ export const register = (
   ipc.on('peard:shuffle-changed', (newShuffle: boolean) => {
     shuffle = newShuffle;
     send(DataTypes.ShuffleChanged, { shuffle });
+  });
+
+  // Rien moved to another proxy exit: which one, of how many, and why
+  ipc.on('peard:exit-changed', (change: ExitChange) => {
+    send(DataTypes.ExitChanged, change);
   });
 
   app.openapi(

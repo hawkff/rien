@@ -31,6 +31,10 @@ export interface DefaultConfig {
     likeButtons: string;
     swapLikeButtonsOrder: boolean;
     proxy: string;
+    /** Proxies Rien moves along when YouTube distrusts the one in use */
+    proxyExits: string[];
+    /** The exit in use */
+    proxyExit: number;
     startingPage: string;
     overrideUserAgent: boolean;
     usePodcastParticipantAsArtist: boolean;
@@ -68,6 +72,8 @@ export const defaultConfig: DefaultConfig = {
     likeButtons: '',
     swapLikeButtonsOrder: false,
     proxy: '',
+    proxyExits: [],
+    proxyExit: 0,
     startingPage: '',
     overrideUserAgent: false,
     usePodcastParticipantAsArtist: false,

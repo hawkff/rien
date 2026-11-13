@@ -962,6 +962,7 @@ impl App {
                     self.lyrics(jobs);
                 }
             }
+            Some("EXIT_CHANGED") => self.say(crate::items::exit_change(event)),
             Some("PLAYER_STATE_CHANGED") => {
                 if let (Some(song), Some(playing)) =
                     (self.song.as_mut(), event["isPlaying"].as_bool())

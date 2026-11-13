@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { retryBlocked } from './retry-blocked';
+import { isBotCheck, retryBlocked } from './retry-blocked';
 
 Object.assign(globalThis, { location: { href: 'https://music.example/' } });
 
@@ -91,4 +91,140 @@ test('an earlier request stops trying once a newer one of its kind went out', as
   expect(second.status).toBe(200);
   expect((await first).status).toBe(403);
   expect(calls).toHaveLength(2);
+});
+
+// YouTube's bot check, as the player answers it (trimmed)
+const botCheck = () =>
+  new Response(
+    JSON.stringify({
+      playabilityStatus: {
+        status: 'LOGIN_REQUIRED',
+        reason: 'Melde dich an, um zu bestätigen, dass du kein Bot bist',
+        errorScreen: {
+          playerErrorMessageRenderer: {
+            subreason: {
+              runs: [
+                {
+                  text: 'Weitere Informationen',
+                  navigationEndpoint: {
+                    urlEndpoint: {
+                      url: 'https://support.google.com/youtube/answer/3037019#zippy=%2Ccheck-that-youre-signed-into-youtube',
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    }),
+    { status: 200, headers: { 'content-type': 'application/json' } },
+  );
+const plays = () =>
+  new Response('{"playabilityStatus":{"status":"OK"}}', { status: 200 });
+
+test('the bot check is told from an age check in any language', () => {
+  expect(
+    isBotCheck({
+      playabilityStatus: {
+        status: 'LOGIN_REQUIRED',
+        reason: 'Sign in to confirm your age',
+        errorScreen: {
+          url: 'https://support.google.com/youtube/answer/2802167',
+        },
+      },
+    }),
+  ).toBe(false);
+  expect(
+    isBotCheck({
+      playabilityStatus: {
+        status: 'LOGIN_REQUIRED',
+        reason: 'Sign in to confirm you’re not a bot',
+      },
+    }),
+  ).toBe(true);
+  expect(isBotCheck({ playabilityStatus: { status: 'OK' } })).toBe(false);
+  expect(isBotCheck(null)).toBe(false);
+});
+
+test('a bot check moves the player request to the next exit until one plays', async () => {
+  const { calls, fetch } = answers(botCheck, botCheck, plays);
+  const moves: string[] = [];
+  const nextExit = (reason: string) => {
+    moves.push(reason);
+    return Promise.resolve(true);
+  };
+  const response = await retryBlocked(
+    fetch,
+    wait,
+    nextExit,
+  )(`${api}/player`, {
+    method: 'POST',
+    body: '{}',
+  });
+  expect(await response.json()).toEqual({
+    playabilityStatus: { status: 'OK' },
+  });
+  expect(calls).toHaveLength(3);
+  expect(moves).toEqual(['bot-check', 'bot-check']);
+});
+
+test('without an exit to move to, the bot check reaches the page', async () => {
+  const { calls, fetch } = answers(botCheck, plays);
+  const response = await retryBlocked(fetch, wait, () =>
+    Promise.resolve(false),
+  )(`${api}/player`, { method: 'POST', body: '{}' });
+  expect(isBotCheck(await response.json())).toBe(true);
+  expect(calls).toHaveLength(1);
+});
+
+test('after a bot check, refusals on the next exit move on again', async () => {
+  const moves: string[] = [];
+  const nextExit = (reason: string) => {
+    moves.push(reason);
+    return Promise.resolve(true);
+  };
+  const { calls, fetch } = answers(botCheck, blocked, blocked, plays);
+  const response = await retryBlocked(
+    fetch,
+    wait,
+    nextExit,
+  )(`${api}/player`, {
+    method: 'POST',
+    body: '{}',
+  });
+  expect(response.status).toBe(200);
+  expect(calls).toHaveLength(4);
+  expect(moves).toEqual(['bot-check', 'refused']);
+});
+
+test('a player request refused twice moves once; other requests never move', async () => {
+  const moves: string[] = [];
+  const nextExit = (reason: string) => {
+    moves.push(reason);
+    return Promise.resolve(true);
+  };
+  const player = answers(blocked, blocked, blocked, plays);
+  await retryBlocked(
+    player.fetch,
+    wait,
+    nextExit,
+  )(`${api}/player`, {
+    method: 'POST',
+    body: '{}',
+  });
+  expect(player.calls).toHaveLength(4);
+  expect(moves).toEqual(['refused']);
+
+  moves.length = 0;
+  const next = answers(blocked, blocked, blocked, botCheck);
+  await retryBlocked(
+    next.fetch,
+    wait,
+    nextExit,
+  )(`${api}/next`, {
+    method: 'POST',
+    body: '{}',
+  });
+  expect(moves).toEqual([]);
 });
