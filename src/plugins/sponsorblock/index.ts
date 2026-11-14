@@ -1,3 +1,4 @@
+import { net } from 'electron';
 import is from 'electron-is';
 
 import { t } from '@/i18n';
@@ -48,16 +49,21 @@ export default createPlugin({
       const sponsorBlockURL = `${apiURL}/api/skipSegments?videoID=${videoId}&categories=${JSON.stringify(
         categories,
       )}`;
+      // Through the app's network, so the request takes the app's proxy
       try {
-        const resp = await fetch(sponsorBlockURL, {
+        const resp = await net.fetch(sponsorBlockURL, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
           redirect: 'follow',
         });
-        if (resp.status !== 200) {
+        // The video has no segments
+        if (resp.status === 404) {
           return [];
+        }
+        if (resp.status !== 200) {
+          throw new Error(`SponsorBlock answered ${resp.status}`);
         }
 
         const segments = (await resp.json()) as SkipSegment[];
@@ -67,7 +73,7 @@ export default createPlugin({
           console.log('error on sponsorblock request:', error);
         }
 
-        return [];
+        throw error;
       }
     };
 

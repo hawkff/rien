@@ -51,3 +51,43 @@ test('A late answer for an earlier video is dropped', async () => {
 
   expect(delivered).toEqual([[[20, 40]]]);
 });
+
+test('A video that starts again is asked for once', async () => {
+  let asked = 0;
+  const delivered = [];
+  const onVideo = latestSegments(
+    () => {
+      asked++;
+      return Promise.resolve([[20, 40]]);
+    },
+    (segments) => delivered.push(segments),
+  );
+
+  await Promise.all([onVideo('song'), onVideo('song')]);
+  await onVideo('song');
+
+  expect(asked).toBe(1);
+  // Each start still gets the segments: the page drops them when its video
+  // element empties.
+  expect(delivered).toEqual([[[20, 40]], [[20, 40]], [[20, 40]]]);
+});
+
+test('A failed answer is asked for again', async () => {
+  let asked = 0;
+  const delivered = [];
+  const onVideo = latestSegments(
+    () => {
+      asked++;
+      return asked === 1
+        ? Promise.reject(new Error('offline'))
+        : Promise.resolve([[20, 40]]);
+    },
+    (segments) => delivered.push(segments),
+  );
+
+  await onVideo('song');
+  await onVideo('song');
+
+  expect(asked).toBe(2);
+  expect(delivered).toEqual([[], [[20, 40]]]);
+});

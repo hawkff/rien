@@ -35,15 +35,22 @@ export const sortSegments = (segments: Segment[]) => {
 
 // Loads the segments of every video that starts and hands over only those of
 // the latest one. The answer for an earlier video can arrive after the next
-// video started.
+// video started. The page reports one start up to four times, so the video
+// asked for last reuses its answer; a failed answer is asked for again.
 export const latestSegments = (
   load: (videoId: string) => Promise<Segment[]>,
   deliver: (segments: Segment[]) => void,
 ) => {
   let latestVideoId: string | undefined;
+  let asked: { videoId: string; answer: Promise<Segment[]> } | undefined;
   return async (videoId: string) => {
     latestVideoId = videoId;
-    const segments = await load(videoId);
+    if (asked?.videoId !== videoId) asked = { videoId, answer: load(videoId) };
+    const request = asked;
+    const segments = await request.answer.catch(() => {
+      if (asked === request) asked = undefined;
+      return [];
+    });
     if (videoId === latestVideoId) deliver(segments);
   };
 };
