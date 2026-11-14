@@ -1,7 +1,7 @@
 # Rien
 
 > [!NOTE]
-> Rien is a fork of [pear-desktop](https://github.com/pear-devs/pear-desktop) for macOS on Apple silicon and for Linux. It uses a Rust module for romanization and downloads, and it loads less code into the page. The [release notes](https://github.com/hawkff/rien/releases) list the changes.
+> Rien is a fork of [pear-desktop](https://github.com/pear-devs/pear-desktop) for macOS on Apple silicon and for Linux. It uses a Rust module for romanization and downloads, and it loads less code into the page.
 
 - Native look & feel extension
 
@@ -38,12 +38,7 @@
 
 ## Install
 
-Download the latest build from the [releases page](https://github.com/hawkff/rien/releases/latest):
-
-- macOS on Apple silicon: the `.dmg` file
-- Linux on x64: the `.AppImage` file
-
-For another Linux package or for arm64 Linux, [build the app](#build).
+There are no ready-made downloads: [build Rien](#build) on macOS on Apple silicon or on Linux. The packages go to `pack/`. For the AppImage alone on Linux, run `bun run build`, then `bunx electron-builder --linux AppImage -p never`.
 
 The macOS build is not signed. If macOS says the app "is damaged and can't be opened", run this in the Terminal:
 
@@ -68,7 +63,7 @@ The first time, Rien asks you to allow ytmpc.
 Rien can run on a Linux computer without a display, such as a home server:
 
 ```bash
-./Rien.AppImage --ozone-platform=headless
+./Rien-*.AppImage --ozone-platform=headless
 ```
 
 Rien then turns on the API server, puts the ytmpc command in `~/.local/bin` and prints a link to its window. ytmpc run by the same user on that computer gets in without asking.
