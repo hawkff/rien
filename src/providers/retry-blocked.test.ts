@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-import { isBotCheck, retryBlocked } from './retry-blocked';
+import { apiServerRead, isBotCheck, retryBlocked } from './retry-blocked';
 
 Object.assign(globalThis, { location: { href: 'https://music.example/' } });
 
@@ -91,6 +91,26 @@ test('an earlier request stops trying once a newer one of its kind went out', as
   expect(second.status).toBe(200);
   expect((await first).status).toBe(403);
   expect(calls).toHaveLength(2);
+});
+
+test('a read the API server asked for keeps trying when the page sends one of its kind, and its mark stays in the app', async () => {
+  let release = () => {};
+  const held = () =>
+    new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  const { calls, fetch } = answers(blocked, passes, passes);
+  const retrying = retryBlocked(fetch, held);
+  const asked = retrying(`${api}/browse?${apiServerRead}`, {
+    method: 'POST',
+    body: '1',
+  });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const page = await retrying(`${api}/browse`, { method: 'POST', body: '2' });
+  release();
+  expect(page.status).toBe(200);
+  expect((await asked).status).toBe(200);
+  expect(calls).toEqual([`${api}/browse`, `${api}/browse`, `${api}/browse`]);
 });
 
 // YouTube's bot check, as the player answers it (trimmed)

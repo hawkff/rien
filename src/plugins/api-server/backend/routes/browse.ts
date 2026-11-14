@@ -1,6 +1,7 @@
 import { createRoute } from '@hono/zod-openapi';
 
 import { isEnabled } from '@/config/plugins';
+import { apiServerRead } from '@/providers/retry-blocked';
 import { getSongControls } from '@/providers/song-controls';
 
 import { API_VERSION } from '../api-version';
@@ -146,8 +147,11 @@ export const register = (
   { window }: BackendContext<APIServerConfig>,
   songInfoGetter: () => SongInfo | undefined,
 ) => {
+  // Marked, so that the page's own requests don't stop their tries. A read
+  // can take two rounds of slow refusals, about 12 s each, and a third try;
+  // ytmpc waits 30 s.
   const ask = (endpoint: '/search' | '/browse', body: object) =>
-    askPage(window, endpoint, body);
+    askPage(window, `${endpoint}?${apiServerRead}`, body, 27_000);
   const noAnswer = { error: 'The page could not answer; try again' };
 
   app.openapi(routes.search, async (ctx) => {

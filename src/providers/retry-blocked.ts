@@ -24,6 +24,12 @@ const readOnly = new Set([
   'music/get_search_suggestions',
 ]);
 const api = '/\u0079\u006f\u0075\u0074\u0075\u0062\u0065i/v1/';
+/**
+ * Marks the address of a read that the API server asks the page for. Such a
+ * read answers its own caller, so it neither replaces nor is replaced by a
+ * newer request of its kind. The mark never leaves the app.
+ */
+export const apiServerRead = 'rien-api-read';
 const apiUrl = (url: string | URL) => {
   const target = URL.parse(url, location.href);
   return target?.pathname.startsWith(api) ? target : undefined;
@@ -147,11 +153,16 @@ export const retryBlocked =
     const target = apiUrl(input instanceof Request ? input.url : input);
     if (!target) return fetch(input, init);
     const player = target.pathname === `${api}player`;
-    const request = new Request(input, init);
+    // The mark comes with an address, as the page's XMLHttpRequest sends it;
+    // a whole Request goes on as it is
+    const own =
+      !(input instanceof Request) && target.searchParams.has(apiServerRead);
+    if (own) target.searchParams.delete(apiServerRead);
+    const request = new Request(own ? target.href : input, init);
     const reads = readOnly.has(target.pathname.slice(api.length));
     const turn = {};
-    latest.set(target.pathname, turn);
-    const current = () => latest.get(target.pathname) === turn;
+    if (!own) latest.set(target.pathname, turn);
+    const current = () => own || latest.get(target.pathname) === turn;
     // The page's abort ends a wait at once
     const aborted = new Promise<never>((_, reject) =>
       request.signal.addEventListener(
@@ -213,10 +224,13 @@ export const retryBlocked =
     return current() ? response : first;
   };
 
-// The queue request goes through XMLHttpRequest. The app sends it with fetch
-// instead, with the tries above, and hands the answer to the page's request:
-// the body through a blob URL, the status and headers as they came.
-const answerQueueRequests = (fetch: typeof window.fetch) => {
+// The page's network manager sends its API requests through XMLHttpRequest:
+// the queue request, and the reads that the API server's routes ask the page
+// for. The app sends the read-only ones with fetch instead, with the tries
+// above, and hands the answer to the page's request: the body through a blob
+// URL, the status and headers as they came. A request that changes something
+// goes once, as the page sent it.
+const answerReadRequests = (fetch: typeof window.fetch) => {
   const proto = XMLHttpRequest.prototype;
   // The originals run with call(), on the request.
   /* oxlint-disable typescript/unbound-method */
@@ -296,7 +310,7 @@ const answerQueueRequests = (fetch: typeof window.fetch) => {
     running.delete(this);
     answers.delete(this);
     const target = async ? apiUrl(url) : undefined;
-    if (target?.pathname === `${api}next`) {
+    if (target && readOnly.has(target.pathname.slice(api.length))) {
       requests.set(this, { method, url: target.href, headers: [] });
     } else {
       requests.delete(this);
@@ -358,5 +372,5 @@ const answerQueueRequests = (fetch: typeof window.fetch) => {
 
 export const retryBlockedRequests = () => {
   window.fetch = retryBlocked(window.fetch.bind(window));
-  answerQueueRequests(window.fetch);
+  answerReadRequests(window.fetch);
 };

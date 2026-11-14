@@ -18,18 +18,19 @@ const within = async <T>(promise: Promise<T>, ms: number, fallback: T) => {
   }
 };
 
-/** The site's API answer to a request the page sends, or null when it fails or takes over 20 s */
+/** The site's API answer to a request the page sends, or null when it fails or takes over `ms` */
 export const askPage = async (
   window: BrowserWindow,
   endpoint: string,
   body: object,
+  ms = 20_000,
 ) => {
   try {
     const answer: unknown = await within(
       window.webContents.executeJavaScript(
         `document.querySelector('ytmusic-app')?.networkManager?.fetch(${JSON.stringify(endpoint)}, ${JSON.stringify(body)}) ?? null`,
       ),
-      20_000,
+      ms,
       null,
     );
     return (answer ?? null) as Json | null;
