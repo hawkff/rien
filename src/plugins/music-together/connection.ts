@@ -11,7 +11,8 @@ import type { Permission, Profile, VideoData } from './types';
 
 export type ConnectionEventMap = {
   CLEAR_QUEUE: null;
-  ADD_SONGS: { videoList: VideoData[]; index?: number };
+  // id: the add, for the one who made it and put the songs in their list
+  ADD_SONGS: { videoList: VideoData[]; index?: number; id?: string };
   REMOVE_SONG: { index: number };
   MOVE_SONG: { fromIndex: number; toIndex: number };
   SET_INDEX: { index: number };

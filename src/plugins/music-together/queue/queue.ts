@@ -164,11 +164,24 @@ export class Queue {
   /* public */
   async setVideoList(videoList: VideoData[], sync = true) {
     this._videoList = videoList;
+    // A new list from the host: the adds still on their way go in anew
+    this.recorded.clear();
 
     if (sync) await this.syncVideo();
   }
 
-  async addVideos(videos: VideoData[], index?: number) {
+  // Adds land in the order they came, though each fetches its songs first
+  private adding = Promise.resolve(true);
+  // This person's adds, which their list holds already
+  private recorded = new Set<string>();
+
+  addVideos(videos: VideoData[], index?: number, id?: string) {
+    const added = this.adding.then(() => this.insertVideos(videos, index, id));
+    this.adding = added.catch(() => false);
+    return added;
+  }
+
+  private async insertVideos(videos: VideoData[], index?: number, id?: string) {
     const response = await getMusicQueueRenderer(
       videos.map((it) => it.videoId),
     );
@@ -202,12 +215,9 @@ export class Queue {
       },
     });
 
-    const insertedItem = this._videoList[index ?? this._videoList.length];
-    if (
-      !insertedItem ||
-      (insertedItem.videoId !== videos[0].videoId &&
-        insertedItem.ownerId !== videos[0].ownerId)
-    ) {
+    // The one who added the songs put them in their list before telling the
+    // room; their places may have moved since, by a later add
+    if (!(id && this.recorded.delete(id))) {
       this._videoList.splice(
         index ?? this._videoList.length,
         0,
@@ -271,6 +281,7 @@ export class Queue {
   clear() {
     this.internalDispatch = true;
     this._videoList = [];
+    this.recorded.clear();
     this.queue?.dispatch({
       type: 'CLEAR',
     });
@@ -344,11 +355,15 @@ export class Queue {
                   ownerId: it.ownerId ?? this.owner?.id,
                 })),
               ];
+              // Their own list holds them now: it doesn't take them twice
+              const id = crypto.randomUUID();
+              this.recorded.add(id);
               this.broadcast({
                 // play
                 type: 'ADD_SONGS',
                 payload: {
                   videoList,
+                  id,
                 },
                 after: [
                   {
@@ -360,54 +375,34 @@ export class Queue {
                 ],
               });
             }
-          } else if (
-            (
-              event.payload as {
-                items: unknown[];
-              }
-            ).items.length === 1
-          ) {
-            const videoList = mapQueueItem(
-              (it) =>
-                ({
-                  videoId: it!.videoId,
-                  ownerId: this.owner!.id,
-                }) satisfies VideoData,
-              (
-                event.payload! as {
-                  items: QueueItem[];
-                }
-              ).items,
-            );
-            this._videoList.splice(
-              event.payload && Object.hasOwn(event.payload, 'index')
-                ? (
-                    event.payload as {
-                      index: number;
-                    }
-                  ).index
-                : this._videoList.length,
-              0,
-              ...videoList.map((it) => ({
-                ...it,
-                ownerId: it.ownerId ?? this.owner?.id,
-              })),
-            );
-            this.broadcast({
-              // add playlist
-              type: 'ADD_SONGS',
-              payload: {
-                index:
-                  event.payload && Object.hasOwn(event.payload, 'index')
-                    ? (
-                        event.payload as {
-                          index: number;
-                        }
-                      ).index
-                    : undefined,
-                videoList,
-              },
-            });
+          } else {
+            const { items, index } = event.payload as {
+              items: QueueItem[];
+              index?: number;
+            };
+            // One song, or songs added at a place of the user's choice, as
+            // the site's Add to queue and Play next do; the site adds no list
+            // of songs without a place by itself
+            if (items.length === 1 || typeof index === 'number') {
+              const videoList = mapQueueItem(
+                (it) =>
+                  ({
+                    videoId: it!.videoId,
+                    ownerId: this.owner!.id,
+                  }) satisfies VideoData,
+                items,
+              );
+              const at =
+                typeof index === 'number' ? index : this._videoList.length;
+              this._videoList.splice(at, 0, ...videoList);
+              const id = crypto.randomUUID();
+              this.recorded.add(id);
+              this.broadcast({
+                // The place, so that every list puts them at the same one
+                type: 'ADD_SONGS',
+                payload: { index: at, videoList, id },
+              });
+            }
           }
 
           return;

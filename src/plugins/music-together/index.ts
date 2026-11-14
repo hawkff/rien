@@ -248,7 +248,11 @@ export default createPlugin<
               }),
             );
 
-            await this.queue?.addVideos(videoList, event.payload.index);
+            await this.queue?.addVideos(
+              videoList,
+              event.payload.index,
+              event.payload.id,
+            );
             await this.connection?.broadcast(
               'ADD_SONGS',
               {
@@ -478,7 +482,11 @@ export default createPlugin<
               }),
             );
 
-            await this.queue?.addVideos(videoList, event.payload.index);
+            await this.queue?.addVideos(
+              videoList,
+              event.payload.index,
+              event.payload.id,
+            );
 
             const afterevent = event.after?.at(0);
             if (afterevent?.type === 'SET_INDEX') {
