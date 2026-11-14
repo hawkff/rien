@@ -23,6 +23,8 @@
 ## Content
 
 - [Install](#install)
+- [Terminal client](#terminal-client)
+  - [Without a display](#without-a-display)
 - [Themes](#themes)
 - [Dev](#dev)
 - [Build your own plugins](#build-your-own-plugins)
@@ -50,6 +52,57 @@ The macOS build is not signed. If macOS says the app "is damaged and can't be op
 ```
 
 The AppImage needs FUSE 2 (`libfuse2`). On a system without it, start the file with `--appimage-extract-and-run`.
+
+## Terminal client
+
+ytmpc controls Rien from a terminal: a full-screen player, and commands for scripts.
+
+1. Turn on Plugins > Other apps and services > API Server.
+2. Choose Options > Advanced options > Install the ytmpc command.
+3. Run `ytmpc` for the full-screen player, or `ytmpc help` for the commands.
+
+The first time, Rien asks you to allow ytmpc.
+
+### Without a display
+
+Rien can run on a Linux computer without a display, such as a home server:
+
+```bash
+./Rien.AppImage --ozone-platform=headless
+```
+
+Rien then turns on the API server, puts the ytmpc command in `~/.local/bin` and prints a link to its window. ytmpc run by the same user on that computer gets in without asking.
+
+To sign in, open the link in a browser. The page shows Rien's window and passes it your clicks, keys and pasted text. From another computer, forward the port first:
+
+```bash
+ssh -L 26538:127.0.0.1:26538 your-server
+```
+
+`ytmpc signin` prints a new link, for example when the site asks you to confirm you're not a bot. A new link closes the pages opened with the one before.
+
+To keep Rien running after you log out, run it as a systemd user service:
+
+```ini
+# ~/.config/systemd/user/rien.service
+[Unit]
+Description=Rien
+
+[Service]
+ExecStart=/path/to/Rien.AppImage --ozone-platform=headless
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+```bash
+systemctl --user enable --now rien
+loginctl enable-linger "$USER"
+journalctl --user -u rien    # the link
+```
+
+Sound comes out of the server's own audio output.
 
 ## Themes
 
