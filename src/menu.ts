@@ -19,7 +19,7 @@ import * as config from './config';
 import { getAllMenuTemplate, loadAllMenuPlugins } from './loader/menu';
 import { pluginSections, sectionOf } from './menu-sections';
 import { relaunch, restart } from './providers/app-controls';
-import { signInWithCookies } from './providers/cookie-sign-in';
+import { openCookieEditor } from './providers/cookie-editor';
 import { startingPages } from './providers/extracted-data';
 import promptOptions from './providers/prompt-options';
 import { nextExit, openExitsEditor } from './providers/proxy-exits';
@@ -751,9 +751,9 @@ export const mainMenuTemplate = async (
           click: restart,
         },
         {
-          label: t('main.menu.navigation.submenu.sign-in-with-cookies'),
-          async click() {
-            await signInWithCookies(win);
+          label: t('main.menu.navigation.submenu.cookies'),
+          click() {
+            openCookieEditor(win);
           },
         },
         app.commandLine.hasSwitch(GUEST_SWITCH)

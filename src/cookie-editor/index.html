@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src file:; style-src 'unsafe-inline'"
+    />
+    <title>Cookies</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --page: #0f0f0f;
+        --panel: #181818;
+        --line: #2e2e2e;
+        --text: #f1f1f1;
+        --dim: #aaa;
+        --faint: #717171;
+        --accent: #3ea6ff;
+        --good: #6fd08c;
+        --bad: #ff6b6b;
+        font:
+          14px/1.45 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        height: 100vh;
+        margin: 0;
+        padding: 16px;
+        background: var(--page);
+        color: var(--text);
+      }
+
+      p {
+        margin: 0;
+      }
+
+      #intro,
+      #help {
+        color: var(--dim);
+      }
+
+      .bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .grow {
+        flex: 1;
+      }
+
+      button {
+        padding: 6px 12px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--panel);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+      }
+
+      button:hover:not(:disabled) {
+        background: #272727;
+      }
+
+      button:disabled {
+        color: var(--faint);
+        cursor: default;
+      }
+
+      button:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 1px;
+      }
+
+      button.primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #0f0f0f;
+        font-weight: 600;
+      }
+
+      button.primary:hover:not(:disabled) {
+        background: #65b8ff;
+      }
+
+      button.primary:disabled {
+        border-color: var(--line);
+        background: var(--panel);
+        color: var(--faint);
+      }
+
+      button.danger {
+        border-color: var(--bad);
+        color: var(--bad);
+      }
+
+      .views button[aria-pressed='true'] {
+        border-color: var(--text);
+        background: var(--text);
+        color: #0f0f0f;
+      }
+
+      input[type='checkbox'] {
+        accent-color: var(--accent);
+      }
+
+      label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--dim);
+        cursor: pointer;
+      }
+
+      #list,
+      #text {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th {
+        position: sticky;
+        top: 0;
+        background: var(--panel);
+        color: var(--dim);
+        font-weight: 500;
+        text-align: left;
+      }
+
+      th,
+      td {
+        padding: 4px 8px;
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
+      }
+
+      tbody tr:hover {
+        background: var(--panel);
+      }
+
+      td.name {
+        font:
+          13px ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          monospace;
+        user-select: text;
+      }
+
+      td.flags,
+      td.site,
+      td.path {
+        color: var(--dim);
+      }
+
+      td.flags,
+      td.empty {
+        white-space: normal;
+      }
+
+      td.empty {
+        padding: 16px;
+        color: var(--dim);
+      }
+
+      td button {
+        padding: 2px 9px;
+        font-size: 12px;
+      }
+
+      #confirm {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 12px;
+        border: 1px solid var(--bad);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      #confirm-message {
+        font-weight: 600;
+      }
+
+      #confirm-detail {
+        color: var(--dim);
+      }
+
+      #text {
+        overflow: hidden;
+      }
+
+      #text .cm-editor {
+        height: 100%;
+      }
+
+      #checks {
+        margin: 0;
+        padding: 0 0 0 1.2em;
+        color: var(--dim);
+      }
+
+      #checks .good {
+        color: var(--good);
+      }
+
+      #checks .bad,
+      #status.bad {
+        color: var(--bad);
+      }
+
+      #status {
+        min-height: 1.45em;
+        color: var(--dim);
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+
+  <body>
+    <p id="intro"></p>
+    <div class="bar">
+      <div class="views bar">
+        <button type="button" id="show-list"></button>
+        <button type="button" id="show-text"></button>
+      </div>
+      <span class="grow"></span>
+      <label id="vim-switch" hidden>
+        <input type="checkbox" id="vim" />
+        <span id="vim-label"></span>
+      </label>
+    </div>
+    <div id="list">
+      <table>
+        <thead>
+          <tr>
+            <th id="head-name"></th>
+            <th id="head-site"></th>
+            <th id="head-path"></th>
+            <th id="head-expires"></th>
+            <th id="head-flags"></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="bar" id="list-actions">
+      <button type="button" id="copy-json"></button>
+      <button type="button" id="copy-header"></button>
+      <span class="grow"></span>
+      <button type="button" id="remove-all" class="danger"></button>
+    </div>
+    <div
+      id="confirm"
+      role="alertdialog"
+      aria-labelledby="confirm-message"
+      aria-describedby="confirm-detail"
+      hidden
+    >
+      <p id="confirm-message"></p>
+      <p id="confirm-detail"></p>
+      <div class="bar">
+        <span class="grow"></span>
+        <button type="button" id="confirm-no"></button>
+        <button type="button" id="confirm-yes" class="danger"></button>
+      </div>
+    </div>
+    <div id="text" hidden></div>
+    <ul id="checks" hidden></ul>
+    <p id="help" hidden></p>
+    <div class="bar">
+      <p id="status" class="grow" role="status"></p>
+      <button type="button" id="close"></button>
+      <button type="button" id="sign-in" class="primary" hidden></button>
+    </div>
+    <script src="editor.js"></script>
+  </body>
+</html>

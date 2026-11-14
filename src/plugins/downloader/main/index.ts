@@ -127,10 +127,18 @@ Platform.shim.eval = (
 let yt: Innertube;
 // Settles once `yt` is set up. Downloads wait for it.
 let innertubeReady = Promise.resolve();
+// Innertube keeps the cookies it was made with, so a sign-in or sign-out in
+// the window makes it start again for the next download
+let signInChanged = false;
 // A setup that failed, for example while offline at launch, runs again for the
 // next download.
-const ensureInnertube = () =>
-  (innertubeReady = innertubeReady.catch(() => setUpInnertube()));
+const ensureInnertube = () => {
+  if (signInChanged) {
+    signInChanged = false;
+    innertubeReady = innertubeReady.then(setUpInnertube, setUpInnertube);
+  } else innertubeReady = innertubeReady.catch(() => setUpInnertube());
+  return innertubeReady;
+};
 let win: BrowserWindow;
 let playingUrl: string;
 
@@ -211,6 +219,10 @@ export const onMainLoad = async ({
   );
 
   downloadSongOnFinishSetup({ ipc, getConfig });
+  win.webContents.session.cookies.on('changed', (_, { name }) => {
+    if (name === 'SAPISID' || name === '__Secure-3PAPISID')
+      signInChanged = true;
+  });
 
   // The page starts loading only after every plugin has started, and this
   // setup makes several network requests, so it runs in the background.

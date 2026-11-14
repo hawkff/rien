@@ -18,6 +18,7 @@ import {
 } from '@codemirror/view';
 import { Vim, vim } from '@replit/codemirror-vim';
 
+import { editorTheme, get, h, wording } from '../utils/editor-window';
 import {
   type ExitEntry,
   exitAddress,
@@ -45,12 +46,6 @@ declare global {
   }
 }
 
-const get = <T extends HTMLElement>(id: string, type: new () => T) => {
-  const element = document.getElementById(id);
-  if (!(element instanceof type)) throw new Error(`No #${id}`);
-  return element;
-};
-
 const intro = get('intro', HTMLParagraphElement);
 const showList = get('show-list', HTMLButtonElement);
 const showText = get('show-text', HTMLButtonElement);
@@ -69,18 +64,6 @@ const statusLine = get('status', HTMLParagraphElement);
 const cancel = get('cancel', HTMLButtonElement);
 const saveButton = get('save', HTMLButtonElement);
 
-const h = <K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  props: Partial<HTMLElementTagNameMap[K]>,
-  ...children: (Node | string)[]
-) => {
-  const element = document.createElement(tag);
-  Object.assign(element, props);
-  element.append(...children);
-  return element;
-};
-
-let words: Record<string, string> = {};
 let entries: ExitEntry[] = [];
 let inUse: string | null = null;
 // An exit picked with Use, which Rien moves to on saving
@@ -92,10 +75,7 @@ let refocus: { index: number; name: string } | undefined;
 let editor: EditorView;
 const vimMode = new Compartment();
 
-const say = (key: string, values: Record<string, string | number> = {}) =>
-  (words[key] ?? key).replaceAll(/\{\{(\w+)\}\}/g, (_, name: string) =>
-    String(values[name] ?? ''),
-  );
+let say = wording({});
 
 /** The exit in use after saving: the one picked, else the one in use, else the first on */
 const target = (all: ExitEntry[]) => {
@@ -160,33 +140,6 @@ const decorate = (state: EditorState) => {
 
 const theme = EditorView.theme(
   {
-    '&': {
-      height: '100%',
-      color: 'var(--text)',
-      backgroundColor: 'var(--panel)',
-    },
-    '.cm-scroller': {
-      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-      fontSize: '13px',
-    },
-    '.cm-content': { caretColor: 'var(--text)' },
-    '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--text)' },
-    '.cm-gutters': {
-      color: 'var(--faint)',
-      backgroundColor: 'var(--panel)',
-      border: 'none',
-    },
-    '.cm-activeLine': { backgroundColor: 'rgb(255 255 255 / 5%)' },
-    '.cm-activeLineGutter': {
-      color: 'var(--text)',
-      backgroundColor: 'transparent',
-    },
-    '.cm-panels': {
-      color: 'var(--text)',
-      backgroundColor: 'var(--page)',
-      borderTop: '1px solid var(--line)',
-    },
-    '.cm-vim-panel input': { color: 'var(--text)' },
     '.cm-bad': { backgroundColor: 'var(--bad-bg)' },
     '.cm-off': { color: 'var(--faint)' },
     '.cm-note': { color: 'var(--faint)', fontStyle: 'italic' },
@@ -397,7 +350,7 @@ Vim.defineEx('xit', 'x', () => save());
 Vim.defineEx('quit', 'q', () => window.exits.close());
 
 const start = (loaded: Awaited<ReturnType<Window['exits']['load']>>) => {
-  words = loaded.text;
+  say = wording(loaded.text);
   entries = toEntries(loaded.list);
   inUse = loaded.inUse;
   document.title = say('title');
@@ -443,6 +396,7 @@ const start = (loaded: Awaited<ReturnType<Window['exits']['load']>>) => {
         note = '';
         render();
       }),
+      editorTheme,
       theme,
     ],
   });

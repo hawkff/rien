@@ -39,7 +39,7 @@ import { refreshMenu, setApplicationMenu } from '@/menu';
 import musicPlayerCss from '@/music-player.css?inline';
 import { fileExists, injectCSS, injectCSSAsFile } from '@/plugins/utils/main';
 import { restart, setupAppControls } from '@/providers/app-controls';
-import { signInWithCookies } from '@/providers/cookie-sign-in';
+import { openCookieEditor, setupCookieEditor } from '@/providers/cookie-editor';
 import { HEADLESS, isHeadless, setupHeadless } from '@/providers/headless';
 import {
   APP_PROTOCOL,
@@ -185,6 +185,7 @@ if (proxyToUse) {
   app.commandLine.appendSwitch('proxy-server', proxyToUse);
 }
 setupProxyExits();
+setupCookieEditor();
 
 // Adds debug features like hotkeys for triggering dev tools and reload
 electronDebug({
@@ -210,10 +211,10 @@ ipcMain.handle('peard:get-main-plugin-names', async () =>
 
 // Pages outside the music site, such as Google's sign-in, get a button that
 // leads to the last music page in the window's history.
-// Google's sign-in gets a button that opens the paste box for cookies.
+// Google's sign-in gets a button that opens the cookie editor's paste box.
 ipcMain.on('peard:sign-in-with-cookies', ({ sender }) => {
   const win = BrowserWindow.fromWebContents(sender);
-  if (win) signInWithCookies(win).catch(console.error);
+  if (win) openCookieEditor(win, 'text');
 });
 
 ipcMain.on('peard:back-to-music', ({ sender }) => {

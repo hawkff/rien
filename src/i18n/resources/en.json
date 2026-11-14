@@ -44,14 +44,58 @@
     },
     "dialog": {
       "cookies": {
-        "formats": "Either the JSON that StorageAce or another cookie extension exports, or the cookie header of a request to the site in DevTools > Network.",
-        "label": "Paste the music site's cookies from a browser where you're signed in.",
-        "partly": "{{failed}} of {{count}} cookies couldn't be set, so the sign-in may be incomplete. The app restarts now.",
-        "placeholder": "JSON, or name=value; name=value",
+        "editor": {
+          "cancel": "Cancel",
+          "close": "Close",
+          "copied": "Copied to the clipboard: {{cookies}}.",
+          "copy": "Copy",
+          "copy-detail": "Anyone with them is signed in as you. Google may also end a session whose cookies turn up in another browser or app, which signs you out here as well.",
+          "copy-header": "Copy as Cookie header",
+          "copy-json": "Copy as JSON",
+          "copy-message": "Copy the cookies of the music site and Google to the clipboard?",
+          "count-one": "1 cookie",
+          "count-other": "{{count}} cookies",
+          "empty": "No cookies. Switch to Paste to sign in with cookies from a browser.",
+          "entry": "entry {{entry}}",
+          "expires": "Expires",
+          "flags": "Flags",
+          "format-bad-json": "This looks like JSON, but it isn't a list of cookies.",
+          "format-empty": "Paste the JSON that Cookie-Editor, StorageAce or another cookie extension exports, or the Cookie header of a request to the music site.",
+          "format-header": "A Cookie header with {{cookies}} to set",
+          "format-json": "JSON from a cookie extension with {{cookies}} to set",
+          "intro": "The cookies Rien holds for the music site and Google. Their values stay hidden.",
+          "list": "List",
+          "name": "Name",
+          "partly": "{{failed}} of {{count}} cookies couldn't be set, so the sign-in may be incomplete. The page loads again.",
+          "path": "Path",
+          "remove": "Remove",
+          "remove-all": "Remove all",
+          "remove-all-detail": "This signs you out of the music site and Google in Rien, and the page loads again.",
+          "remove-all-message": "Remove all cookies of the music site and Google?",
+          "removed": "Removed {{name}}.",
+          "removed-all": "Removed all cookies. The page loads again, signed out.",
+          "remove-failed": "Some cookies couldn't be removed, so Rien may still be signed in. Try Remove all again.",
+          "not-cleared": "Some of the cookies Rien had couldn't be removed, so it didn't sign in with the new ones. Try again.",
+          "session": "Session",
+          "sign-in": "Sign in",
+          "sign-in-expired": "The sign-in cookie (SAPISID) has expired. Export the cookies again from a browser that is signed in.",
+          "sign-in-no": "No sign-in cookie (SAPISID or __Secure-3PAPISID) that reaches the music site, so these cookies don't sign in.",
+          "sign-in-yes": "The sign-in cookie is there and hasn't expired.",
+          "site": "Site",
+          "sites": "Cookies per site:",
+          "skip-expired": "expired",
+          "skip-malformed": "malformed",
+          "skip-other-site": "another site",
+          "skip-partitioned": "partitioned",
+          "skipped": "Skipped {{count}}: {{list}}",
+          "text": "Paste",
+          "text-help": "Signing in replaces the music site's and Google's cookies and loads the page again. Anyone with these cookies is signed in as you, so paste them only here.",
+          "title": "Cookies",
+          "vim": "Vim keys",
+          "vim-help": "Vim: :w signs in and closes, :q closes."
+        },
         "signed-out": "These cookies have no SAPISID, so the browser they come from isn't signed in to the music site.",
-        "title": "Sign in with cookies",
-        "unreadable": "That text holds no cookies of the music site or Google. Paste the JSON export or the cookie header.",
-        "warning": "Anyone with these cookies is signed in as you, so paste them only here."
+        "title": "Sign in with cookies"
       },
       "hide-menu-enabled": {
         "detail": "Menu is hidden, use 'Alt' to show it (or 'Escape' if using In-App Menu)",
@@ -137,6 +181,7 @@
         "label": "Navigation",
         "submenu": {
           "back-to-music": "Back to music",
+          "cookies": "Cookies…",
           "copy-current-url": "Copy current URL",
           "go-back": "Go back",
           "go-forward": "Go forward",
@@ -147,8 +192,7 @@
             "use-tooltip": "Restarts signed out on a temporary profile with a copy of your settings. Settings changed as a guest are discarded when you go back."
           },
           "quit": "Exit",
-          "restart": "Restart App",
-          "sign-in-with-cookies": "Sign in with cookies…"
+          "restart": "Restart App"
         }
       },
       "options": {
