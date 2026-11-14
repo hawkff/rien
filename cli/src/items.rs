@@ -91,6 +91,37 @@ pub fn print_items(value: &Value, current: Option<usize>) {
     }
 }
 
+const SITE: &str = "https://music.\u{79}\u{6f}\u{75}\u{74}\u{75}\u{62}\u{65}.com";
+
+/// The link to an item on the music site, without tracking; None for rows
+/// that have none, such as a saved set
+pub fn link(kind: &str, id: &str) -> Option<String> {
+    let id = crate::query(id);
+    match kind {
+        "song" | "video" | "episode" => Some(format!("{SITE}/watch?v={id}")),
+        "album" => Some(format!("{SITE}/browse/{id}")),
+        // An artist of the library's list has MPLA before its channel
+        "artist" => Some(format!(
+            "{SITE}/channel/{}",
+            id.strip_prefix("MPLA").unwrap_or(&id)
+        )),
+        "playlist" => Some(format!(
+            "{SITE}/playlist?list={}",
+            id.strip_prefix("VL").unwrap_or(&id)
+        )),
+        _ => None,
+    }
+}
+
+/// Puts `text` on the clipboard of the computer the terminal runs on, over
+/// SSH too: the terminal takes it from an escape sequence (OSC 52)
+pub fn copy(text: &str) -> std::io::Result<()> {
+    crossterm::execute!(
+        std::io::stdout(),
+        crossterm::clipboard::CopyToClipboard::to_clipboard_from(text)
+    )
+}
+
 /// The line for Rien's move to another proxy exit, from the live feed
 pub fn exit_change(value: &Value) -> String {
     let why = match value["reason"].as_str() {
@@ -160,6 +191,28 @@ mod tests {
             line(1, &item, "→"),
             "→  1  Faint (Demo 2002) · Linkin Park · Meteora 20th Anniversary Edition  3:12  song Nh4T_4DJX4M"
         );
+    }
+
+    #[test]
+    fn links_name_the_item_only() {
+        let site = "https://music.\u{79}\u{6f}\u{75}\u{74}\u{75}\u{62}\u{65}.com";
+        assert_eq!(
+            link("song", "Nh4T_4DJX4M").unwrap(),
+            format!("{site}/watch?v=Nh4T_4DJX4M")
+        );
+        assert_eq!(
+            link("album", "MPREb_DOhy8PyMH41").unwrap(),
+            format!("{site}/browse/MPREb_DOhy8PyMH41")
+        );
+        assert_eq!(
+            link("artist", "MPLAUCxgN32UVVztKAQd2HkXzBtw").unwrap(),
+            format!("{site}/channel/UCxgN32UVVztKAQd2HkXzBtw")
+        );
+        assert_eq!(
+            link("playlist", "VLPLx").unwrap(),
+            format!("{site}/playlist?list=PLx")
+        );
+        assert_eq!(link("saved", "Late night"), None);
     }
 
     #[test]

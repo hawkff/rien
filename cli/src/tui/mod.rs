@@ -177,6 +177,7 @@ impl Page {
 }
 
 pub struct Song {
+    pub video_id: String,
     pub title: String,
     pub artist: String,
     pub album: String,
@@ -559,6 +560,31 @@ impl App {
         ));
     }
 
+    /// The link of the row picked in the pane, or of the playing song when
+    /// the pane has no rows to pick, as the lyrics
+    fn link(&self) -> Option<String> {
+        let row = match self.pane {
+            Pane::Results => self.page().and_then(Page::item),
+            Pane::Set => {
+                let at = self.set_selected;
+                self.set.get(at).or_else(|| {
+                    at.checked_sub(self.set.len())
+                        .and_then(|at| self.encore.get(at))
+                })
+            }
+            Pane::Lyrics => None,
+        };
+        match row {
+            Some(item) => crate::items::link(&item.kind, &item.id),
+            // The feed names the song before the set catches up with it
+            None => self
+                .song
+                .as_ref()
+                .filter(|song| !song.video_id.is_empty())
+                .and_then(|song| crate::items::link("song", &song.video_id)),
+        }
+    }
+
     /// d in a list: asks before it removes a song or album from the library,
     /// unlikes a liked song, or removes a song from a playlist
     fn ask_remove(&mut self) {
@@ -718,6 +744,13 @@ impl App {
                 self.pages.push(Page::new("LIBRARY".into(), rows, None));
                 self.pane = Pane::Results;
             }
+            Action::CopyLink => match self.link() {
+                Some(link) => match crate::items::copy(&link) {
+                    Ok(()) => self.say(format!("Copied {link}")),
+                    Err(error) => self.say(format!("Can't copy the link: {error}")),
+                },
+                None => self.say("No link for this row"),
+            },
             Action::Undo if self.changing => self.say("The last library change is still going"),
             Action::Undo => {
                 self.confirm = Some((
@@ -1177,6 +1210,7 @@ impl App {
 
 fn song(value: &Value) -> Song {
     Song {
+        video_id: text(value, "videoId"),
         title: text(value, "title"),
         artist: text(value, "artist"),
         album: text(value, "album"),
@@ -1930,6 +1964,36 @@ mod tests {
                 _ => None,
             }
         }
+    }
+
+    #[test]
+    fn y_takes_the_link_of_the_row_or_of_the_playing_song() {
+        let mut app = app();
+        app.set = vec![item("song", "a"), item("song", "b")];
+        app.current = Some(1);
+        app.pane = Pane::Lyrics;
+        assert_eq!(app.link(), None);
+        // A new song from the feed, before the set shows it
+        app.feed(
+            &json!({ "type": "VIDEO_CHANGED", "song": { "videoId": "c", "title": "C" } }),
+            &mpsc::channel::<Request>().0,
+        );
+        assert!(app.link().unwrap().ends_with("/watch?v=c"));
+        app.pane = Pane::Set;
+        assert!(app.link().unwrap().ends_with("/watch?v=a"));
+        app.pane = Pane::Results;
+        app.pages = vec![Page::new(
+            "x".into(),
+            vec![Row::Item(item("album", "MPREx"))],
+            None,
+        )];
+        assert!(app.link().unwrap().ends_with("/browse/MPREx"));
+        app.pages = vec![Page::new(
+            "x".into(),
+            vec![Row::Item(item("saved", "Late"))],
+            None,
+        )];
+        assert_eq!(app.link(), None);
     }
 
     #[test]

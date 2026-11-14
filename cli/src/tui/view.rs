@@ -927,6 +927,7 @@ mod tests {
         ];
         app.current = Some(1);
         app.song = Some(Song {
+            video_id: "oM-XJD4J36U".into(),
             title: "Don't Stay".into(),
             artist: "Linkin Park".into(),
             album: "Meteora".into(),

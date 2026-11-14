@@ -41,11 +41,12 @@ pub enum Action {
     Saved,
     Library,
     Undo,
+    CopyLink,
     Help,
 }
 
 /// Each action's name in config.toml and its line in the key list
-pub const ACTIONS: [(Action, &str, &str); 34] = [
+pub const ACTIONS: [(Action, &str, &str); 35] = [
     (Action::Quit, "quit", "quit"),
     (Action::Search, "search", "search"),
     (Action::Filter, "filter", "search filter"),
@@ -83,6 +84,11 @@ pub const ACTIONS: [(Action, &str, &str); 34] = [
     (Action::Saved, "saved", "saved sets"),
     (Action::Library, "library", "the library"),
     (Action::Undo, "undo", "take back a library change"),
+    (
+        Action::CopyLink,
+        "copy-link",
+        "copy the link, without tracking",
+    ),
     (Action::Help, "help", "this list"),
 ];
 
@@ -130,6 +136,7 @@ const DEFAULTS: &[(&str, Action)] = &[
     ("o", Action::Saved),
     ("b", Action::Library),
     ("u", Action::Undo),
+    ("y", Action::CopyLink),
     ("?", Action::Help),
 ];
 

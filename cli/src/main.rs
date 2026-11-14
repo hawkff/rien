@@ -56,6 +56,10 @@ Usage: ytmpc [command] [--json]
                              snapshot of the library first
   lyrics                     the current song's lyrics, from Synced Lyrics
   download [ID]              download the current song, or ID
+  link [ID]                  the link to the playing song, or to ID, without
+                             tracking; in a terminal it goes to the clipboard
+                             too, over SSH as well (the terminal must take
+                             OSC 52; in tmux: set -g set-clipboard on)
   pair                       ask Rien for access again
 
 --json prints Rien's answer as JSON, for scripts and agents.
@@ -130,6 +134,16 @@ fn target(id: &str) -> Target {
         Target::Album(id.to_owned())
     } else {
         Target::List(id.strip_prefix("VL").unwrap_or(id).to_owned())
+    }
+}
+
+/// What an ID names, for its link: a channel ID starts with UC
+fn kind_of(id: &str) -> &'static str {
+    match target(id) {
+        Target::Song(_) => "song",
+        Target::Album(_) => "album",
+        Target::List(_) if id.starts_with("UC") || id.starts_with("MPLAUC") => "artist",
+        Target::List(_) => "playlist",
     }
 }
 
@@ -636,6 +650,27 @@ fn run() -> Result<()> {
                 println!("Downloading in Rien.");
             }
         }
+        "link" => {
+            let link = match rest.first() {
+                Some(id) => items::link(kind_of(id), id),
+                None => rien
+                    .request(Method::Get, "/api/v1/song", None)?
+                    .and_then(|song| {
+                        song["videoId"]
+                            .as_str()
+                            .and_then(|id| items::link("song", id))
+                    }),
+            }
+            .context("Nothing plays.")?;
+            if as_json {
+                println!("{}", json!({ "link": link }));
+            } else {
+                if std::io::stdout().is_terminal() {
+                    items::copy(&link)?;
+                }
+                println!("{link}");
+            }
+        }
         "pair" => rien.pair()?,
         other => bail!("unknown command: {other} (see ytmpc help)"),
     }
@@ -673,6 +708,14 @@ mod tests {
             target("OLAK5uy_nE-SkwNA6lYF99wd-MHzJVqThnUIJGe3I"),
             Target::List(_)
         ));
+    }
+
+    #[test]
+    fn ids_name_their_kind() {
+        assert_eq!(kind_of("Nh4T_4DJX4M"), "song");
+        assert_eq!(kind_of("MPREb_DOhy8PyMH41"), "album");
+        assert_eq!(kind_of("UCxgN32UVVztKAQd2HkXzBtw"), "artist");
+        assert_eq!(kind_of("VLPLd9p7ZJWGPtmbjHzxJm7dGQKy-QV0Q4xJ"), "playlist");
     }
 
     #[test]

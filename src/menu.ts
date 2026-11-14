@@ -24,6 +24,7 @@ import { startingPages } from './providers/extracted-data';
 import promptOptions from './providers/prompt-options';
 import { nextExit, openExitsEditor } from './providers/proxy-exits';
 import { installYtmpc } from './providers/ytmpc';
+import { cleanLink } from './utils/clean-link';
 import {
   accountArgs,
   createGuestProfile,
@@ -739,7 +740,7 @@ export const mainMenuTemplate = async (
         {
           label: t('main.menu.navigation.submenu.copy-current-url'),
           click() {
-            const currentURL = win.webContents.getURL();
+            const currentURL = cleanLink(win.webContents.getURL());
             clipboard
               .writeText(currentURL)
               .catch((error: unknown) => console.error(error));

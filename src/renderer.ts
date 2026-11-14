@@ -18,6 +18,7 @@ import {
   getLoadedRendererPlugin,
   loadAllRendererPlugins,
 } from './loader/renderer';
+import { cleanCopiedLinks } from './providers/clean-links';
 import { startingPages } from './providers/extracted-data';
 import {
   appStore,
@@ -50,6 +51,7 @@ let firstDataLoaded = false;
 
 registerWindowDefaultTrustedTypePolicy();
 retryBlockedRequests();
+cleanCopiedLinks();
 // For the API server, which reads it through executeJavaScript
 window.getLikeStatus = getLikeStatus;
 
