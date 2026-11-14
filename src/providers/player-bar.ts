@@ -33,7 +33,7 @@ export const skip = (direction: 'previous' | 'next', api: MusicPlayer) => {
 
 // The app's store, the same with either bar
 export const appStore = () =>
-  document.querySelector<QueueElement>('#queue')?.queue.store.store;
+  document.querySelector<QueueElement>('#queue')?.queue?.store?.store;
 
 // What the site's player controller does for the bars: the player sounds, the
 // store shows.

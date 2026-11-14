@@ -1,4 +1,5 @@
 import { debounce } from '@/providers/decorators';
+import { appStore, newerBar } from '@/providers/player-bar';
 
 import { type PreciseVolumePluginConfig } from './index';
 
@@ -8,6 +9,10 @@ import type { MusicPlayer } from '@/types/music-player';
 function $<E extends Element = Element>(selector: string) {
   return document.querySelector<E>(selector);
 }
+
+// The newer bar's volume: the range next to its mute button (visual element
+// type 28662)
+const newerVolume = `${newerBar} :has(> [client-ve-type="28662"]) input[type="range"]`;
 
 let api: MusicPlayer;
 
@@ -130,7 +135,8 @@ export const onPlayerApiReady = async (
 
   /** Add onwheel event to play bar and also track if play bar is hovered */
   function setupPlaybar() {
-    const playerbar = $<HTMLElement>('ytmusic-player-bar');
+    const playerbar =
+      $<HTMLElement>('ytmusic-player-bar') ?? $<HTMLElement>(newerBar);
     if (!playerbar) return;
 
     playerbar.addEventListener('wheel', (event) => {
@@ -153,6 +159,14 @@ export const onPlayerApiReady = async (
 
   /** Save volume + Update the volume tooltip when volume-slider is manually changed */
   function setupSliderObserver() {
+    // The newer bar's range says when the user moved it
+    const newerSlider = $<HTMLInputElement>(newerVolume);
+    newerSlider?.addEventListener('change', () => {
+      const value = Number(newerSlider.value);
+      setTooltip(value);
+      saveVolume(value);
+    });
+
     const sliderObserver = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (mutation.target.nodeName === 'TP-YT-PAPER-SLIDER') {
@@ -211,6 +225,10 @@ export const onPlayerApiReady = async (
 
   function updateVolumeSlider() {
     const savedVolume = options.savedVolume ?? 0;
+    // The newer bar's range follows the store, not the player
+    if ($(newerBar)) {
+      appStore()?.dispatch({ type: 'SET_VOLUME', payload: savedVolume });
+    }
     // Slider value automatically rounds to multiples of 5
     for (const slider of ['#volume-slider', '#expand-volume-slider']) {
       const silderElement = $<HTMLInputElement>(slider);
@@ -238,6 +256,8 @@ export const onPlayerApiReady = async (
     'tp-yt-paper-icon-button.volume',
     '#expand-volume-slider',
     '#expand-volume',
+    `${newerBar} [client-ve-type="28662"]`,
+    newerVolume,
   ];
 
   function setTooltip(volume: number) {

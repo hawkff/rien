@@ -41,3 +41,21 @@ ytmusic-app-layout.pip ytmusic-player-bar ytmusic-menu-renderer {
 ytmusic-app-layout.pip .video-switch-button {
   display: none !important;
 }
+
+/* The newer bar: its controls over the video, without the cover, the title
+   and the arrow to the player page; its menu holds the way back */
+ytmusic-app-layout.pip > ytmusic-miniplayer svg,
+ytmusic-app-layout.pip > ytmusic-miniplayer .ytMusicMiniPlayerRightSection {
+  filter: drop-shadow(2px 4px 6px black);
+  color: white !important;
+  fill: white !important;
+}
+
+ytmusic-app-layout.pip > ytmusic-miniplayer .ytMusicMiniPlayerLeftSection,
+ytmusic-app-layout.pip > ytmusic-miniplayer .player-page-button {
+  display: none !important;
+}
+
+.cet-container ytmusic-app-layout.pip > ytmusic-miniplayer {
+  -webkit-app-region: no-drag !important;
+}

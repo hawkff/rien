@@ -1,4 +1,5 @@
 import { t } from '@/i18n';
+import { appStore, newerBar } from '@/providers/player-bar';
 import { createPlugin } from '@/utils';
 
 import style from './style.css?inline';
@@ -8,7 +9,7 @@ const handlePlay = (e: MouseEvent) => {
 
   // Player bar handler
   if (
-    e.target.closest('ytmusic-player-bar') &&
+    e.target.closest(`ytmusic-player-bar, ${newerBar}`) &&
     !document.body.classList.contains('unobtrusive-player--auto-closing')
   ) {
     document.body.classList.remove('unobtrusive-player--did-play');
@@ -55,9 +56,17 @@ const handleVideoDataChange = () => {
   ) {
     document.body.classList.add('unobtrusive-player--auto-closing');
 
-    document
-      .querySelector<HTMLButtonElement>('.toggle-player-page-button')
-      ?.click();
+    // The older bar's button, or the store, as the newer bar's arrow does
+    const toggle = document.querySelector<HTMLButtonElement>(
+      '.toggle-player-page-button',
+    );
+    if (toggle) toggle.click();
+    else {
+      appStore()?.dispatch({
+        type: 'SET_PLAYER_PAGE_INFO',
+        payload: { open: false },
+      });
+    }
 
     // prevent animation flickering
     setTimeout(() => {

@@ -451,7 +451,8 @@ async function onApiLoaded() {
   if (window.mainConfig.get('options.swapLikeButtonsOrder')) {
     const style = document.createElement('style');
     style.textContent = `
-      #like-button-renderer {
+      #like-button-renderer,
+      ytmusic-app-layout > ytmusic-miniplayer :has(> like-button-view-model):has(> dislike-button-view-model) {
         display: inline-flex;
         flex-direction: row-reverse;
       }`;

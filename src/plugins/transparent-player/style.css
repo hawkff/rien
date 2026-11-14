@@ -72,7 +72,8 @@ body.transparent-player {
         }
       }
 
-      ytmusic-player-bar {
+      ytmusic-player-bar,
+      > ytmusic-miniplayer {
         background: none !important;
       }
 

@@ -8,6 +8,7 @@ import {
   isPlayerMenu,
 } from '@/plugins/utils/renderer/check';
 import { getSongMenu } from '@/providers/dom-elements';
+import { appStore, setFullscreen } from '@/providers/player-bar';
 
 import { PictureInPictureButton } from './templates/picture-in-picture-button';
 
@@ -88,8 +89,10 @@ export const onPlayerApiReady = async (
     await togglePictureInPicture();
   };
 
+  // The newer bar's layout has no exit button and no button for the player
+  // page: the store opens the page, and the page's own fullscreen is left
   ipc.on('peard:pip-toggle', (isPip: boolean) => {
-    if (exitFullScreenButton && player) {
+    if (player) {
       if (isPip) {
         exitFullScreenButton?.addEventListener('click', pipClickEventListener);
         getPlayMinimizeButton()?.removeEventListener(
@@ -100,16 +103,23 @@ export const onPlayerApiReady = async (
 
         expandMenu?.addEventListener('mouseleave', mouseLeaveEventListener);
         if (!playerPage?.playerPageOpen_) {
-          togglePlayerPageButton?.click();
+          if (togglePlayerPageButton) togglePlayerPageButton.click();
+          else {
+            appStore()?.dispatch({
+              type: 'SET_PLAYER_PAGE_INFO',
+              payload: { open: true },
+            });
+          }
         }
 
-        fullScreenButton?.click();
+        if (fullScreenButton) fullScreenButton.click();
+        else setFullscreen(true);
         appLayout?.classList.add('pip');
         if (titleBar) {
           titleBar.style.display = 'none';
         }
       } else {
-        exitFullScreenButton.removeEventListener(
+        exitFullScreenButton?.removeEventListener(
           'click',
           pipClickEventListener,
         );
@@ -119,7 +129,8 @@ export const onPlayerApiReady = async (
         );
         player.onDoubleClick_ = onPlayerDblClick;
         expandMenu?.removeEventListener('mouseleave', mouseLeaveEventListener);
-        exitFullScreenButton.click();
+        if (exitFullScreenButton) exitFullScreenButton.click();
+        else setFullscreen(false);
         appLayout?.classList.remove('pip');
         if (titleBar) {
           titleBar.style.display = 'flex';

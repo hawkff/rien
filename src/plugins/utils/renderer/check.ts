@@ -1,3 +1,5 @@
+import { newerBar } from '@/providers/player-bar';
+
 export const isMusicOrVideoTrack = () => {
   for (const menuSelector of document.querySelectorAll<
     HTMLAnchorElement & {
@@ -40,8 +42,10 @@ export const isAlbumOrPlaylist = () => {
   return false;
 };
 
+// The popup forwards its events to what opened it: the older bar's menu, or a
+// part of the newer bar's menu button (visual element type 7591)
 export const isPlayerMenu = (menu?: HTMLElement | null) => {
-  return (
+  const sink = (
     menu?.parentElement as
       | (HTMLElement & {
           ytEventForwardingBehavior: {
@@ -51,7 +55,9 @@ export const isPlayerMenu = (menu?: HTMLElement | null) => {
           };
         })
       | null
-  )?.ytEventForwardingBehavior?.forwarder_?.eventSink?.matches(
-    'ytmusic-menu-renderer.ytmusic-player-bar',
+  )?.ytEventForwardingBehavior?.forwarder_?.eventSink;
+  return Boolean(
+    sink?.matches('ytmusic-menu-renderer.ytmusic-player-bar') ||
+    sink?.closest(`${newerBar} [client-ve-type="7591"]`),
   );
 };

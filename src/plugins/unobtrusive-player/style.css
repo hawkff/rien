@@ -24,4 +24,9 @@ body.unobtrusive-player.unobtrusive-player--did-play {
   & .toggle-player-page-button {
     transform: rotate(180deg) !important;
   }
+
+  /* The newer bar's arrow, while the open page stays out of sight */
+  & .player-page-button.open svg {
+    transform: none !important;
+  }
 }
