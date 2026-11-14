@@ -224,7 +224,11 @@
           return;
         }
         // An input method or a dead key composes a character in the field
-        if (event.isComposing || event.keyCode === 229 || event.key === 'Dead') {
+        if (
+          event.isComposing ||
+          event.keyCode === 229 ||
+          event.key === 'Dead'
+        ) {
           return;
         }
         event.preventDefault();
@@ -254,7 +258,11 @@
         keys.value = '';
       });
       addEventListener('keyup', (event) => {
-        if (event.isComposing || event.keyCode === 229 || event.key === 'Dead') {
+        if (
+          event.isComposing ||
+          event.keyCode === 229 ||
+          event.key === 'Dead'
+        ) {
           return;
         }
         event.preventDefault();

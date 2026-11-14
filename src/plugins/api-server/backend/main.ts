@@ -15,12 +15,7 @@ import { registerCallback } from '@/providers/song-info';
 import { createBackend } from '@/utils';
 
 import { API_VERSION } from './api-version';
-import {
-  dropPairingCode,
-  dropViewers,
-  greet,
-  newPairingCode,
-} from './remote';
+import { dropPairingCode, dropViewers, greet, newPairingCode } from './remote';
 import {
   registerAuth,
   registerBrowse,
