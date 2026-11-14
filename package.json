@@ -123,7 +123,7 @@
     "bufferutil": "4.2.0",
     "builtin-modules": "5.5.0",
     "discord-api-types": "0.38.58",
-    "electron": "45.2.3",
+    "electron": "45.3.2",
     "electron-builder": "26.18.0",
     "electron-vite": "6.0.0",
     "eslint-plugin-perfectionist": "5.13.0",
