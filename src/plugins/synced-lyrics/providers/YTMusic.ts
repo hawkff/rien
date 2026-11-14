@@ -1,3 +1,5 @@
+import { netFetch } from '../renderer';
+
 import type { LyricProvider, LyricResult, SearchSongInfo } from '../types';
 import type { MusicPlayerAppElement } from '@/types/music-player-app-element';
 
@@ -104,9 +106,6 @@ export class YTMusic implements LyricProvider {
       .padStart(2, '0')}.${remaining.toString().padStart(2, '0')}`;
   }
 
-  // RATE LIMITED (2 req per sec)
-  private PROXIED_ENDPOINT = 'https://ytmbrowseproxy.zvz.be/';
-
   private fetchNext(videoId: string) {
     const app = document.querySelector<MusicPlayerAppElement>('ytmusic-app');
 
@@ -122,15 +121,20 @@ export class YTMusic implements LyricProvider {
     });
   }
 
-  private fetchBrowse(browseId: string) {
-    return fetch(this.PROXIED_ENDPOINT + 'browse?prettyPrint=false', {
-      headers,
-      method: 'POST',
-      body: JSON.stringify({
-        browseId,
-        context: { client },
-      }),
-    }).then((res) => res.json()) as Promise<BrowseData>;
+  // The site gives lyrics, synced ones to its iPhone app, only to a request
+  // without cookies. Rien sends it from its own process, through the page's
+  // proxy, straight to the site: no one else learns what plays.
+  private async fetchBrowse(browseId: string) {
+    const [, text] = await netFetch(
+      'https://\u0079\u006f\u0075\u0074\u0075\u0062\u0065i.googleapis.com/\u0079\u006f\u0075\u0074\u0075\u0062\u0065i/v1/browse?prettyPrint=false',
+      {
+        headers,
+        method: 'POST',
+        body: JSON.stringify({ browseId, context: { client } }),
+        credentials: 'omit',
+      },
+    );
+    return JSON.parse(text) as BrowseData;
   }
 }
 
