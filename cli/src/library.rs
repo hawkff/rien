@@ -683,27 +683,18 @@ pub fn delete_playlist(playlist_id: &str, title: &str, tracks: &[Value]) -> Chan
     }
 }
 
-/// Removes the duplicates of a list: from the library's songs, from the liked
-/// songs (by unliking them) or from a playlist (by slot)
-pub fn dedupe(list: &str, values: &[Value]) -> Result<Change> {
+/// Removes the later copies of each video in a playlist, by their slots
+pub fn dedupe(playlist_id: &str, values: &[Value]) -> Result<Change> {
     let items: Vec<Item> = values
         .iter()
         .map(|value| serde_json::from_value(value.clone()))
         .collect::<Result<_, _>>()
         .context("Rien's list has an item ytmpc can't read")?;
-    let extra = duplicates(&items);
-    let pick = |key: &str| -> Vec<String> {
-        extra
-            .iter()
-            .filter_map(|index| values[*index][key].as_str().map(str::to_owned))
-            .collect()
-    };
-    let mut change = match list {
-        "songs" => remove_from_library(&pick("id"), values, &[])?,
-        "likes" => unlike(&pick("id"), values)?,
-        // A video twice is removed by its later slots, not by its ID
-        playlist => remove_from_playlist(playlist, &pick("slot"), values)?,
-    };
+    let slots: Vec<String> = duplicates(&items)
+        .iter()
+        .filter_map(|index| values[*index]["slot"].as_str().map(str::to_owned))
+        .collect();
+    let mut change = remove_from_playlist(playlist_id, &slots, values)?;
     change.what = format!(
         "Remove {} (the first of each stays)",
         count(change.items.len(), "duplicate")
@@ -715,45 +706,18 @@ fn count(number: usize, noun: &str) -> String {
     format!("{number} {noun}{}", if number == 1 { "" } else { "s" })
 }
 
-/// A song's title in lower case, letters and digits only
-fn plain(text: &str) -> String {
-    text.chars()
-        .filter(|c| c.is_alphanumeric())
-        .flat_map(char::to_lowercase)
-        .collect()
-}
-
-/// The duplicates in a list: a video twice, or one song as several videos
-/// (the same title and first artist, lengths within 2 s). The first of each
-/// stays; the indexes of the others come back.
+/// The duplicates in a list: the same video again. The same song as another
+/// video can be another recording or release, and doesn't count. The first of
+/// each stays; the indexes of the others come back.
 pub fn duplicates(items: &[Item]) -> Vec<usize> {
     let mut ids = std::collections::HashSet::new();
-    // The lengths of the songs kept, by title and first artist
-    let mut kept: std::collections::HashMap<(String, String), Vec<u64>> = Default::default();
-    let mut extra = vec![];
-    for (index, item) in items.iter().enumerate() {
-        if !matches!(item.kind.as_str(), "song" | "video" | "episode") {
-            continue;
-        }
-        let title = plain(&item.title);
-        let artist = item.artists.first().map(|artist| plain(&artist.name));
-        // Without a title and an artist, only the same video counts
-        let key = artist
-            .filter(|artist| !artist.is_empty() && !title.is_empty())
-            .map(|artist| (title, artist));
-        let same_song = key.as_ref().is_some_and(|key| {
-            kept.get(key).is_some_and(|lengths| {
-                item.duration
-                    .is_some_and(|length| lengths.iter().any(|other| other.abs_diff(length) <= 2))
-            })
-        });
-        if !ids.insert(item.id.clone()) || same_song {
-            extra.push(index);
-        } else if let (Some(key), Some(length)) = (key, item.duration) {
-            kept.entry(key).or_default().push(length);
-        }
-    }
-    extra
+    items
+        .iter()
+        .enumerate()
+        .filter(|(_, item)| matches!(item.kind.as_str(), "song" | "video" | "episode"))
+        .filter(|(_, item)| !ids.insert(item.id.as_str()))
+        .map(|(index, _)| index)
+        .collect()
 }
 
 #[cfg(test)]
@@ -771,18 +735,15 @@ mod tests {
     }
 
     #[test]
-    fn duplicates_keep_the_first() {
+    fn duplicates_are_the_same_video_again() {
         let list = [
             song("aaaaaaaaaaa", "Numb", "Linkin Park", 185, "S1"),
-            song("bbbbbbbbbbb", "Numb!", "linkin park", 186, "S2"),
+            // The same song as another video is no duplicate
+            song("bbbbbbbbbbb", "Numb", "Linkin Park", 185, "S2"),
             song("aaaaaaaaaaa", "Numb", "Linkin Park", 185, "S3"),
-            song("ccccccccccc", "Numb", "Linkin Park", 240, "S4"),
-            song("ddddddddddd", "Numb", "Another", 185, "S5"),
-            // Without an artist, a title and a length are not enough
-            song("eeeeeeeeeee", "Intro", "", 30, "S6"),
-            song("fffffffffff", "Intro", "", 31, "S7"),
+            song("aaaaaaaaaaa", "Numb", "Linkin Park", 185, "S4"),
         ];
-        assert_eq!(duplicates(&parsed(&list)), vec![1, 2]);
+        assert_eq!(duplicates(&parsed(&list)), vec![2, 3]);
     }
 
     #[test]
@@ -849,22 +810,19 @@ mod tests {
     fn dedupe_removes_later_slots_from_playlists() {
         let tracks = [
             song("aaaaaaaaaaa", "A", "X", 100, "S1"),
-            song("aaaaaaaaaaa", "A", "X", 100, "S2"),
+            // The same song as another video stays
+            song("bbbbbbbbbbb", "A", "X", 100, "S2"),
+            song("aaaaaaaaaaa", "A", "X", 100, "S3"),
+            song("aaaaaaaaaaa", "A", "X", 100, "S4"),
         ];
         let change = dedupe("PLx", &tracks).unwrap();
-        assert_eq!(change.items.len(), 1);
+        assert_eq!(change.items.len(), 2);
         assert_eq!(
             change.steps[0].0.body,
-            json!({ "items": [{ "videoId": "aaaaaaaaaaa", "slot": "S2" }] })
-        );
-        let songs = [
-            song("aaaaaaaaaaa", "A", "X", 100, ""),
-            song("bbbbbbbbbbb", "A", "X", 101, ""),
-        ];
-        let change = dedupe("songs", &songs).unwrap();
-        assert_eq!(
-            change.steps[0].0.body,
-            json!({ "tokens": ["remove-bbbbbbbbbbb"] })
+            json!({ "items": [
+                { "videoId": "aaaaaaaaaaa", "slot": "S3" },
+                { "videoId": "aaaaaaaaaaa", "slot": "S4" },
+            ] })
         );
     }
 

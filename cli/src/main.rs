@@ -47,8 +47,7 @@ Usage: ytmpc [command] [--json]
                              history
   library export [FILE]      all of it as JSON, playlists' songs included
   library remove ID...       songs or albums out of the library
-  library dedupe [songs | likes | PLAYLIST]
-                             a video twice, or one song as several, out
+  library dedupe PLAYLIST    the later copies of a video in a playlist, out
   unlike ID...               songs out of the liked ones
   playlist remove ID SLOT... | playlist delete ID
   undo [--list]              take back the last applied change
@@ -449,21 +448,18 @@ fn run() -> Result<()> {
                 library::run(&mut rien, change, apply, as_json)?;
             }
             Some("dedupe") => {
-                let list = rest.get(1).map_or("songs", String::as_str);
-                let path = match list {
-                    "songs" | "likes" => format!("/api/v1/library/{list}"),
-                    id => {
-                        playlist_title(&mut rien, id)?;
-                        format!("/api/v1/browse/playlist/{}", query(id))
-                    }
+                // The library and the liked songs hold a video once: taking
+                // out a copy there would take out the video
+                let id = match rest.get(1).map(String::as_str) {
+                    None | Some("songs" | "likes") => bail!(
+                        "the library and the liked songs hold each video once; dedupe works on a playlist: ytmpc library dedupe PLAYLIST"
+                    ),
+                    Some(id) => id,
                 };
-                let key = if matches!(list, "songs" | "likes") {
-                    "items"
-                } else {
-                    "tracks"
-                };
-                let values = library::all(&mut rien, &path, key)?;
-                let change = library::dedupe(list, &values)?;
+                playlist_title(&mut rien, id)?;
+                let path = format!("/api/v1/browse/playlist/{}", query(id));
+                let values = library::all(&mut rien, &path, "tracks")?;
+                let change = library::dedupe(id, &values)?;
                 library::run(&mut rien, change, apply, as_json)?;
             }
             kind => {
