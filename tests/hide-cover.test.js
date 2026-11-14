@@ -8,7 +8,9 @@ const appPath = path.resolve(import.meta.dirname, '..');
 test('Hide Cover hides the cover in Song mode only, and the player keeps playing', async () => {
   test.setTimeout(240_000);
 
-  // A profile of its own that starts in Song mode with Hidden chosen
+  // A profile of its own that starts in Song mode with Hidden chosen. Signed
+  // out, the song often comes after ads of a minute or more that a script
+  // can't skip, so the ad blocker keeps them out.
   const userData = test.info().outputPath('profile');
   mkdirSync(userData, { recursive: true });
   writeFileSync(
@@ -18,6 +20,7 @@ test('Hide Cover hides the cover in Song mode only, and the player keeps playing
         'ambient-mode': { enabled: true },
         'hide-cover': { enabled: true, mode: 'hidden' },
         'video-toggle': { enabled: true, hideVideo: true },
+        'do-not-track': { enabled: true },
       },
     }),
   );
@@ -57,9 +60,6 @@ test('Hide Cover hides the cover in Song mode only, and the player keeps playing
       .poll(
         () =>
           window.evaluate(() => {
-            document
-              .querySelector('.ytp-skip-ad-button, .ytp-ad-skip-button-modern')
-              ?.click();
             const player = document.querySelector('#movie_player');
             if (player.getPlayerState() !== 1) player.playVideo();
             return (

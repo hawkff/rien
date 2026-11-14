@@ -13,12 +13,16 @@ test('The newer player bar takes the page background and follows commands from o
 
   // The site builds the newer player bar (ytmusic-miniplayer) for some
   // profiles only, chosen by an experiment flag. The app's Newer player bar
-  // option sets it.
+  // option sets it. Signed out, the song often comes after ads of a minute or
+  // more that a script can't skip, so the ad blocker keeps them out.
   const profile = test.info().outputPath('profile');
   mkdirSync(profile, { recursive: true });
   writeFileSync(
     path.join(profile, 'config.json'),
-    JSON.stringify({ options: { newerPlayerBar: true } }),
+    JSON.stringify({
+      options: { newerPlayerBar: true },
+      plugins: { 'do-not-track': { enabled: true } },
+    }),
   );
   const app = await electron.launch({
     cwd: appPath,
@@ -67,11 +71,6 @@ test('The newer player bar takes the page background and follows commands from o
         .poll(
           () =>
             window.evaluate(() => {
-              document
-                .querySelector(
-                  '.ytp-skip-ad-button, .ytp-ad-skip-button-modern',
-                )
-                ?.click();
               const player = document.querySelector('#movie_player');
               if (player.getPlayerState() !== 1) player.playVideo();
               return (
