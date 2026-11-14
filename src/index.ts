@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import path from 'node:path';
 
 import ErrorHtmlAsset from '@assets/error.html?asset';
@@ -38,6 +40,7 @@ import musicPlayerCss from '@/music-player.css?inline';
 import { fileExists, injectCSS, injectCSSAsFile } from '@/plugins/utils/main';
 import { restart, setupAppControls } from '@/providers/app-controls';
 import { signInWithCookies } from '@/providers/cookie-sign-in';
+import { HEADLESS, isHeadless, setupHeadless } from '@/providers/headless';
 import {
   APP_PROTOCOL,
   handleProtocol,
@@ -49,6 +52,7 @@ import {
   getRendererScripts,
 } from '@/providers/renderer-scripts';
 import { setupSongInfo } from '@/providers/song-info';
+import { installYtmpc } from '@/providers/ytmpc';
 import { setUpTray } from '@/tray';
 import { LoggerPrefix } from '@/utils';
 import {
@@ -67,6 +71,23 @@ unhandled({
 
 // Prevent window being garbage collected
 let mainWindow: Electron.BrowserWindow | null;
+
+// Without a display Rien needs Chromium's headless platform, which only the
+// command line can choose. Chromium's own --headless switch crashes Electron.
+const headless = isHeadless();
+if (
+  is.linux() &&
+  !headless &&
+  (app.commandLine.hasSwitch('headless') ||
+    !(process.env.DISPLAY || process.env.WAYLAND_DISPLAY))
+) {
+  console.error(
+    LoggerPrefix,
+    `No display: start Rien with ${HEADLESS} to run it without a window.`,
+  );
+  if (app.commandLine.hasSwitch('headless')) app.exit(1);
+}
+if (headless) setupHeadless();
 
 // The lock is keyed to the userData folder. A guest takes the account's lock,
 // so opening Rien again focuses the guest instead of starting the account.
@@ -122,9 +143,9 @@ app.commandLine.appendSwitch(
 
 // Disable Fluent Scrollbar (for OverlayScrollbar)
 const disabledFeatures = ['FluentScrollbar'];
-let disableHardwareAcceleration = config.get(
-  'options.disableHardwareAcceleration',
-);
+// Without a display the GPU process can't start either
+let disableHardwareAcceleration =
+  headless || config.get('options.disableHardwareAcceleration');
 
 // Linux specific fixes
 if (is.linux()) {
@@ -380,6 +401,7 @@ async function createMainWindow() {
       preload: path.join(__dirname, '..', 'preload', 'preload.cjs'),
       // The preload script uses Node modules, which a sandboxed one cannot.
       sandbox: false,
+      additionalArguments: headless ? ['--rien-headless'] : [],
     },
     ...decorations,
   };
@@ -437,13 +459,18 @@ async function createMainWindow() {
     win.setAlwaysOnTop(true);
   }
 
+  // The headless platform's screen is 1 px wide, which shrinks the window to
+  // its smallest; the remote view gives it the size of the viewer's page
+  if (headless) win.setContentSize(1280, 800);
+
   const urlToLoad = config.get('options.resumeOnStart')
     ? config.get('url')
     : config.defaultConfig.url;
   win.on('closed', onClosed);
 
+  // A window without a screen keeps the place and size saved for the one with a screen
   win.on('move', () => {
-    if (win.isMaximized()) {
+    if (headless || win.isMaximized()) {
       return;
     }
 
@@ -454,6 +481,7 @@ async function createMainWindow() {
   let winWasMaximized: boolean;
 
   win.on('resize', () => {
+    if (headless) return;
     const [width, height] = win.getSize();
     const isMaximized = win.isMaximized();
 
@@ -781,7 +809,14 @@ app.whenReady().then(async () => {
   mainWindow = await createMainWindow();
   await setApplicationMenu(mainWindow);
   await refreshMenu(mainWindow);
-  setUpTray(app, mainWindow);
+  if (headless) {
+    // ytmpc is the way to control Rien here: a command for it, unless there is one
+    if (!existsSync(path.join(homedir(), '.local', 'bin', 'ytmpc'))) {
+      installYtmpc(mainWindow).catch(console.error);
+    }
+  } else {
+    setUpTray(app, mainWindow);
+  }
 
   setupProtocolHandler(mainWindow);
 

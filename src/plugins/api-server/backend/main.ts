@@ -10,15 +10,23 @@ import { jwt } from 'hono/jwt';
 import { WebSocketServer } from 'ws';
 
 import { APPLICATION_NAME } from '@/i18n';
+import { isHeadless } from '@/providers/headless';
 import { registerCallback } from '@/providers/song-info';
 import { createBackend } from '@/utils';
 
 import { API_VERSION } from './api-version';
 import {
+  dropPairingCode,
+  dropViewers,
+  greet,
+  newPairingCode,
+} from './remote';
+import {
   registerAuth,
   registerBrowse,
   registerControl,
   registerLibrary,
+  registerRemote,
   registerWebsocket,
 } from './routes';
 import { JWTPayloadSchema } from './scheme';
@@ -75,6 +83,12 @@ export const backend = createBackend<BackendType, APIServerConfig>({
     );
 
     this.run(config);
+    if (isHeadless()) {
+      newPairingCode();
+      greet(config);
+    } else {
+      dropPairingCode();
+    }
   },
   stop() {
     this.end();
@@ -162,6 +176,7 @@ export const backend = createBackend<BackendType, APIServerConfig>({
     registerLibrary(this.app, backendCtx);
     registerAuth(this.app, backendCtx);
     registerWebsocket(this.app, backendCtx, upgradeWebSocket);
+    registerRemote(this.app, backendCtx, upgradeWebSocket);
 
     // swagger
     this.app.openAPIRegistry.registerComponent(
@@ -224,5 +239,7 @@ export const backend = createBackend<BackendType, APIServerConfig>({
   end() {
     this.server?.close();
     this.server = undefined;
+    // Upgraded sockets outlive the listener
+    dropViewers();
   },
 });

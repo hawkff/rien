@@ -120,7 +120,11 @@ if (
     button(`‹ ${t('main.menu.navigation.submenu.back-to-music')}`, () =>
       ipcRenderer.send('peard:back-to-music'),
     );
-    if (location.hostname === 'accounts.google.com') {
+    // Without a display the paste box would open where nobody sees it
+    if (
+      location.hostname === 'accounts.google.com' &&
+      !process.argv.includes('--rien-headless')
+    ) {
       button(t('main.dialog.cookies.title'), () =>
         ipcRenderer.send('peard:sign-in-with-cookies'),
       );

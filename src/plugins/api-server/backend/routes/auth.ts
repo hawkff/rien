@@ -4,8 +4,10 @@ import { dialog } from 'electron';
 import { sign } from 'hono/jwt';
 
 import { t } from '@/i18n';
+import { isHeadless } from '@/providers/headless';
 
 import { type APIServerConfig, AuthStrategy } from '../../config';
+import { takePairingCode } from '../remote';
 
 import type { JWTPayload } from '../scheme';
 import type { HonoApp } from '../types';
@@ -49,7 +51,20 @@ export const register = (
     const config = await getConfig();
     const { id } = ctx.req.param();
 
-    if (config.authorizedClients.includes(id)) {
+    if (isHeadless()) {
+      // Only the same user on this computer, known name or not: the code is
+      // in a file only they can read
+      if (!takePairingCode(ctx.req.header('x-pairing-code'))) {
+        return ctx.newResponse(
+          JSON.stringify({
+            error:
+              'Rien runs without a window, so it lets in only ytmpc run by the same user on the same computer.',
+          }),
+          403,
+          { 'content-type': 'application/json' },
+        );
+      }
+    } else if (config.authorizedClients.includes(id)) {
       // SKIP CHECK
     } else if (config.authStrategy === AuthStrategy.AUTH_AT_FIRST) {
       const result = await dialog.showMessageBox({

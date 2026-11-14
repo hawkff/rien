@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 
 use crate::{
     items::{clean, print_items, say, song, time},
-    rien::{Method, Rien},
+    rien::{Method, Rien, loopback},
 };
 
 const HELP: &str = "\
@@ -60,6 +60,8 @@ Usage: ytmpc [command] [--json]
                              tracking; in a terminal it goes to the clipboard
                              too, over SSH as well (the terminal must take
                              OSC 52; in tmux: set -g set-clipboard on)
+  signin                     a link to Rien's window, to sign in or answer the
+                             site in a browser where Rien has no display
   pair                       ask Rien for access again
 
 --json prints Rien's answer as JSON, for scripts and agents.
@@ -137,6 +139,16 @@ fn target(id: &str) -> Target {
     }
 }
 
+/// How to reach Rien's address from the computer an SSH session comes from:
+/// SSH_CONNECTION is "client port server port"
+fn tunnel_hint(ssh_connection: Option<&str>, address: &str) -> Option<String> {
+    let server = ssh_connection?.split_whitespace().nth(2)?;
+    let (host, port) = address.rsplit_once(':')?;
+    loopback(address).then(|| {
+        format!("On your computer, forward the port first: ssh -L {port}:{host}:{port} {server}")
+    })
+}
+
 /// What an ID names, for its link: a channel ID starts with UC
 fn kind_of(id: &str) -> &'static str {
     match target(id) {
@@ -197,7 +209,13 @@ fn start_rien(rien: &Rien, address: &str) -> Result<()> {
         open.args(["-g", "-a", "Rien"]);
         open
     } else {
-        Command::new("rien")
+        let mut rien = Command::new("rien");
+        // Without a display Rien needs Chromium's headless platform
+        let shown = |name| env::var_os(name).is_some_and(|value| !value.is_empty());
+        if cfg!(target_os = "linux") && !shown("DISPLAY") && !shown("WAYLAND_DISPLAY") {
+            rien.arg("--ozone-platform=headless");
+        }
+        rien
     };
     command
         .stdin(Stdio::null())
@@ -671,6 +689,28 @@ fn run() -> Result<()> {
                 println!("{link}");
             }
         }
+        "signin" => {
+            let answer = rien
+                .request_with_code(Method::Post, "/api/v1/remote")?
+                .unwrap_or_default();
+            let url = answer["url"]
+                .as_str()
+                .context("Rien's answer has no link")?;
+            if as_json {
+                println!("{}", json!({ "url": url }));
+            } else {
+                let copied = std::io::stdout().is_terminal() && items::copy(url).is_ok();
+                say(url);
+                say(&format!(
+                    "Open it in a browser to see Rien's window and sign in{}.",
+                    if copied { " (copied)" } else { "" }
+                ));
+                let ssh = env::var("SSH_CONNECTION").ok();
+                if let Some(hint) = tunnel_hint(ssh.as_deref(), &address) {
+                    say(&hint);
+                }
+            }
+        }
         "pair" => rien.pair()?,
         other => bail!("unknown command: {other} (see ytmpc help)"),
     }
@@ -708,6 +748,19 @@ mod tests {
             target("OLAK5uy_nE-SkwNA6lYF99wd-MHzJVqThnUIJGe3I"),
             Target::List(_)
         ));
+    }
+
+    #[test]
+    fn the_tunnel_goes_to_the_computer_ssh_came_to() {
+        let ssh = Some("10.0.0.2 51000 10.0.0.9 22");
+        assert_eq!(
+            tunnel_hint(ssh, "127.0.0.1:26538").unwrap(),
+            "On your computer, forward the port first: ssh -L 26538:127.0.0.1:26538 10.0.0.9"
+        );
+        assert_eq!(tunnel_hint(None, "127.0.0.1:26538"), None);
+        assert_eq!(tunnel_hint(ssh, "192.168.1.5:26538"), None);
+        assert!(loopback("[::1]:26538") && loopback("localhost:1"));
+        assert!(!loopback("10.0.0.9:26538") && !loopback("127.0.0.1"));
     }
 
     #[test]

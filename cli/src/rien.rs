@@ -1,6 +1,6 @@
 // Rien's API server: requests with the saved token, pairing, and the live feed.
 use std::{
-    fs,
+    env, fs,
     io::{ErrorKind, Write},
     path::PathBuf,
     time::Duration,
@@ -9,7 +9,7 @@ use std::{
 use anyhow::{Context, Result, anyhow, bail};
 use serde_json::Value;
 use tungstenite::{Message, protocol::frame::coding::CloseCode};
-use ureq::{Agent, Body, http::Response};
+use ureq::{Agent, Body, RequestBuilder, http::Response};
 
 const CLIENT_ID: &str = "ytmpc";
 
@@ -28,6 +28,26 @@ pub struct Rien {
     token_path: PathBuf,
     /// No notes on stderr, which would cut into a full-screen client
     quiet: bool,
+}
+
+/// Whether the address is on this computer
+pub fn loopback(address: &str) -> bool {
+    address
+        .rsplit_once(':')
+        .is_some_and(|(host, _)| matches!(host, "127.0.0.1" | "localhost" | "[::1]"))
+}
+
+/// Rien's settings folder, where Rien without a window leaves a code for ytmpc
+fn rien_dir() -> PathBuf {
+    let home = env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+    if cfg!(target_os = "macos") {
+        return home.join("Library/Application Support/Rien");
+    }
+    env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .filter(|dir| dir.is_absolute())
+        .unwrap_or_else(|| home.join(".config"))
+        .join("Rien")
 }
 
 fn agent(timeout: Duration) -> Agent {
@@ -77,30 +97,46 @@ impl Rien {
         }
     }
 
-    fn send(&self, method: &Method, path: &str, body: Option<&Value>) -> Result<Response<Body>> {
-        let url = format!("http://{}{path}", self.address);
+    /// The code Rien without a window leaves for its own user: for the Rien
+    /// on this computer only
+    fn pairing_code(&self) -> Option<String> {
+        loopback(&self.address)
+            .then(|| fs::read_to_string(rien_dir().join("pairing-code")).ok())
+            .flatten()
+            .map(|code| code.trim().to_owned())
+            .filter(|code| !code.is_empty())
+    }
+
+    /// The token, and the pairing code when the request needs it
+    fn headers<B>(&self, request: RequestBuilder<B>, with_code: bool) -> RequestBuilder<B> {
         let auth = format!("Bearer {}", self.token.as_deref().unwrap_or_default());
+        let request = request.header("Authorization", &auth);
+        // Read again for each request: a code works once
+        match with_code.then(|| self.pairing_code()).flatten() {
+            Some(code) => request.header("X-Pairing-Code", &code),
+            None => request,
+        }
+    }
+
+    fn send(
+        &self,
+        method: &Method,
+        path: &str,
+        body: Option<&Value>,
+        with_code: bool,
+    ) -> Result<Response<Body>> {
+        let url = format!("http://{}{path}", self.address);
         let empty = Value::Object(Default::default());
         let result = match method {
-            Method::Get => self
-                .agent
-                .get(url.as_str())
-                .header("Authorization", &auth)
-                .call(),
+            Method::Get => self.headers(self.agent.get(url.as_str()), with_code).call(),
             Method::Delete => self
-                .agent
-                .delete(url.as_str())
-                .header("Authorization", &auth)
+                .headers(self.agent.delete(url.as_str()), with_code)
                 .call(),
             Method::Post => self
-                .agent
-                .post(url.as_str())
-                .header("Authorization", &auth)
+                .headers(self.agent.post(url.as_str()), with_code)
                 .send_json(body.unwrap_or(&empty)),
             Method::Patch => self
-                .agent
-                .patch(url.as_str())
-                .header("Authorization", &auth)
+                .headers(self.agent.patch(url.as_str()), with_code)
                 .send_json(body.unwrap_or(&empty)),
         };
         result.map_err(|error| self.unreachable(error))
@@ -113,14 +149,15 @@ impl Rien {
         method: Method,
         path: &str,
         body: Option<&Value>,
+        with_code: bool,
     ) -> Result<Response<Body>> {
         if self.token.is_none() {
             self.pair()?;
         }
-        let mut response = self.send(&method, path, body)?;
+        let mut response = self.send(&method, path, body, with_code)?;
         if response.status() == 401 {
             self.pair()?;
-            response = self.send(&method, path, body)?;
+            response = self.send(&method, path, body, with_code)?;
         }
         let status = response.status().as_u16();
         if (200..300).contains(&status) {
@@ -147,7 +184,18 @@ impl Rien {
         path: &str,
         body: Option<&Value>,
     ) -> Result<Option<Value>> {
-        let mut response = self.answered(method, path, body)?;
+        let response = self.answered(method, path, body, false)?;
+        Self::json(response)
+    }
+
+    /// A request that Rien without a window answers only for its own user,
+    /// such as a link to its window: with the pairing code
+    pub fn request_with_code(&mut self, method: Method, path: &str) -> Result<Option<Value>> {
+        let response = self.answered(method, path, None, true)?;
+        Self::json(response)
+    }
+
+    fn json(mut response: Response<Body>) -> Result<Option<Value>> {
         let text = response
             .body_mut()
             .read_to_string()
@@ -163,7 +211,7 @@ impl Rien {
 
     /// Gets a binary answer, such as a cover, or None for an empty one.
     pub fn bytes(&mut self, path: &str) -> Result<Option<Vec<u8>>> {
-        let mut response = self.answered(Method::Get, path, None)?;
+        let mut response = self.answered(Method::Get, path, None, false)?;
         let bytes = response
             .body_mut()
             .with_config()
@@ -181,18 +229,32 @@ impl Rien {
             .is_ok()
     }
 
-    /// Asks Rien for a token; Rien asks its user to allow ytmpc.
+    /// Asks Rien for a token: with the code Rien without a window leaves in a
+    /// file only its user can read, or else Rien asks its user to allow ytmpc.
     pub fn pair(&mut self) -> Result<()> {
-        if !self.quiet {
+        let code = self.pairing_code();
+        if !self.quiet && code.is_none() {
             eprintln!("Asking Rien for access. Allow ytmpc in the dialog Rien shows.");
         }
-        let mut response = agent(Duration::from_secs(300))
-            .post(format!("http://{}/auth/{CLIENT_ID}", self.address).as_str())
+        let mut request = agent(Duration::from_secs(300))
+            .post(format!("http://{}/auth/{CLIENT_ID}", self.address).as_str());
+        if let Some(code) = &code {
+            request = request.header("X-Pairing-Code", code);
+        }
+        let mut response = request
             .send_empty()
             .map_err(|error| self.unreachable(error))?;
         match response.status().as_u16() {
             200 => {}
-            403 => bail!("Rien didn't allow ytmpc."),
+            // Rien without a window says why it can't ask
+            403 => bail!(
+                response
+                    .body_mut()
+                    .read_json::<Value>()
+                    .ok()
+                    .and_then(|answer| answer["error"].as_str().map(str::to_owned))
+                    .unwrap_or_else(|| "Rien didn't allow ytmpc.".into())
+            ),
             status => bail!("Rien answered {status} when asked for access."),
         }
         let answer: Value = response.body_mut().read_json()?;

@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Rien</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+      }
+
+      #screen {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        object-fit: contain;
+        cursor: default;
+        user-select: none;
+      }
+
+      #status {
+        position: fixed;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: calc(100vw - 32px);
+        margin: 0;
+        padding: 8px 16px;
+        border-radius: 18px;
+        background: #212121;
+        color: #f1f1f1;
+        font:
+          14px/1.4 system-ui,
+          sans-serif;
+        box-shadow: 0 4px 16px rgb(0 0 0 / 50%);
+        pointer-events: none;
+      }
+
+      #status:empty {
+        display: none;
+      }
+
+      /* Where input methods and dead keys compose, out of sight */
+      #keys {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        border: 0;
+        opacity: 0;
+        resize: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <img id="screen" alt="" />
+    <textarea
+      id="keys"
+      aria-label="Keys for Rien's window"
+      autocomplete="off"
+      autocapitalize="off"
+      spellcheck="false"
+    ></textarea>
+    <p id="status" role="status"></p>
+    <script>
+      const screen = document.getElementById('screen');
+      const status = document.getElementById('status');
+      const keys = document.getElementById('keys');
+      keys.focus();
+      const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+      let fading;
+      const say = (text, stays = false) => {
+        status.textContent = text;
+        clearTimeout(fading);
+        if (!stays) fading = setTimeout(() => (status.textContent = ''), 6000);
+      };
+      const newLink =
+        'Run ytmpc signin on the computer Rien runs on for a new link.';
+
+      // The key comes after #, which no request carries. It stays for reloads
+      // of this tab, but not in its address or history.
+      const key =
+        location.hash.slice(1) || sessionStorage.getItem('rien-view') || '';
+      sessionStorage.setItem('rien-view', key);
+      history.replaceState(null, '', location.pathname);
+
+      let socket;
+      // The window's size in its own pixels, from the last frame
+      let size = { width: 1, height: 1 };
+      let shown = false;
+      const send = (message) => {
+        if (socket?.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(message));
+        }
+      };
+
+      const connect = () => {
+        say('Connecting to Rien…', true);
+        socket = new WebSocket(
+          `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/remote/ws`,
+        );
+        socket.onopen = () =>
+          send({ type: 'hello', key, width: innerWidth, height: innerHeight });
+        socket.onmessage = ({ data }) => {
+          const frame = JSON.parse(data);
+          if (frame.type !== 'frame') return;
+          size = { width: frame.width, height: frame.height };
+          screen.src = `data:image/jpeg;base64,${frame.data}`;
+          if (!shown) {
+            shown = true;
+            say(
+              `Rien's window. Click and type as usual; paste with ${mac ? '⌘V' : 'Ctrl+V'}.`,
+            );
+          }
+        };
+        socket.onclose = ({ code }) => {
+          if (code === 1008) {
+            say(`This link is old or wrong. ${newLink}`, true);
+            return;
+          }
+          shown = false;
+          say('Lost the connection to Rien. Trying again…', true);
+          setTimeout(connect, 3000);
+        };
+      };
+      if (key) connect();
+      else say(`This link has no key. ${newLink}`, true);
+
+      // Where a point of the page falls in the window: the frame keeps its
+      // proportions in the middle of the page
+      const point = (event) => {
+        const box = screen.getBoundingClientRect();
+        const scale = Math.min(
+          box.width / size.width,
+          box.height / size.height,
+        );
+        return {
+          x:
+            (event.clientX - box.left - (box.width - size.width * scale) / 2) /
+            scale,
+          y:
+            (event.clientY - box.top - (box.height - size.height * scale) / 2) /
+            scale,
+        };
+      };
+      // As the window's keys see them: Ctrl and Command alike on a Mac
+      const modifiers = (event) =>
+        (event.altKey ? 1 : 0) |
+        (event.ctrlKey || (mac && event.metaKey) ? 2 : 0) |
+        (!mac && event.metaKey ? 4 : 0) |
+        (event.shiftKey ? 8 : 0);
+      const buttons = ['left', 'middle', 'right'];
+      const mouse = (event, kind, details = {}) =>
+        send({
+          type: 'mouse',
+          event: kind,
+          ...point(event),
+          button: 'none',
+          clickCount: 0,
+          deltaX: 0,
+          deltaY: 0,
+          modifiers: modifiers(event),
+          ...details,
+        });
+      const press = (event) => ({
+        button: buttons[event.button] ?? 'none',
+        clickCount: Math.min(event.detail, 3) || 1,
+      });
+
+      screen.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        keys.focus({ preventScroll: true });
+        mouse(event, 'mousePressed', press(event));
+      });
+      addEventListener('mouseup', (event) =>
+        mouse(event, 'mouseReleased', press(event)),
+      );
+      // At most one move a frame
+      let moved;
+      screen.addEventListener('mousemove', (event) => {
+        if (!moved) {
+          requestAnimationFrame(() => {
+            mouse(moved, 'mouseMoved', {
+              button: moved.buttons & 1 ? 'left' : 'none',
+            });
+            moved = undefined;
+          });
+        }
+        moved = event;
+      });
+      screen.addEventListener(
+        'wheel',
+        (event) => {
+          event.preventDefault();
+          // Lines and pages in pixels
+          const unit = [1, 40, 800][event.deltaMode] ?? 1;
+          mouse(event, 'mouseWheel', {
+            deltaX: event.deltaX * unit,
+            deltaY: event.deltaY * unit,
+          });
+        },
+        { passive: false },
+      );
+      screen.addEventListener('contextmenu', (event) => event.preventDefault());
+      screen.addEventListener('dragstart', (event) => event.preventDefault());
+
+      addEventListener('keydown', (event) => {
+        // The paste event brings the text of this computer's clipboard
+        if (
+          (event.ctrlKey || event.metaKey) &&
+          event.key.toLowerCase() === 'v'
+        ) {
+          return;
+        }
+        // An input method or a dead key composes a character in the field
+        if (event.isComposing || event.keyCode === 229 || event.key === 'Dead') {
+          return;
+        }
+        event.preventDefault();
+        // Ctrl, or Command on a Mac, makes a shortcut; AltGr, which some systems
+        // report as Ctrl and Alt, and a Mac's Option make a character
+        const shortcut =
+          !event.getModifierState('AltGraph') &&
+          (event.ctrlKey || event.metaKey);
+        const typed = event.key.length === 1 && !shortcut;
+        // A key that types sends its text, with Shift alone; Enter sends a
+        // return, as a form needs
+        const text =
+          event.key === 'Enter' ? '\r' : typed ? event.key : undefined;
+        const held = typed ? modifiers(event) & 8 : modifiers(event);
+        send({
+          type: 'key',
+          event: text ? 'keyDown' : 'rawKeyDown',
+          key: event.key,
+          code: event.code,
+          text,
+          keyCode: event.keyCode,
+          modifiers: held,
+        });
+      });
+      keys.addEventListener('compositionend', (event) => {
+        if (event.data) send({ type: 'text', text: event.data });
+        keys.value = '';
+      });
+      addEventListener('keyup', (event) => {
+        if (event.isComposing || event.keyCode === 229 || event.key === 'Dead') {
+          return;
+        }
+        event.preventDefault();
+        send({
+          type: 'key',
+          event: 'keyUp',
+          key: event.key,
+          code: event.code,
+          keyCode: event.keyCode,
+          modifiers: modifiers(event),
+        });
+      });
+      addEventListener('paste', (event) => {
+        event.preventDefault();
+        const text = event.clipboardData?.getData('text/plain');
+        if (text) send({ type: 'text', text: text.slice(0, 10_000) });
+      });
+
+      // Rien's window takes the size of this page
+      let resizing;
+      addEventListener('resize', () => {
+        clearTimeout(resizing);
+        resizing = setTimeout(
+          () => send({ type: 'size', width: innerWidth, height: innerHeight }),
+          200,
+        );
+      });
+    </script>
+  </body>
+</html>

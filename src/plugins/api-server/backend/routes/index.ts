@@ -3,3 +3,4 @@ export { register as registerAuth } from './auth';
 export { register as registerWebsocket } from './websocket';
 export { register as registerBrowse } from './browse';
 export { register as registerLibrary } from './library';
+export { register as registerRemote } from './remote';
