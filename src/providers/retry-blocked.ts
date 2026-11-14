@@ -8,6 +8,21 @@
 // and a refusal took 5 to 10 seconds to arrive. Eight tries leave about one
 // request in 15,000 refused, after about a minute at worst.
 const attempts = 8;
+// A good answer takes about 0.3 s, a refusal 5 to 10 s: a read-only request
+// without an answer after this gets a second copy, and the first good answer
+// wins. A song no longer waits out a slow refusal to start.
+const secondCopyAfter = 1500;
+// Requests that only read, which a second copy or a new try can't repeat an
+// action of
+const readOnly = new Set([
+  'player',
+  'next',
+  'browse',
+  'search',
+  'guide',
+  'music/get_queue',
+  'music/get_search_suggestions',
+]);
 const api = '/\u0079\u006f\u0075\u0074\u0075\u0062\u0065i/v1/';
 const apiUrl = (url: string | URL) => {
   const target = URL.parse(url, location.href);
@@ -17,6 +32,60 @@ const isBlocked = (response: Response) =>
   response.status === 403 &&
   !!response.headers.get('content-type')?.startsWith('text/html');
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Sends a request, and a second copy when it has no answer after `delay`.
+ * Gives the first answer that isn't a refusal, or else a refusal, or the
+ * error of the last copy to fail. The copy that loses stops.
+ */
+const sendTwice = (
+  fetch: typeof window.fetch,
+  request: Request,
+  delay: number,
+) =>
+  new Promise<Response>((resolve, reject) => {
+    const running = new Set<AbortController>();
+    let refusal: Response | undefined;
+    let done = false;
+    const end = (winner?: AbortController) => {
+      done = true;
+      clearTimeout(timer);
+      for (const copy of running) if (copy !== winner) copy.abort();
+    };
+    const send = () => {
+      const copy = new AbortController();
+      running.add(copy);
+      fetch(request.clone(), {
+        signal: AbortSignal.any([request.signal, copy.signal]),
+      }).then(
+        (response) => {
+          running.delete(copy);
+          if (done) return;
+          if (!isBlocked(response)) {
+            end(copy);
+            resolve(response);
+          } else if (running.size === 0) {
+            end();
+            resolve(response);
+          } else {
+            refusal = response;
+          }
+        },
+        (error: unknown) => {
+          running.delete(copy);
+          if (done || running.size > 0) return;
+          end();
+          if (refusal) resolve(refusal);
+          else
+            reject(error instanceof Error ? error : new Error(String(error)));
+        },
+      );
+    };
+    send();
+    const timer = setTimeout(() => {
+      if (!done) send();
+    }, delay);
+  });
 
 /**
  * Whether a player answer is YouTube's "Sign in to confirm you're not a bot",
@@ -64,21 +133,52 @@ const latest = new Map<string, object>();
 // YouTube answers with its bot check, or refuses it twice in a row: those come
 // from a distrusted exit. Other requests stay on the exit, since a move in the
 // middle of a song would cut its stream, which is tied to the exit's address.
+//
+// A read-only request also gets a second copy when it has no answer in time,
+// and tries again after a network error, such as a change of network.
 export const retryBlocked =
   (
     fetch: typeof window.fetch,
     wait = pause,
     nextExit: NextExit = askNextExit,
+    copyAfter = secondCopyAfter,
   ): typeof window.fetch =>
   async (input, init) => {
     const target = apiUrl(input instanceof Request ? input.url : input);
     if (!target) return fetch(input, init);
     const player = target.pathname === `${api}player`;
     const request = new Request(input, init);
+    const reads = readOnly.has(target.pathname.slice(api.length));
     const turn = {};
     latest.set(target.pathname, turn);
     const current = () => latest.get(target.pathname) === turn;
-    const first = await fetch(request.clone());
+    // The page's abort ends a wait at once
+    const aborted = new Promise<never>((_, reject) =>
+      request.signal.addEventListener(
+        'abort',
+        () => reject(request.signal.reason as Error),
+        { once: true },
+      ),
+    );
+    aborted.catch(() => {});
+    const pauseFor = (ms: number) => Promise.race([wait(ms), aborted]);
+    const attempt = async () => {
+      for (let failures = 1; ; failures++) {
+        try {
+          return reads
+            ? await sendTwice(fetch, request, copyAfter)
+            : await fetch(request.clone());
+        } catch (error) {
+          // Aborted by the page, or a newer request of the kind went out:
+          // this one fails as it came
+          const over = () => request.signal.aborted || !current();
+          if (!reads || failures >= 3 || over()) throw error;
+          await pauseFor(failures * 1000);
+          if (over()) throw error;
+        }
+      }
+    };
+    const first = await attempt();
     let response = first;
     let tries = 1;
     // Refusals in a row on the exit in use, and moves to other exits
@@ -104,10 +204,10 @@ export const retryBlocked =
       if (checked && !moved) break;
       if (refused) {
         if (tries >= attempts) break;
-        await wait(tries * 300);
+        await pauseFor(tries * 300);
       }
       if (!current()) return first;
-      response = await fetch(request.clone());
+      response = await attempt();
       tries++;
     }
     return current() ? response : first;
@@ -233,9 +333,8 @@ const answerQueueRequests = (fetch: typeof window.fetch) => {
           once: true,
         });
       } else {
-        // Without an answer, after a lost connection for one, the page's
-        // request fails as a network error: its blob is gone. Sending it again
-        // could repeat a request that the server already took.
+        // Without an answer, after three lost connections in a row, the
+        // page's request fails as a network error: its blob is gone.
         URL.revokeObjectURL(url);
       }
       open.call(this, 'GET', url, true);

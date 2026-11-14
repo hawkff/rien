@@ -228,3 +228,150 @@ test('a player request refused twice moves once; other requests never move', asy
   });
   expect(moves).toEqual([]);
 });
+
+// A fetch whose answers come after the given delays, in order of the calls,
+// and that stops a call when its signal says so
+const timed = (...plans: [number, () => Response | Error][]) => {
+  const signals: (AbortSignal | undefined)[] = [];
+  const fetch = (_input: RequestInfo | URL, init?: RequestInit) =>
+    new Promise<Response>((resolve, reject) => {
+      const [ms, answer] = plans[signals.length];
+      const { signal } = init ?? {};
+      signals.push(signal ?? undefined);
+      const timer = setTimeout(() => {
+        const result = answer();
+        if (result instanceof Error) reject(result);
+        else resolve(result);
+      }, ms);
+      signal?.addEventListener('abort', () => {
+        clearTimeout(timer);
+        reject(signal.reason as Error);
+      });
+    });
+  return { signals, fetch };
+};
+
+test('a read-only request without an answer in time gets a second copy, and the first good answer wins', async () => {
+  const { signals, fetch } = timed([2000, blocked], [10, passes]);
+  const started = Date.now();
+  const response = await retryBlocked(
+    fetch,
+    wait,
+    undefined,
+    50,
+  )(`${api}/player`, { method: 'POST', body: '{}' });
+  expect(response.status).toBe(200);
+  expect(Date.now() - started).toBeLessThan(1000);
+  expect(signals).toHaveLength(2);
+  // The slow copy stops; the winner's body stays readable
+  expect(signals[0]?.aborted).toBe(true);
+  expect(signals[1]?.aborted).toBe(false);
+  expect(await response.text()).toBe('{}');
+});
+
+test('two refused copies count as one refusal, and the request tries again', async () => {
+  waits.length = 0;
+  const { signals, fetch } = timed([80, blocked], [10, blocked], [5, passes]);
+  const response = await retryBlocked(
+    fetch,
+    wait,
+    undefined,
+    20,
+  )(`${api}/browse`, { method: 'POST', body: '{}' });
+  expect(response.status).toBe(200);
+  expect(signals).toHaveLength(3);
+  expect(waits).toEqual([300]);
+});
+
+test('a read-only request tries again after a network error; an action never repeats', async () => {
+  waits.length = 0;
+  const lost = () => new TypeError('Failed to fetch');
+  const reads = timed([5, lost], [5, passes]);
+  const response = await retryBlocked(
+    reads.fetch,
+    wait,
+    undefined,
+    1000,
+  )(`${api}/next`, { method: 'POST', body: '{}' });
+  expect(response.status).toBe(200);
+  expect(waits).toEqual([1000]);
+
+  // A like: no second copy however slow, and its network error reaches the page
+  const like = timed([100, lost], [5, passes]);
+  await expect(
+    retryBlocked(
+      like.fetch,
+      wait,
+      undefined,
+      10,
+    )(`${api}/like/like`, {
+      method: 'POST',
+      body: '{}',
+    }),
+  ).rejects.toThrow('Failed to fetch');
+  expect(like.signals).toHaveLength(1);
+});
+
+test("the page's own abort stops every copy and isn't tried again", async () => {
+  waits.length = 0;
+  const { signals, fetch } = timed([500, passes], [500, passes]);
+  const controller = new AbortController();
+  const asked = retryBlocked(
+    fetch,
+    wait,
+    undefined,
+    20,
+  )(`${api}/browse`, {
+    method: 'POST',
+    body: '{}',
+    signal: controller.signal,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  controller.abort();
+  await expect(asked).rejects.toThrow();
+  expect(signals).toHaveLength(2);
+  expect(signals.every((signal) => signal?.aborted)).toBe(true);
+  expect(waits).toEqual([]);
+});
+
+test('after a network error, an older request stops once a newer one of its kind went out', async () => {
+  let release = () => {};
+  const held = () =>
+    new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  const lost = () => new TypeError('Failed to fetch');
+  const { signals, fetch } = timed([5, lost], [5, passes], [5, passes]);
+  const retrying = retryBlocked(fetch, held, undefined, 1000);
+  const first = retrying(`${api}/browse`, { method: 'POST', body: '1' });
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const second = await retrying(`${api}/browse`, { method: 'POST', body: '2' });
+  release();
+  expect(second.status).toBe(200);
+  await expect(first).rejects.toThrow('Failed to fetch');
+  // The older request sent nothing after the newer one
+  expect(signals).toHaveLength(2);
+});
+
+test("the page's abort ends the wait after a network error at once", async () => {
+  const forever = () => new Promise<void>(() => {});
+  const lost = () => new TypeError('Failed to fetch');
+  const { signals, fetch } = timed([5, lost], [5, passes]);
+  const controller = new AbortController();
+  const asked = retryBlocked(
+    fetch,
+    forever,
+    undefined,
+    1000,
+  )(`${api}/next`, {
+    method: 'POST',
+    body: '{}',
+    signal: controller.signal,
+  });
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const started = Date.now();
+  controller.abort();
+  await expect(asked).rejects.toThrow();
+  expect(Date.now() - started).toBeLessThan(500);
+  expect(signals).toHaveLength(1);
+});

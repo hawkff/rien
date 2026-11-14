@@ -103,11 +103,27 @@ test('A refused queue request is sent again, other answers once', async () => {
     expect(
       await request([...Array(8).fill('refused'), 'passes']),
     ).toMatchObject({ status: 403, calls: 8 });
+    // The queue request only reads: a lost connection tries again, and the
+    // third one in a row reaches the page
     expect(await request(['lost', 'passes'])).toMatchObject({
+      status: 200,
+      events: ['load'],
+      calls: 2,
+    });
+    expect(await request(['lost', 'lost', 'lost', 'passes'])).toMatchObject({
       status: 0,
       events: ['error'],
-      calls: 1,
+      calls: 3,
     });
+    // An answer that takes 3 s gets a second copy after 1.5 s, which wins
+    const started = Date.now();
+    expect(await request(['slow', 'passes'])).toMatchObject({
+      status: 200,
+      body: '{"ok":1}',
+      events: ['load'],
+      calls: 2,
+    });
+    expect(Date.now() - started).toBeLessThan(3000);
     expect(await request(['slow'], 500)).toMatchObject({
       status: 0,
       events: ['abort'],
