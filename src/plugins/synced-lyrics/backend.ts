@@ -3,6 +3,8 @@ import { net } from 'electron';
 import { loadNative } from '@/native';
 import { createBackend } from '@/utils';
 
+import { romanize } from './romanize';
+
 const handlers = {
   // Note: This will only be used for Forbidden headers, e.g. User-Agent, Authority, Cookie, etc.
   // See: https://developer.mozilla.org/en-US/docs/Glossary/Forbidden_request_header
@@ -36,10 +38,14 @@ export const backend = createBackend({
         return text;
       }
     });
+    ctx.ipc.handle('synced-lyrics:romanize', (language: string, text: string) =>
+      romanize(language, text),
+    );
   },
   stop(ctx) {
     ctx.ipc.removeHandler('synced-lyrics:fetch');
     ctx.ipc.removeHandler('synced-lyrics:detect-language');
     ctx.ipc.removeHandler('synced-lyrics:romanize-japanese');
+    ctx.ipc.removeHandler('synced-lyrics:romanize');
   },
 });

@@ -16,9 +16,10 @@ export let netFetch: (
   url: string,
   init?: RequestInit,
 ) => Promise<[number, string, Record<string, string>]>;
-// These run in the native module in the main process.
+// These run in the main process: the first two in the native module.
 export let detectLanguage: (text: string) => Promise<string | null>;
 export let romanizeJapanese: (text: string) => Promise<string>;
+export let romanizeInMain: (language: string, text: string) => Promise<string>;
 
 export const renderer = createRenderer<
   {
@@ -88,6 +89,7 @@ export const renderer = createRenderer<
       ctx.ipc,
       'synced-lyrics:romanize-japanese',
     );
+    romanizeInMain = ctx.ipc.invoke.bind(ctx.ipc, 'synced-lyrics:romanize');
 
     setConfig(await ctx.getConfig());
 

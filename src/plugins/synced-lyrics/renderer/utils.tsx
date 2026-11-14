@@ -3,7 +3,7 @@ import { render } from 'solid-js/web';
 
 import { waitForElement } from '@/utils/wait-for-element';
 
-import { detectLanguage, romanizeJapanese } from '.';
+import { detectLanguage, romanizeInMain, romanizeJapanese } from '.';
 import { LyricsRenderer, setIsVisible } from './renderer';
 import { currentLyrics } from './store';
 
@@ -174,70 +174,14 @@ const hasBengali = (lines: string[]) =>
 const hasHindi = (lines: string[]) =>
   lines.some((line) => /[\u0900-\u097F]+/.test(line));
 
-// The libraries below load on first use instead of with the page.
-export const romanizeHangul = async (line: string) => {
-  // hanja's main module keeps its functions on a default export, which a
-  // dynamic import wraps once more, so import the function's own module.
-  const [{ romanize }, { translate }] = await Promise.all([
-    import('es-hangul'),
-    import('hanja/lib/translate'),
-  ]);
-  return romanize(translate(line, 'SUBSTITUTION'));
-};
-
-export const romanizeChinese = async (line: string) => {
-  const { pinyin } = await import('pinyin-pro');
-  return line.replaceAll(/[\u4E00-\u9FFF]+/g, (match) => {
-    return pinyin(match, { separator: ' ' });
-  });
-};
-
-const thaiSegmenter = Intl.Segmenter.supportedLocalesOf('th').includes('th')
-  ? new Intl.Segmenter('th', { granularity: 'word' })
-  : null;
-
-export const romanizeThai = async (line: string) => {
-  const { romanize: romanizeThaiFrag } = await import('@dehoist/romanize-thai');
-  if (!thaiSegmenter) return romanizeThaiFrag(line);
-
-  const segments = Array.from(thaiSegmenter.segment(line));
-  const latin = segments
-    .map((segment) =>
-      segment.isWordLike
-        ? romanizeThaiFrag(segment.segment)
-        : segment.segment.trim(),
-    )
-    .join(' ')
-    .trim();
-
-  return latin;
-};
-
-export const romanizeBengali = async (line: string) => {
-  try {
-    const { default: Sanscript } =
-      await import('@indic-transliteration/sanscript');
-    let out = Sanscript.t(line, 'bengali', 'iast');
-    out = out.normalize('NFD');
-    out = out.replace(/[\u0300-\u036f]/g, '');
-    out = out.replace(/[\u09BC\u09BE-\u09CD]/g, '');
-    return out.toLowerCase();
-  } catch {
-    return line;
-  }
-};
-
-export const romanizeHindi = async (line: string) => {
-  try {
-    const { default: Sanscript } =
-      await import('@indic-transliteration/sanscript');
-    let out = Sanscript.t(line, 'devanagari', 'iast');
-    out = out.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // strip accents
-    return out.replace(/[^a-zA-Z\s]/g, '') || line; // remove any remaining symbols
-  } catch {
-    return line;
-  }
-};
+// Their libraries load in the main process on first use, never in the page.
+const romanizeIn = (language: string) => (line: string) =>
+  romanizeInMain(language, line);
+export const romanizeHangul = romanizeIn('ko');
+export const romanizeChinese = romanizeIn('zh');
+export const romanizeThai = romanizeIn('th');
+export const romanizeBengali = romanizeIn('bn');
+export const romanizeHindi = romanizeIn('hi');
 
 const handlers: Record<string, (line: string) => Promise<string> | string> = {
   // romanizeJapanese is only set once the renderer starts
