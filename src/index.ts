@@ -177,7 +177,11 @@ app.commandLine.appendSwitch('disable-features', disabledFeatures.join(','));
 
 const proxyToUse = await startupProxy();
 if (proxyToUse) {
-  console.log(LoggerPrefix, `Using proxy: ${proxyToUse}`);
+  // Without the login of a proxy set with one
+  console.log(
+    LoggerPrefix,
+    `Using proxy: ${proxyToUse.replaceAll(/\/\/[^/@,]*@/g, '//')}`,
+  );
   app.commandLine.appendSwitch('proxy-server', proxyToUse);
 }
 setupProxyExits();

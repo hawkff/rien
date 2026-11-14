@@ -20,8 +20,13 @@ import {
   activeExits,
   checkedList,
   exitRules,
+  hasLogin,
   pacer,
+  withoutLogin,
 } from '@/utils/proxy-exits';
+import { socksRelay } from '@/utils/socks-relay';
+
+import type { AddressInfo, Server } from 'node:net';
 
 export type ExitReason = 'bot-check' | 'refused' | 'manual';
 export type ExitChange = {
@@ -40,9 +45,37 @@ const position = () => {
 };
 const inUse = () => exits()[position()];
 
+// Exits with a login, each through a relay of its own on this computer
+const relays = new Map<string, { server: Server; port: number }>();
+const startRelay = (exit: string) =>
+  new Promise<{ server: Server; port: number }>((resolve, reject) => {
+    const server = socksRelay(() => exit);
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () =>
+      resolve({ server, port: (server.address() as AddressInfo).port }),
+    );
+  });
+/** The exits as Chromium's proxy rules name them: an exit with a login by its relay */
+const ruleExits = async (list: string[]) => {
+  for (const [exit, relay] of relays) {
+    if (!list.includes(exit)) {
+      relay.server.close();
+      relays.delete(exit);
+    }
+  }
+  for (const exit of list.filter(hasLogin)) {
+    if (!relays.has(exit)) relays.set(exit, await startRelay(exit));
+  }
+  return list.map((exit) => {
+    const relay = relays.get(exit);
+    return relay ? `socks5://127.0.0.1:${relay.port}` : exit;
+  });
+};
+
 /** The proxy rules Rien starts with: its exits from the one in use, or its one proxy */
 export const startupProxy = async () => {
-  if (exits().length > 0) return exitRules(exits(), position());
+  if (exits().length > 0)
+    return exitRules(await ruleExits(exits()), position());
   const proxy = config.get('options.proxy');
   if (!proxy) return '';
   if (await config.plugins.isEnabled('auth-proxy-adapter')) {
@@ -63,13 +96,13 @@ const useExit = async (at: number, reason?: ExitReason) => {
   // pool of their own
   await session.defaultSession.setProxy({
     mode: 'fixed_servers',
-    proxyRules: exitRules(list, at),
+    proxyRules: exitRules(await ruleExits(list), at),
   });
   if (!reason) return;
   const change: ExitChange = {
     exit: at + 1,
     of: list.length,
-    proxy: list[at],
+    proxy: withoutLogin(list[at]),
     reason,
   };
   // For the API server's live feed, as the page's events reach it
@@ -98,6 +131,7 @@ const saveExits = async (list: string[], use?: string) => {
   const active = exits();
   if (active.length === 0) {
     config.set('options.proxyExit', 0);
+    await ruleExits([]);
     const proxy = await startupProxy();
     await session.defaultSession.setProxy(
       proxy ? { mode: 'fixed_servers', proxyRules: proxy } : { mode: 'system' },

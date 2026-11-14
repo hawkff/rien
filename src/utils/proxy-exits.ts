@@ -2,10 +2,13 @@
 // a time, moving to the next when YouTube distrusts the one in use. An exit
 // that is switched off keeps its place in the list, with a # in front.
 
-// Chromium can't send a login to a SOCKS proxy, and takes none in an address
 const schemes = new Set(['socks5:', 'socks4:', 'http:', 'https:']);
 
-/** A proxy address in the form Rien keeps, or undefined when `text` isn't one */
+/**
+ * A proxy address in the form Rien keeps, or undefined when `text` isn't one.
+ * A login goes before the host, as user:password@; Chromium takes none in an
+ * address, so an exit with one goes through a relay (utils/socks-relay.ts).
+ */
 export const exitAddress = (text: string) => {
   const url = URL.parse(text);
   // A scheme's own port leaves url.port empty, as in http://host:80 or :080
@@ -15,13 +18,35 @@ export const exitAddress = (text: string) => {
     schemes.has(url.protocol) &&
     url.hostname &&
     port &&
-    !url.username &&
-    !url.password &&
+    // SOCKS4 has a user ID but no password
+    !(url.protocol === 'socks4:' && url.password) &&
     (url.pathname === '' || url.pathname === '/') &&
     !url.search &&
     !url.hash;
-  return fine ? `${url.protocol}//${url.hostname}:${port}` : undefined;
+  if (!fine) return undefined;
+  // A comma in a login stays escaped: the editor splits addresses at commas
+  const escape = (part: string) => part.replaceAll(',', '%2C');
+  const login =
+    url.username || url.password
+      ? `${escape(url.username)}${url.password ? `:${escape(url.password)}` : ''}@`
+      : '';
+  return `${url.protocol}//${login}${url.hostname}:${port}`;
 };
+
+// Any address, as Set proxy keeps it too: a scheme in any case
+const loginPart = /^([a-z][a-z0-9+.-]*:\/\/)[^/@]*@/i;
+export const hasLogin = (address: string) => loginPart.test(address);
+/** An address as it can be shown or logged */
+export const withoutLogin = (address: string) =>
+  address.replace(loginPart, '$1');
+/** An address with its password hidden, for the editor's list */
+export const passwordHidden = (address: string) =>
+  address.replace(/^([a-z][a-z0-9+.-]*:\/\/[^:/@]*):[^/@]*@/i, '$1:•••@');
+
+// The addresses in a text, apart at spaces and commas; a comma in a login,
+// before its @, belongs to the address
+const addressParts = (text: string) =>
+  text.match(/(?:[a-z][a-z0-9+.-]*:\/\/[^\s/@]*@)?[^\s,]+/gi) ?? [];
 
 export type ExitEntry = { address: string; on: boolean };
 
@@ -80,7 +105,7 @@ export const parseExitText = (text: string) => {
       if (address) add(address, false);
       return;
     }
-    for (const part of line.split(/[\s,]+/).filter(Boolean)) {
+    for (const part of addressParts(line)) {
       const address = exitAddress(part);
       if (address) add(address, true);
       else bad.push({ line: index + 1, text: part });
@@ -98,7 +123,7 @@ export const pastedExits = (text: string) =>
     .split(/\r?\n/)
     .flatMap((raw) => {
       const line = raw.trim();
-      return line.startsWith('#') ? [line] : line.split(/[\s,]+/);
+      return line.startsWith('#') ? [line] : addressParts(line);
     })
     .filter(Boolean)
     .join('\n');
@@ -110,12 +135,7 @@ export const lineKind = (raw: string) => {
   if (line.startsWith('#')) {
     return exitAddress(line.slice(1).trim()) ? 'off' : 'comment';
   }
-  return line
-    .split(/[\s,]+/)
-    .filter(Boolean)
-    .every((part) => exitAddress(part))
-    ? 'exit'
-    : 'bad';
+  return addressParts(line).every((part) => exitAddress(part)) ? 'exit' : 'bad';
 };
 
 /**

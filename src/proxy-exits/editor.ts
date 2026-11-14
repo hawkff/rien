@@ -25,6 +25,7 @@ import {
   fromEntries,
   lineKind,
   parseExitText,
+  passwordHidden,
   pastedExits,
   toEntries,
 } from '../utils/proxy-exits';
@@ -220,7 +221,8 @@ const renderList = () => {
   const using = target(entries);
   let number = 0;
   const rows = entries.map((entry, index) => {
-    const label = (key: string) => `${say(key)}: ${entry.address}`;
+    const label = (key: string) =>
+      `${say(key)}: ${passwordHidden(entry.address)}`;
     const current = entry.address === using;
     const button = (
       name: string,
@@ -258,8 +260,8 @@ const renderList = () => {
       }),
       h('span', {
         className: 'address',
-        textContent: entry.address,
-        title: entry.address,
+        textContent: passwordHidden(entry.address),
+        title: passwordHidden(entry.address),
       }),
       current
         ? h('span', { className: 'mark', textContent: say('in-use') })

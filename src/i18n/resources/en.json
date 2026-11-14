@@ -85,7 +85,7 @@
           "list": "List",
           "move-down": "Move down",
           "move-up": "Move up",
-          "not-addresses": "Not proxy addresses: {{bad}}. Write socks5://host:port, socks4://, http:// or https://, without a login.",
+          "not-addresses": "Not proxy addresses: {{bad}}. Write socks5://host:port, socks4://, http:// or https://, with user:password@ before the host if the proxy needs a login.",
           "on": "On",
           "remove": "Remove",
           "save": "Save",

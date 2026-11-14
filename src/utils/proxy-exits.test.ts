@@ -4,6 +4,9 @@ import {
   activeExits,
   checkedList,
   exitAddress,
+  hasLogin,
+  passwordHidden,
+  withoutLogin,
   exitRules,
   exitsText,
   fromEntries,
@@ -35,7 +38,8 @@ test('exits are proxy addresses with a port and no login', () => {
   for (const text of [
     'host:1080',
     'socks5://host',
-    'socks5://user:pass@host:1080',
+    // SOCKS4 has a user ID but no password
+    'socks4://user:pass@host:1080',
     'ftp://host:21',
     'http://host:80/path',
     '',
@@ -123,4 +127,57 @@ test('a paste becomes an address per line, # lines whole', () => {
   ).toBe(
     '# Ashburn, VA: 2\nsocks5://a.example:1080\nsocks5://b.example:1080\nsocks5://c.example:1080',
   );
+});
+
+test('an exit may have a login, kept as written and shown without it', () => {
+  for (const address of [
+    'socks5://alice:s%40cret@exit.example:1080',
+    'socks4://alice@exit.example:1080',
+    'http://bob:pw@10.0.0.1:3128',
+    'https://:token@proxy.example:443',
+  ]) {
+    expect(exitAddress(address)).toBe(address);
+    expect(hasLogin(address)).toBe(true);
+  }
+  expect(exitAddress('SOCKS5://alice:pw@exit.example:1080/')).toBe(
+    'socks5://alice:pw@exit.example:1080',
+  );
+  expect(withoutLogin('socks5://alice:s%40cret@exit.example:1080')).toBe(
+    'socks5://exit.example:1080',
+  );
+  expect(withoutLogin('socks5://exit.example:1080')).toBe(
+    'socks5://exit.example:1080',
+  );
+  // As Set proxy keeps an address: as typed
+  expect(withoutLogin('SOCKS5://alice:secret@exit.example:1080')).toBe(
+    'SOCKS5://exit.example:1080',
+  );
+  // A comma in a login stays escaped, and the text view keeps the exit whole
+  const comma = exitAddress('socks5://alice:p,ass@exit.example:1080');
+  expect(comma).toBe('socks5://alice:p%2Cass@exit.example:1080');
+  expect(parseExitText(comma!).entries).toEqual([{ address: comma, on: true }]);
+  // Typed with a comma in the password, among other exits
+  expect(
+    parseExitText(
+      'socks5://alice:p,ass@exit.example:1080, socks5://b.example:1080,http://c.example:8080',
+    ).entries.map((entry) => entry.address),
+  ).toEqual([
+    'socks5://alice:p%2Cass@exit.example:1080',
+    'socks5://b.example:1080',
+    'http://c.example:8080',
+  ]);
+  expect(pastedExits('socks5://alice:p,ass@exit.example:1080 x')).toBe(
+    'socks5://alice:p,ass@exit.example:1080\nx',
+  );
+  expect(hasLogin('socks5://exit.example:1080')).toBe(false);
+  expect(passwordHidden('http://bob:pw@10.0.0.1:3128')).toBe(
+    'http://bob:•••@10.0.0.1:3128',
+  );
+  expect(passwordHidden('socks4://alice@exit.example:1080')).toBe(
+    'socks4://alice@exit.example:1080',
+  );
+  // A stored list keeps logins, an exit that is off too
+  expect(
+    checkedList(['socks5://a:b@x.example:1080', '#http://c:d@y.example:8080']),
+  ).toEqual(['socks5://a:b@x.example:1080', '#http://c:d@y.example:8080']);
 });
