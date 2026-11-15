@@ -156,8 +156,14 @@ export class Connection {
           reject(err);
         }
       };
+      // A stop while connecting ends the wait
+      const onClose = () => reject(new Error('Music Together: closed'));
       this.peer.on('error', onError);
-      conn.once('open', () => this.peer.off('error', onError));
+      this.peer.once('close', onClose);
+      conn.once('open', () => {
+        this.peer.off('error', onError);
+        this.peer.off('close', onClose);
+      });
       conn.once('close', () => this.peer.off('error', onError));
     });
 
@@ -169,6 +175,8 @@ export class Connection {
     if (this.isDestroyed) return;
 
     this.isDestroyed = true;
+    // Ends a wait for the server; no-op once it answered
+    this.waitOpen.reject(new Error('Music Together: disconnected'));
     this.isReconnecting = false;
     this._mode = 'disconnected';
 

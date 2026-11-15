@@ -71,8 +71,8 @@ export default createPlugin<
       event: CustomEvent<VideoDataChanged>,
     ) => Promise<void>;
     videoStateChangeListener: () => Promise<void>;
-    onHost: () => Promise<boolean>;
-    onJoin: () => Promise<boolean>;
+    onHost: () => Promise<boolean | null>;
+    onJoin: () => Promise<boolean | null>;
     onStop: () => void;
     putProfile: (id: string, profile?: Profile) => void;
     showSpinner: () => void;
@@ -158,9 +158,13 @@ export default createPlugin<
     },
 
     /* connection */
+    // null: a stop or a newer room took over while this attempt waited
     async onHost() {
-      this.connection = new Connection();
-      const wait = await this.connection.waitForReady().catch(() => null);
+      if (this.connection) this.onStop();
+      const connection = new Connection();
+      this.connection = connection;
+      const wait = await connection.waitForReady().catch(() => null);
+      if (this.connection !== connection) return null;
       if (!wait) return false;
 
       if (!this.me) this.me = getDefaultProfile(this.connection.id);
@@ -188,8 +192,9 @@ export default createPlugin<
       this.queue?.initQueue();
       this.queue?.injection();
 
-      this.connection.onConnections((connection) => {
-        if (!connection) {
+      this.connection.onConnections((peer) => {
+        if (this.connection !== connection) return;
+        if (!peer) {
           this.api?.toastService?.show(
             t('plugins.music-together.toast.disconnected'),
           );
@@ -197,13 +202,13 @@ export default createPlugin<
           return;
         }
 
-        if (!connection.open) {
+        if (!peer.open) {
           this.api?.toastService?.show(
             t('plugins.music-together.toast.user-disconnected', {
-              name: this.profiles[connection.peer]?.name,
+              name: this.profiles[peer.peer]?.name,
             }),
           );
-          this.putProfile(connection.peer, undefined);
+          this.putProfile(peer.peer, undefined);
         }
       });
 
@@ -249,11 +254,19 @@ export default createPlugin<
             );
 
             const room = this.connection;
-            await this.queue?.addVideos(videoList, event.payload.index);
+            const added = await this.queue?.addVideos(
+              videoList,
+              event.payload.index,
+            );
             // A room left while the songs were on their way gets nothing
             // more, the next room nothing of it, and neither does the song
-            // change that came with the add
-            if (this.connection !== room || room?.mode === 'disconnected')
+            // change that came with the add. Songs whose lookup failed or ran
+            // out of time go nowhere.
+            if (
+              !added ||
+              this.connection !== room ||
+              room?.mode === 'disconnected'
+            )
               return;
             await this.connection?.broadcast(
               'ADD_SONGS',
@@ -329,9 +342,12 @@ export default createPlugin<
             break;
           }
           case 'SYNC_QUEUE': {
-            await this.connection?.broadcast('SYNC_QUEUE', {
-              videoList: this.queue?.videoList ?? [],
-            });
+            const videoList = this.queue?.videoList ?? [];
+            // A guest asking for the whole list gets it alone: every guest's
+            // resync sent to all of them would pile up their lookups
+            if (conn)
+              await conn.send({ type: 'SYNC_QUEUE', payload: { videoList } });
+            else await this.connection?.broadcast('SYNC_QUEUE', { videoList });
             break;
           }
           case 'SYNC_PROGRESS': {
@@ -392,8 +408,12 @@ export default createPlugin<
     },
 
     async onJoin() {
-      this.connection = new Connection();
-      const wait = await this.connection.waitForReady().catch(() => null);
+      if (this.connection) this.onStop();
+      const connection = new Connection();
+      this.connection = connection;
+      const stale = () => this.connection !== connection;
+      const wait = await connection.waitForReady().catch(() => null);
+      if (stale()) return null;
       if (!wait) return false;
 
       this.profiles = {};
@@ -402,12 +422,21 @@ export default createPlugin<
         t('plugins.music-together.name'),
         t('plugins.music-together.dialog.enter-host'),
       );
-      if (typeof id !== 'string') return false;
+      if (stale()) return null;
+      if (typeof id !== 'string') {
+        connection.disconnect();
+        return false;
+      }
 
-      const connection = await this.connection.connect(id).catch(() => false);
-      if (!connection) return false;
-      this.connection.onConnections((connection) => {
-        if (!connection?.open) {
+      const connected = await connection.connect(id).catch(() => false);
+      if (stale()) return null;
+      if (!connected) {
+        connection.disconnect();
+        return false;
+      }
+      this.connection.onConnections((peer) => {
+        if (stale()) return;
+        if (!peer?.open) {
           this.api?.toastService?.show(
             t('plugins.music-together.toast.disconnected'),
           );
@@ -416,6 +445,7 @@ export default createPlugin<
       });
 
       let resolveIgnore: number | null = null;
+      let retryList: number | null = null;
       const queueListener = async (event: ConnectionEventUnion) => {
         this.ignoreChange = true;
         switch (event.type) {
@@ -486,12 +516,19 @@ export default createPlugin<
               }),
             );
 
-            const added = this.queue?.addVideos(videoList, event.payload.index);
+            const added = this.queue?.addVideos(
+              videoList,
+              event.payload.index,
+              true,
+            );
             const afterevent = event.after?.at(0);
             if (afterevent?.type === 'SET_INDEX') {
               this.queue?.setIndexAfterAdds(afterevent.payload.index);
             }
-            await added;
+            // The songs' lookup failed or ran out of time: the host's whole
+            // list puts them in
+            if ((await added) === false)
+              await connection.broadcast('SYNC_QUEUE', undefined);
 
             break;
           }
@@ -514,9 +551,19 @@ export default createPlugin<
           case 'SYNC_QUEUE': {
             const videoList = event.payload?.videoList;
             if (Array.isArray(videoList)) {
-              await this.queue?.inTurn(() =>
-                this.queue?.setVideoList(videoList),
+              const landed = await this.queue?.inTurn(
+                () => this.queue?.setVideoList(videoList),
+                true,
               );
+              // The host's changes wait for a whole list that lands: ask
+              // again a little later, one request at a time
+              if (landed === false && retryList === null) {
+                retryList = window.setTimeout(() => {
+                  retryList = null;
+                  if (!stale() && this.queue?.awaitingList)
+                    connection.broadcast('SYNC_QUEUE', undefined);
+                }, 10_000);
+              }
             }
             break;
           }
@@ -639,8 +686,11 @@ export default createPlugin<
         },
       });
 
+      if (stale()) return null;
       await this.connection.broadcast('SYNC_PROFILE', undefined);
+      if (stale()) return null;
       await this.connection.broadcast('PERMISSION', undefined);
+      if (stale()) return null;
 
       this.queue?.clear();
       this.queue?.syncQueueOwner();
@@ -648,13 +698,13 @@ export default createPlugin<
 
       await this.connection.broadcast('SYNC_QUEUE', undefined);
 
-      return true;
+      return stale() ? null : true;
     },
 
     onStop() {
-      if (this.connection?.mode !== 'disconnected') {
-        this.connection?.disconnect();
-      }
+      // Also one still waiting for the server, so that it ends there
+      this.connection?.disconnect();
+      this.connection = undefined;
       this.queue?.rollbackInjection();
       this.queue?.removeQueueOwner();
       if (this.rollbackInjector) {
@@ -743,8 +793,11 @@ export default createPlugin<
       this.api = document.querySelector<AppElement>('ytmusic-app');
 
       /* setup */
+      // Before the account button, or signed out before the sign-in link
       document
-        .querySelector('#right-content > ytmusic-settings-button')
+        .querySelector(
+          '#right-content > ytmusic-settings-button, #right-content > .sign-in-link',
+        )
         ?.insertAdjacentHTML('beforebegin', settingHTML);
       const setting = document.querySelector<HTMLElement>(
         '#music-together-setting-button',
@@ -849,6 +902,11 @@ export default createPlugin<
             settingPopup.dismiss();
             this.showSpinner();
             const result = await this.onHost();
+            if (result === null) {
+              // A stop ended this attempt, or a newer one keeps the spinner
+              if (!this.connection) this.hideSpinner();
+              return;
+            }
             this.hideSpinner();
 
             if (result) {
@@ -877,6 +935,11 @@ export default createPlugin<
             settingPopup.dismiss();
             this.showSpinner();
             const result = await this.onJoin();
+            if (result === null) {
+              // A stop ended this attempt, or a newer one keeps the spinner
+              if (!this.connection) this.hideSpinner();
+              return;
+            }
             this.hideSpinner();
 
             if (result) {

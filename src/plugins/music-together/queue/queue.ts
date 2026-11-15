@@ -165,28 +165,44 @@ export class Queue {
   async setVideoList(videoList: VideoData[], sync = true) {
     this._videoList = videoList;
 
-    if (sync) await this.syncVideo();
+    return sync ? this.syncVideo() : true;
   }
 
   // Adds land in the order they came, though each fetches its songs first
   private adding = Promise.resolve(true);
   // A new one for each room: the changes of a room left behind are dropped
   private room = {};
+  // A guest missed songs the host has, or its whole list: the places the
+  // host's changes name are off until its next whole list lands, which holds
+  // those changes too
+  awaitingList = false;
 
-  addVideos(videos: VideoData[], index?: number) {
-    return this.inTurn(() => this.insertVideos(videos, index));
+  // fromHost: a guest taking the host's add, which waits for the host's whole
+  // list when the songs can't be had
+  addVideos(videos: VideoData[], index?: number, fromHost = false) {
+    return this.inTurn(async () => {
+      const room = this.room;
+      const added = await this.insertVideos(videos, index);
+      if (!added && fromHost && this.room === room) this.awaitingList = true;
+      return added;
+    });
   }
 
   /**
    * Runs a change from the host after the ones that came before it, adds
    * whose songs are still on their way among them, so that a place it names
-   * means what it meant for the host
+   * means what it meant for the host. wholeList: the host's whole list, which
+   * runs even while one is awaited, and ends the wait when it lands
    */
-  inTurn<T>(step: () => T | Promise<T>) {
+  inTurn<T>(step: () => T | Promise<T>, wholeList = false) {
     const room = this.room;
-    const done = this.adding.then(() =>
-      this.room === room ? step() : undefined,
-    );
+    const done = this.adding.then(async () => {
+      if (this.room !== room || (this.awaitingList && !wholeList))
+        return undefined;
+      const result = await step();
+      if (wholeList && this.room === room) this.awaitingList = result === false;
+      return result;
+    });
     this.adding = done.then(
       () => true,
       () => false,
@@ -325,6 +341,7 @@ export class Queue {
     // room's changes don't wait for them
     this.room = {};
     this.adding = Promise.resolve(true);
+    this.awaitingList = false;
     if (!this.queue) {
       console.error('Queue is not initialized!');
       return;
@@ -349,6 +366,13 @@ export class Queue {
       }
 
       if (!this.internalDispatch) {
+        // A guest waiting for the host's whole list may show places the
+        // host's list no longer has: changes that name one are dropped
+        if (
+          this.awaitingList &&
+          ['MOVE_ITEM', 'REMOVE_ITEM', 'SET_INDEX'].includes(event.type)
+        )
+          return;
         if (event.type === 'CLEAR') {
           this.ignoreFlag = true;
           this.broadcast({
@@ -410,25 +434,27 @@ export class Queue {
                   }) satisfies VideoData,
                 items,
               );
+              // The place, so that every list puts them at the same one.
+              // Songs for the end carry none, unless they play next: each
+              // list puts them at its end when they land, after the adds
+              // still on their way.
+              // Without the choice, the place right after the playing song
+              // counts as Play next, the end of the queue as Add to queue;
+              // after the last song the two are the same place.
+              const place =
+                insertPosition === 'INSERT_AT_END'
+                  ? undefined
+                  : typeof index === 'number' &&
+                      (insertPosition === 'INSERT_AFTER_CURRENT_VIDEO' ||
+                        index < this._videoList.length ||
+                        index === this.selectedIndex + 1)
+                    ? index
+                    : undefined;
+              if (place !== undefined && this.awaitingList) return;
               this.broadcast({
-                // The place, so that every list puts them at the same one.
-                // Songs for the end carry none, unless they play next: each
-                // list puts them at its end when they land, after the adds
-                // still on their way.
-                // Without the choice, the place right after the playing song
-                // counts as Play next, the end of the queue as Add to queue;
-                // after the last song the two are the same place.
                 type: 'ADD_SONGS',
                 payload: {
-                  index:
-                    insertPosition === 'INSERT_AT_END'
-                      ? undefined
-                      : typeof index === 'number' &&
-                          (insertPosition === 'INSERT_AFTER_CURRENT_VIDEO' ||
-                            index < this._videoList.length ||
-                            index === this.selectedIndex + 1)
-                        ? index
-                        : undefined,
+                  index: place,
                   videoList,
                 },
               });
@@ -532,6 +558,12 @@ export class Queue {
   }
 
   async syncVideo() {
+    // An empty list (the host's between a clear and its new list) has nothing
+    // to look up, and the lookup refuses it
+    if (this._videoList.length === 0) {
+      if (this.rawItems?.length) this.clear();
+      return true;
+    }
     const room = this.room;
     const response = await getMusicQueueRenderer(
       this._videoList.map((it) => it.videoId),
