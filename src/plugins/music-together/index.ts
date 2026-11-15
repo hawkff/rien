@@ -248,11 +248,13 @@ export default createPlugin<
               }),
             );
 
-            await this.queue?.addVideos(
-              videoList,
-              event.payload.index,
-              event.payload.id,
-            );
+            const room = this.connection;
+            await this.queue?.addVideos(videoList, event.payload.index);
+            // A room left while the songs were on their way gets nothing
+            // more, the next room nothing of it, and neither does the song
+            // change that came with the add
+            if (this.connection !== room || room?.mode === 'disconnected')
+              return;
             await this.connection?.broadcast(
               'ADD_SONGS',
               {
@@ -463,15 +465,17 @@ export default createPlugin<
           this.ignoreChange = false;
         }, 16); // wait 1 frame
       };
+      // The host's changes land in the order they came: an add fetches its
+      // songs first, and what came after it waits for it
       const listener = async (event: ConnectionEventUnion) => {
         this.ignoreChange = true;
         switch (event.type) {
           case 'CLEAR_QUEUE': {
-            this.queue?.clear();
+            this.queue?.inTurn(() => this.queue?.clear());
             break;
           }
           case 'SET_INDEX': {
-            this.queue?.setIndex(event.payload.index);
+            this.queue?.setIndexAfterAdds(event.payload.index);
             break;
           }
           case 'ADD_SONGS': {
@@ -482,28 +486,23 @@ export default createPlugin<
               }),
             );
 
-            await this.queue?.addVideos(
-              videoList,
-              event.payload.index,
-              event.payload.id,
-            );
-
+            const added = this.queue?.addVideos(videoList, event.payload.index);
             const afterevent = event.after?.at(0);
             if (afterevent?.type === 'SET_INDEX') {
-              this.queue?.setIndex(afterevent.payload.index);
+              this.queue?.setIndexAfterAdds(afterevent.payload.index);
             }
+            await added;
 
             break;
           }
           case 'REMOVE_SONG': {
-            this.queue?.removeVideo(event.payload.index);
+            const { index } = event.payload;
+            this.queue?.inTurn(() => this.queue?.removeVideo(index));
             break;
           }
           case 'MOVE_SONG': {
-            this.queue?.moveItem(
-              event.payload.fromIndex,
-              event.payload.toIndex,
-            );
+            const { fromIndex, toIndex } = event.payload;
+            this.queue?.inTurn(() => this.queue?.moveItem(fromIndex, toIndex));
             break;
           }
           case 'IDENTIFY': {
@@ -513,8 +512,11 @@ export default createPlugin<
             break;
           }
           case 'SYNC_QUEUE': {
-            if (Array.isArray(event.payload?.videoList)) {
-              await this.queue?.setVideoList(event.payload.videoList);
+            const videoList = event.payload?.videoList;
+            if (Array.isArray(videoList)) {
+              await this.queue?.inTurn(() =>
+                this.queue?.setVideoList(videoList),
+              );
             }
             break;
           }
@@ -542,11 +544,7 @@ export default createPlugin<
               if (event.payload?.state === 1) this.playerApi?.playVideo();
             }
             if (typeof event.payload?.index === 'number') {
-              const nowIndex = this.queue?.selectedIndex ?? 0;
-
-              if (nowIndex !== event.payload.index) {
-                this.queue?.setIndex(event.payload.index);
-              }
+              this.queue?.setIndexAfterAdds(event.payload.index);
             }
             break;
           }

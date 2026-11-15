@@ -164,28 +164,42 @@ export class Queue {
   /* public */
   async setVideoList(videoList: VideoData[], sync = true) {
     this._videoList = videoList;
-    // A new list from the host: the adds still on their way go in anew
-    this.recorded.clear();
 
     if (sync) await this.syncVideo();
   }
 
   // Adds land in the order they came, though each fetches its songs first
   private adding = Promise.resolve(true);
-  // This person's adds, which their list holds already
-  private recorded = new Set<string>();
+  // A new one for each room: the changes of a room left behind are dropped
+  private room = {};
 
-  addVideos(videos: VideoData[], index?: number, id?: string) {
-    const added = this.adding.then(() => this.insertVideos(videos, index, id));
-    this.adding = added.catch(() => false);
-    return added;
+  addVideos(videos: VideoData[], index?: number) {
+    return this.inTurn(() => this.insertVideos(videos, index));
   }
 
-  private async insertVideos(videos: VideoData[], index?: number, id?: string) {
+  /**
+   * Runs a change from the host after the ones that came before it, adds
+   * whose songs are still on their way among them, so that a place it names
+   * means what it meant for the host
+   */
+  inTurn<T>(step: () => T | Promise<T>) {
+    const room = this.room;
+    const done = this.adding.then(() =>
+      this.room === room ? step() : undefined,
+    );
+    this.adding = done.then(
+      () => true,
+      () => false,
+    );
+    return done;
+  }
+
+  private async insertVideos(videos: VideoData[], index?: number) {
+    const room = this.room;
     const response = await getMusicQueueRenderer(
       videos.map((it) => it.videoId),
     );
-    if (!response) return false;
+    if (!response || this.room !== room) return false;
 
     const items = response.queueDatas.map((it) => it?.content).filter(Boolean);
     if (!items) return false;
@@ -205,28 +219,23 @@ export class Queue {
       type: 'ADD_ITEMS',
       payload: {
         nextQueueItemId: state.queue.nextQueueItemId,
-        index:
-          index ??
-          (state.queue.items.length ? state.queue.items.length - 1 : null) ??
-          0,
+        index: index ?? state.queue.items.length,
         items,
         shuffleEnabled: false,
         shouldAssignIds: true,
       },
     });
 
-    // The one who added the songs put them in their list before telling the
-    // room; their places may have moved since, by a later add
-    if (!(id && this.recorded.delete(id))) {
-      this._videoList.splice(
-        index ?? this._videoList.length,
-        0,
-        ...videos.map((it) => ({
-          ...it,
-          ownerId: it.ownerId ?? this.owner?.id,
-        })),
-      );
-    }
+    // Every list, the adder's too, takes the songs here and only here, so
+    // owners stay in step with the songs when adds cross on their way
+    this._videoList.splice(
+      index ?? this._videoList.length,
+      0,
+      ...videos.map((it) => ({
+        ...it,
+        ownerId: it.ownerId ?? this.owner?.id,
+      })),
+    );
 
     this.internalDispatch = false;
     setTimeout(() => {
@@ -260,6 +269,20 @@ export class Queue {
     this.internalDispatch = false;
   }
 
+  // The latest song change from the host, which wins over older ones still
+  // waiting
+  private indexTarget = -1;
+
+  // A song change from the host, in turn with its other changes, so that the
+  // index points at the song it meant
+  setIndexAfterAdds(index: number) {
+    this.indexTarget = index;
+    return this.inTurn(() => {
+      if (this.indexTarget === index && this.selectedIndex !== index)
+        this.setIndex(index);
+    });
+  }
+
   moveItem(fromIndex: number, toIndex: number) {
     this.internalDispatch = true;
     const data = this._videoList.splice(fromIndex, 1)[0];
@@ -281,7 +304,6 @@ export class Queue {
   clear() {
     this.internalDispatch = true;
     this._videoList = [];
-    this.recorded.clear();
     this.queue?.dispatch({
       type: 'CLEAR',
     });
@@ -299,6 +321,10 @@ export class Queue {
   }
 
   rollbackInjection() {
+    // The room is left: its changes still waiting go with it, and the next
+    // room's changes don't wait for them
+    this.room = {};
+    this.adding = Promise.resolve(true);
     if (!this.queue) {
       console.error('Queue is not initialized!');
       return;
@@ -346,39 +372,31 @@ export class Queue {
                 }
               ).items,
             );
-            const index = this._videoList.length;
-
             if (videoList.length > 0) {
-              this._videoList = [
-                ...videoList.map((it) => ({
-                  ...it,
-                  ownerId: it.ownerId ?? this.owner?.id,
-                })),
-              ];
-              // Their own list holds them now: it doesn't take them twice
-              const id = crypto.randomUUID();
-              this.recorded.add(id);
               this.broadcast({
-                // play
+                // play: the new list goes first, before any add that
+                // landed in the cleared list while it was on its way
                 type: 'ADD_SONGS',
                 payload: {
+                  index: 0,
                   videoList,
-                  id,
                 },
                 after: [
                   {
                     type: 'SET_INDEX',
                     payload: {
-                      index,
+                      index: 0,
                     },
                   },
                 ],
               });
             }
           } else {
-            const { items, index } = event.payload as {
+            const { items, index, insertPosition } = event.payload as {
               items: QueueItem[];
               index?: number;
+              // Rien's own adds say what the user chose
+              insertPosition?: string;
             };
             // One song, or songs added at a place of the user's choice, as
             // the site's Add to queue and Play next do; the site adds no list
@@ -392,15 +410,27 @@ export class Queue {
                   }) satisfies VideoData,
                 items,
               );
-              const at =
-                typeof index === 'number' ? index : this._videoList.length;
-              this._videoList.splice(at, 0, ...videoList);
-              const id = crypto.randomUUID();
-              this.recorded.add(id);
               this.broadcast({
-                // The place, so that every list puts them at the same one
+                // The place, so that every list puts them at the same one.
+                // Songs for the end carry none, unless they play next: each
+                // list puts them at its end when they land, after the adds
+                // still on their way.
+                // Without the choice, the place right after the playing song
+                // counts as Play next, the end of the queue as Add to queue;
+                // after the last song the two are the same place.
                 type: 'ADD_SONGS',
-                payload: { index: at, videoList, id },
+                payload: {
+                  index:
+                    insertPosition === 'INSERT_AT_END'
+                      ? undefined
+                      : typeof index === 'number' &&
+                          (insertPosition === 'INSERT_AFTER_CURRENT_VIDEO' ||
+                            index < this._videoList.length ||
+                            index === this.selectedIndex + 1)
+                        ? index
+                        : undefined,
+                  videoList,
+                },
               });
             }
           }
@@ -502,10 +532,11 @@ export class Queue {
   }
 
   async syncVideo() {
+    const room = this.room;
     const response = await getMusicQueueRenderer(
       this._videoList.map((it) => it.videoId),
     );
-    if (!response) return false;
+    if (!response || this.room !== room) return false;
 
     const items = response.queueDatas.map((it) => it.content);
 

@@ -265,6 +265,8 @@ async function onApiLoaded() {
                           )?.selected,
                       ) + 1 || queueItemsLength
                     : queueItemsLength,
+                // What the user chose, which Music Together passes on
+                insertPosition: queueInsertPosition,
                 items: result.queueDatas
                   .map((it) =>
                     typeof it === 'object' && it && 'content' in it
