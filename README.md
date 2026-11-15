@@ -38,7 +38,7 @@
 
 ## Install
 
-There are no ready-made downloads: [build Rien](#build) on macOS on Apple silicon or on Linux. The packages go to `pack/`. For the AppImage alone on Linux, run `bun run build`, then `bunx electron-builder --linux AppImage -p never`.
+Download the [latest release](https://github.com/hawkff/rien/releases/latest): the dmg for macOS on Apple silicon, or the AppImage for Linux on x64. To make the packages yourself, [build Rien](#build); they go to `pack/`. For the AppImage alone on Linux, run `bun run build`, then `bunx electron-builder --linux AppImage -p never`.
 
 The macOS build is not signed. If macOS says the app "is damaged and can't be opened", run this in the Terminal:
 
