@@ -21,6 +21,9 @@ pub struct Item {
     #[serde(default)]
     pub slot: Option<String>,
     pub available: bool,
+    /// LIKE, DISLIKE or INDIFFERENT, where the site's row says it
+    #[serde(default)]
+    pub like: Option<String>,
 }
 
 /// Text from Rien for the terminal. Control characters, which could move the

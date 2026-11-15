@@ -3,11 +3,19 @@ import { test, expect } from '@playwright/test';
 
 import { register } from './library';
 
-// A page that answers the routes' calls: the sign-in check, and each request
-// to the site with `answer`. It records the requests it gets.
-const setUp = (signedIn: boolean | null, answer: unknown) => {
+import { accountKey } from '../page';
+
+// A page that answers the routes' calls: the account and sign-in checks, and
+// each request to the site with `answer`. It records the requests it gets.
+const setUp = (
+  signedIn: boolean | null,
+  answer: unknown,
+  accountId: string | null = null,
+) => {
   const sent: { endpoint: string; body: unknown }[] = [];
   const executeJavaScript = (script: string) => {
+    if (script.includes('DATASYNC_ID'))
+      return Promise.resolve(signedIn ? accountId : null);
     if (script.includes('LOGGED_IN')) return Promise.resolve(signedIn);
     const [, endpoint, body] =
       /fetch\(("[^"]*"), (.*)\) \?\? null$/.exec(script) ?? [];
@@ -27,6 +35,24 @@ const setUp = (signedIn: boolean | null, answer: unknown) => {
     });
   return { sent, call };
 };
+
+test('the account key tells accounts apart without naming them', async () => {
+  const first = await setUp(true, {}, '1234567890||').call('GET', '/account');
+  expect(first.status).toBe(200);
+  const { key } = (await first.json()) as { key: string };
+  expect(key).toMatch(/^[0-9a-f]{16}$/);
+  expect(key).toBe(accountKey('1234567890||'));
+  expect(key).not.toContain('1234567890');
+  const brand = await setUp(true, {}, '1234567890||987654321').call(
+    'GET',
+    '/account',
+  );
+  expect(((await brand.json()) as { key: string }).key).not.toBe(key);
+  const signedOut = setUp(false, {}, '1234567890||');
+  const answer = await signedOut.call('GET', '/account');
+  expect(await answer.json()).toEqual({ key: null });
+  expect(signedOut.sent).toEqual([]);
+});
 
 test('changes stop while Rien is signed out, before reaching the site', async () => {
   const { sent, call } = setUp(false, {});

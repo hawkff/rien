@@ -48,11 +48,15 @@ Usage: ytmpc [command] [--json]
   library export [FILE]      all of it as JSON, playlists' songs included
   library remove ID...       songs or albums out of the library
   library dedupe PLAYLIST    the later copies of a video in a playlist, out
-  unlike ID...               songs out of the liked ones
+  unlike [ID...]             songs out of the liked ones (the playing song
+                             without an ID)
   playlist remove ID SLOT... | playlist delete ID
   undo [--list]              take back the last applied change
                              Changes are dry runs until --apply, which saves a
                              snapshot of the library first
+  like [ID]                  like the playing song, or ID: at once, no
+                             snapshot; ytmpc undo takes it back (to not rated
+                             when ytmpc can't tell the rating before)
   lyrics                     the current song's lyrics, from Synced Lyrics
   download [ID]              download the current song, or ID
   link [ID]                  the link to the playing song, or to ID, without
@@ -197,6 +201,27 @@ fn playlist_title(rien: &mut Rien, id: &str) -> Result<String> {
         Some(title) if !title.is_empty() => Ok(title.to_owned()),
         _ => bail!("Rien found no playlist {id}"),
     }
+}
+
+/// The playing song's video ID, and its title and artist
+fn playing(rien: &mut Rien) -> Result<(String, String)> {
+    let song = rien
+        .request(Method::Get, "/api/v1/song", None)?
+        .unwrap_or_default();
+    let id = song["videoId"]
+        .as_str()
+        .filter(|id| !id.is_empty())
+        .context("Nothing plays.")?;
+    let names: Vec<&str> = ["title", "artist"]
+        .iter()
+        .filter_map(|key| song[key].as_str().filter(|text| !text.is_empty()))
+        .collect();
+    let name = if names.is_empty() {
+        id.to_owned()
+    } else {
+        names.join(" · ")
+    };
+    Ok((id.to_owned(), name))
 }
 
 /// Opens Rien (on macOS through Launch Services, elsewhere from PATH) and
@@ -486,12 +511,46 @@ fn run() -> Result<()> {
             }
         },
         "unlike" => {
-            if rest.is_empty() {
-                bail!("unlike needs the video IDs of liked songs");
-            }
+            let ids = match rest {
+                [] => vec![playing(&mut rien)?.0],
+                ids => ids.to_vec(),
+            };
             let likes = library::all(&mut rien, "/api/v1/library/likes", "items")?;
-            let change = library::unlike(rest, &likes)?;
+            let change = library::unlike(&ids, &likes)?;
             library::run(&mut rien, change, apply, as_json)?;
+        }
+        "like" => {
+            let (id, mut title) = match rest {
+                [] => playing(&mut rien)?,
+                [id] if matches!(target(id), Target::Song(_)) => (id.clone(), id.clone()),
+                _ => bail!("like takes one song's video ID, or none for the playing song"),
+            };
+            // The set's row of the song has its title and, signed in, its rating
+            let set = rien
+                .request(Method::Get, "/api/v1/queue/items", None)?
+                .unwrap_or_default();
+            let row = items::items(&set["items"])
+                .into_iter()
+                .find(|item| item.id == id);
+            if let Some(row) = row.as_ref().filter(|_| title == id) {
+                title = row.title.clone();
+            }
+            // LIKE goes out even on a liked song: the site takes it again
+            let row_like = row.and_then(|row| row.like);
+            let change = library::rate_song(&id, &title, true, row_like.as_deref());
+            let applied = library::commit(&mut rien, &change)?;
+            if as_json {
+                println!(
+                    "{}",
+                    json!({ "applied": true, "what": change.what, "changes": [id] })
+                );
+            } else if applied.guessed {
+                // Neither the log nor the set says how it was rated; Rien's
+                // API can't tell
+                say(&format!("Liked {title}. ytmpc undo sets it to not rated."));
+            } else {
+                say(&format!("Liked {title}. ytmpc undo takes it back."));
+            }
         }
         "undo" => library::undo(&mut rien, undo_list, as_json)?,
         "album" | "artist" | "playlist" => {

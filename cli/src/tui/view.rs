@@ -119,6 +119,10 @@ fn names(item: &Item) -> String {
     clean(&parts.join(" · "))
 }
 
+fn liked(app: &App, item: &Item) -> bool {
+    app.like_of(item).as_deref() == Some("LIKE")
+}
+
 enum Mark {
     Plain,
     Played,
@@ -128,11 +132,12 @@ enum Mark {
 }
 
 /// One numbered row: number, title, artists and album, then the length or the
-/// kind at the right edge
+/// kind at the right edge, after a heart when the song is liked
 fn item_row(
     number: usize,
     item: &Item,
     mark: Mark,
+    liked: bool,
     selected: bool,
     theme: &Theme,
     width: u16,
@@ -180,7 +185,19 @@ fn item_row(
         ("library", _) => String::new(),
         (kind, _) => kind.to_owned(),
     };
-    let mut line = spread(left, Span::styled(right, Style::new().fg(dim)), width);
+    let heart = if liked { "♥ " } else { "" };
+    let room = format!("{heart}{right}").trim_end().to_owned();
+    let mut line = spread(left, Span::raw(room), width);
+    // The placeholder made room; the heart in the title's color and the
+    // length, dim, take its place
+    line.spans.pop();
+    if liked {
+        line.spans.push(Span::styled("♥", Style::new().fg(text)));
+        if !right.is_empty() {
+            line.spans.push(Span::raw(" "));
+        }
+    }
+    line.spans.push(Span::styled(right, Style::new().fg(dim)));
     if selected {
         line = line.style(Style::new().bg(theme.selection));
     }
@@ -298,6 +315,7 @@ fn results(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, hits: &mut H
                         numbers[at],
                         item,
                         Mark::Plain,
+                        liked(app, item),
                         focused && at == page.selected,
                         theme,
                         area.width,
@@ -370,6 +388,7 @@ fn set(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, hits: &mut Hits)
                     index + 1,
                     &app.set[index],
                     mark,
+                    liked(app, &app.set[index]),
                     focused && index == app.set_selected,
                     theme,
                     area.width,
@@ -393,6 +412,7 @@ fn set(frame: &mut Frame, area: Rect, app: &App, theme: &Theme, hits: &mut Hits)
                     row + 1,
                     &app.encore[index],
                     Mark::Encore,
+                    liked(app, &app.encore[index]),
                     focused && row == app.set_selected,
                     theme,
                     area.width,
@@ -666,6 +686,7 @@ fn next_line(app: &App, theme: &Theme, width: u16) -> Line<'static> {
                 number,
                 item,
                 Mark::Plain,
+                liked(app, item),
                 false,
                 theme,
                 width.saturating_sub(3),
@@ -725,6 +746,7 @@ fn hints(app: &App, theme: &Theme, width: u16) -> Line<'static> {
             (&[Action::Enter], "play/open"),
             (&[Action::Add], "add"),
             (&[Action::Remove], "remove"),
+            (&[Action::Like], "like"),
             (&[Action::Undo], "undo"),
             (&[Action::NextPane], "set"),
             (&[Action::Back], "back"),
@@ -736,6 +758,7 @@ fn hints(app: &App, theme: &Theme, width: u16) -> Line<'static> {
             (&[Action::Enter], "play/open"),
             (&[Action::Add], "add"),
             (&[Action::AddNext], "next"),
+            (&[Action::Like], "like"),
             (&[Action::NextPane], "set"),
             (&[Action::Library], "library"),
             (&[Action::Search], "search"),
@@ -749,6 +772,7 @@ fn hints(app: &App, theme: &Theme, width: u16) -> Line<'static> {
         Pane::Set => &[
             (&[Action::Enter], "play"),
             (&[Action::Remove], "remove"),
+            (&[Action::Like], "like"),
             (&[Action::NextPane], "lyrics"),
             (&[Action::Pause], "pause"),
             (&[Action::SeekBack, Action::SeekForward], "seek"),
@@ -761,6 +785,7 @@ fn hints(app: &App, theme: &Theme, width: u16) -> Line<'static> {
             (&[Action::NextPane], "search"),
             (&[Action::Back], "back"),
             (&[Action::Pause], "pause"),
+            (&[Action::Like], "like"),
             (&[Action::SeekBack, Action::SeekForward], "seek"),
             (&[Action::Previous, Action::Next], "skip"),
             (&[Action::Help], "keys"),
@@ -1022,6 +1047,21 @@ mod tests {
             "{}",
             lines[10]
         );
+    }
+
+    #[test]
+    fn liked_songs_have_a_heart_before_their_length() {
+        let mut app = app();
+        app.pane = Pane::Set;
+        app.set[2].like = Some("LIKE".into());
+        let lines = screen(&app, 70, 12);
+        assert!(lines[5].ends_with("♥ 3:34"), "{}", lines[5]);
+        assert!(!lines[4].contains('♥'), "{}", lines[4]);
+        let wide = screen(&app, 140, 12);
+        assert!(wide[5].ends_with("♥ 3:34"), "{}", wide[5]);
+        // A rating given here counts over the row's
+        app.rated.insert("x".into(), "INDIFFERENT".into());
+        assert!(!screen(&app, 70, 12).concat().contains('♥'));
     }
 
     #[test]

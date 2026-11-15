@@ -14,9 +14,10 @@ import {
   processedOf,
   removeRequest,
 } from '../library';
-import { askPage, pageSignedIn } from '../page';
+import { askPage, pageAccount, pageSignedIn } from '../page';
 import { ErrorSchema } from '../scheme/browse';
 import {
+  AccountSchema,
   AddedSchema,
   AddToPlaylistSchema,
   CreatedPlaylistSchema,
@@ -50,6 +51,14 @@ const failures = {
 };
 
 const routes = {
+  account: createRoute({
+    method: 'get',
+    path: `/api/${API_VERSION}/account`,
+    summary: 'the signed-in account',
+    description:
+      "A key that tells the signed-in account apart from others, so a client can tell which account a change it logged went to. It isn't the account's ID and can't be turned back into it.",
+    responses: { 200: json(AccountSchema) },
+  }),
   feedback: createRoute({
     method: 'post',
     path: `/api/${API_VERSION}/library/feedback`,
@@ -126,6 +135,10 @@ export const register = (
     (await pageSignedIn(window)) === false
       ? undefined
       : askPage(window, endpoint, request);
+
+  app.openapi(routes.account, async (ctx) =>
+    ctx.json({ key: await pageAccount(window) }, 200),
+  );
 
   app.openapi(routes.feedback, async (ctx) => {
     const { tokens } = ctx.req.valid('json');

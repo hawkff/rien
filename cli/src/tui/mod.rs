@@ -21,8 +21,9 @@ use ratatui::crossterm::event::{
 };
 use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui_image::{
+    FontSize,
     picker::{Capability, Picker, cap_parser::QueryStdioOptions},
-    protocol::StatefulProtocol,
+    protocol::{StatefulProtocol, StatefulProtocolType, halfblocks::Halfblocks},
 };
 use serde_json::{Value, json};
 
@@ -226,6 +227,13 @@ pub struct App {
     taken: Option<(u64, usize, Row)>,
     /// A library change runs; the next waits for it
     changing: bool,
+    /// The ratings this client gave songs, by video ID. They count over the
+    /// rows' for the session: the page keeps a song's old rating until it
+    /// loads the song again, and a read can't be ordered against a rating.
+    rated: HashMap<String, String>,
+    /// The key of the account those ratings went to; a change on another
+    /// account drops them
+    rated_account: Option<String>,
     quit: bool,
 }
 
@@ -233,6 +241,9 @@ pub struct App {
 pub enum Job {
     Song,
     Set,
+    /// The set read again on a timer: a failure stays quiet, as the next
+    /// reading comes within seconds
+    SetCheck,
     Lyrics,
     Cover,
     Search {
@@ -286,7 +297,22 @@ pub type Confirm = (String, Job, Option<(u64, usize)>);
 pub enum LibraryEdit {
     Remove(String),
     Unlike(String),
-    FromPlaylist { playlist: String, slot: String },
+    FromPlaylist {
+        playlist: String,
+        slot: String,
+    },
+    /// Likes a song, or takes its like away when it is liked, at once and
+    /// without a snapshot
+    Rate {
+        video_id: String,
+        title: String,
+        /// The rating this client gave the song, and the key of the account
+        /// it gave it on
+        given: Option<String>,
+        account: Option<String>,
+        /// The rating the song's row shows
+        row: Option<String>,
+    },
     Undo,
 }
 
@@ -354,8 +380,18 @@ impl App {
             confirm: None,
             taken: None,
             changing: false,
+            rated: HashMap::new(),
+            rated_account: None,
             quit: false,
         }
+    }
+
+    /// A song's rating: the one this client gave it, or else its row's
+    pub fn like_of(&self, item: &Item) -> Option<String> {
+        self.rated
+            .get(&item.id)
+            .cloned()
+            .or_else(|| item.like.clone())
     }
 
     fn say(&mut self, text: impl Into<String>) {
@@ -560,10 +596,9 @@ impl App {
         ));
     }
 
-    /// The link of the row picked in the pane, or of the playing song when
-    /// the pane has no rows to pick, as the lyrics
-    fn link(&self) -> Option<String> {
-        let row = match self.pane {
+    /// The row picked in the pane: of the results, or of the set or encore
+    fn row(&self) -> Option<&Item> {
+        match self.pane {
             Pane::Results => self.page().and_then(Page::item),
             Pane::Set => {
                 let at = self.set_selected;
@@ -573,8 +608,13 @@ impl App {
                 })
             }
             Pane::Lyrics => None,
-        };
-        match row {
+        }
+    }
+
+    /// The link of the row picked in the pane, or of the playing song when
+    /// the pane has no rows to pick, as the lyrics
+    fn link(&self) -> Option<String> {
+        match self.row() {
             Some(item) => crate::items::link(&item.kind, &item.id),
             // The feed names the song before the set catches up with it
             None => self
@@ -583,6 +623,42 @@ impl App {
                 .filter(|song| !song.video_id.is_empty())
                 .and_then(|song| crate::items::link("song", &song.video_id)),
         }
+    }
+
+    /// f: likes the song picked in the pane, or the playing song when the
+    /// pick isn't a song; a liked one loses its like instead
+    fn like(&mut self, jobs: &Sender<Request>) {
+        if self.changing {
+            return self.say("The last library change is still going");
+        }
+        let song = self
+            .row()
+            .filter(|item| matches!(item.kind.as_str(), "song" | "video" | "episode"))
+            .map(|item| (item.id.clone(), item.title.clone(), item.like.clone()));
+        let playing = || {
+            let song = self
+                .song
+                .as_ref()
+                .filter(|song| !song.video_id.is_empty())?;
+            Some((song.video_id.clone(), song.title.clone(), None))
+        };
+        let Some((video_id, title, row_like)) = song.or_else(playing) else {
+            return self.say("Nothing plays");
+        };
+        // The row's rating, else the set's row's
+        let row = row_like.or_else(|| {
+            let in_set = self.set.iter().find(|item| item.id == video_id)?;
+            in_set.like.clone()
+        });
+        let edit = LibraryEdit::Rate {
+            given: self.rated.get(&video_id).cloned(),
+            account: self.rated_account.clone(),
+            video_id,
+            title,
+            row,
+        };
+        self.changing = true;
+        self.send(jobs, Job::Library(edit), Method::Get, String::new(), None);
     }
 
     /// d in a list: asks before it removes a song or album from the library,
@@ -705,6 +781,7 @@ impl App {
                                     ),
                                     slot: None,
                                     available: true,
+                                    like: None,
                                 })
                             })
                             .collect()
@@ -735,6 +812,7 @@ impl App {
                             duration: None,
                             slot: None,
                             available: true,
+                            like: None,
                         })
                     })
                     .collect();
@@ -752,6 +830,7 @@ impl App {
                 None => self.say("No link for this row"),
             },
             Action::Undo if self.changing => self.say("The last library change is still going"),
+            Action::Like => self.like(jobs),
             Action::Undo => {
                 self.confirm = Some((
                     "Take back the last library change?".into(),
@@ -1013,6 +1092,9 @@ impl App {
     fn answer(&mut self, job: Job, answer: Result<Option<Value>, String>, jobs: &Sender<Request>) {
         let answer = match answer {
             Ok(answer) => answer,
+            // A reading on a timer, or the cover, comes again by itself; a
+            // page that is loading shouldn't fill the status line
+            Err(_) if matches!(job, Job::SetCheck | Job::Cover) => return,
             Err(error) => {
                 match job {
                     // The pane says so instead of waiting for an answer
@@ -1042,7 +1124,7 @@ impl App {
         };
         match job {
             Job::Song => self.song = answer.as_ref().map(song),
-            Job::Set => {
+            Job::Set | Job::SetCheck => {
                 let answer = answer.unwrap_or_default();
                 self.set = items(&answer["items"]);
                 self.encore = items(&answer["encore"]);
@@ -1151,6 +1233,7 @@ impl App {
                                             duration: None,
                                             slot: None,
                                             available: true,
+                                            like: None,
                                         })
                                     });
                                 std::iter::once(Row::Heading(text(section, "title")))
@@ -1189,15 +1272,26 @@ impl App {
             Job::Library(edit) => {
                 self.taken = None;
                 self.changing = false;
-                if let Some(Value::String(text)) = answer {
-                    let text = if edit == LibraryEdit::Undo {
+                let answer = answer.unwrap_or_default();
+                let account = answer["account"].as_str().map(str::to_owned);
+                if account != self.rated_account {
+                    self.rated.clear();
+                    self.rated_account = account;
+                }
+                for rating in answer["rated"].as_array().into_iter().flatten() {
+                    if let (Some(id), Some(status)) = (rating[0].as_str(), rating[1].as_str()) {
+                        self.rated.insert(id.to_owned(), status.to_owned());
+                    }
+                }
+                if let Some(text) = answer["say"].as_str().map(str::to_owned) {
+                    let text = match edit {
+                        LibraryEdit::Rate { .. } => text,
                         // The open list still lacks what came back
-                        format!("{text}; open the list again to see it")
-                    } else {
-                        match self.keys.first(Action::Undo) {
+                        LibraryEdit::Undo => format!("{text}; open the list again to see it"),
+                        _ => match self.keys.first(Action::Undo) {
                             Some(key) => format!("{text}. {key} takes it back"),
                             None => text,
-                        }
+                        },
                     };
                     self.say(text);
                 }
@@ -1312,13 +1406,27 @@ fn queue(
     }
 }
 
-/// Makes a library change the way `ytmpc … --apply` does, and says how it went
+/// A song's rating before f: the one this client gave it, while Rien is on
+/// the account it gave it on, else the row's
+fn rating_before(
+    given: Option<&str>,
+    account: Option<&str>,
+    row: Option<&str>,
+    now: Option<&str>,
+) -> Option<String> {
+    given.filter(|_| account == now).or(row).map(str::to_owned)
+}
+
+/// Makes a library change the way `ytmpc … --apply` does. Gives the line to
+/// show and the songs it rated, with their new status.
 fn library_edit(rien: &mut Rien, edit: &LibraryEdit) -> Result<Option<Value>, String> {
     let done = |change: library::Change, rien: &mut Rien| {
-        library::commit(rien, &change)?;
-        Ok(format!("Done: {}", change.what))
+        let applied = library::commit(rien, &change)?;
+        let text = format!("Done: {}", change.what);
+        Ok((text, change.ratings(), applied.account))
     };
-    let result: Result<String> = match edit {
+    type Done = (String, Vec<(String, String)>, Option<String>);
+    let result: Result<Done> = match edit {
         LibraryEdit::Remove(id) => (|| {
             let songs = library::all(rien, "/api/v1/library/songs", "items")?;
             let albums = library::all(rien, "/api/v1/library/albums", "items")?;
@@ -1339,10 +1447,38 @@ fn library_edit(rien: &mut Rien, edit: &LibraryEdit) -> Result<Option<Value>, St
                 rien,
             )
         })(),
-        LibraryEdit::Undo => library::take_back(rien).map(|what| format!("Took back: {what}")),
+        LibraryEdit::Rate {
+            video_id,
+            title,
+            given,
+            account,
+            row,
+        } => (|| {
+            let now = library::account(rien);
+            let before = rating_before(
+                given.as_deref(),
+                account.as_deref(),
+                row.as_deref(),
+                now.as_deref(),
+            );
+            let like = before.as_deref() != Some("LIKE");
+            let change = library::rate_song(video_id, title, like, before.as_deref());
+            let applied = library::commit(rien, &change)?;
+            let text = match (like, applied.guessed) {
+                // Rien's API can't tell how the song was rated before
+                (true, true) => format!("Liked {title}; undo sets it to not rated"),
+                (true, false) => format!("Liked {title}"),
+                (false, _) => format!("Took the like from {title}"),
+            };
+            Ok((text, change.ratings(), applied.account))
+        })(),
+        LibraryEdit::Undo => library::take_back(rien)
+            .map(|(what, rated)| (format!("Took back: {what}"), rated, library::account(rien))),
     };
     result
-        .map(|text| Some(Value::String(text)))
+        .map(|(text, rated, account)| {
+            Some(json!({ "say": text, "rated": rated, "account": account }))
+        })
         .map_err(|error| format!("{error:#}"))
 }
 
@@ -1405,6 +1541,67 @@ fn light_background(capabilities: &[Capability]) -> bool {
     })
 }
 
+/// Runs a tmux command, waiting at most half a second: its output, or None
+/// when it fails or takes longer
+fn tmux(args: &[&str]) -> Option<String> {
+    use std::{io::Read, process};
+    let mut child = process::Command::new("tmux")
+        .args(args)
+        .stdin(process::Stdio::null())
+        .stdout(process::Stdio::piped())
+        .stderr(process::Stdio::null())
+        .spawn()
+        .ok()?;
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) if status.success() => {
+                let mut out = String::new();
+                child.stdout.take()?.read_to_string(&mut out).ok()?;
+                return Some(out.trim().to_owned());
+            }
+            Ok(None) if started.elapsed() < Duration::from_millis(500) => {
+                thread::sleep(Duration::from_millis(5));
+            }
+            Ok(Some(_)) => return None,
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+        }
+    }
+}
+
+/// Whether tmux passes the image query on to a terminal that can answer it:
+/// passthrough allowed for the pane (its own value, or the window's or the
+/// global one it inherits), and a client attached to the session (a detached
+/// one has no terminal around it)
+fn tmux_passes_images() -> bool {
+    matches!(
+        tmux(&["show", "-pAv", "allow-passthrough"]).as_deref(),
+        Some("on" | "all")
+    ) && tmux(&["display", "-p", "#{client_tty}"]).is_some_and(|tty| !tty.is_empty())
+}
+
+/// The pane's own allow-passthrough ("": the pane inherits it), put back
+/// when dropped; None when ytmpc couldn't read it
+struct PanePassthrough(Option<String>);
+
+impl Drop for PanePassthrough {
+    fn drop(&mut self) {
+        match self.0.as_deref() {
+            Some("") => {
+                tmux(&["set", "-p", "-u", "allow-passthrough"]);
+            }
+            Some(own) => {
+                tmux(&["set", "-p", "allow-passthrough", own]);
+            }
+            None => {}
+        }
+    }
+}
+
 /// Rien's address, the settings and where the client keeps its notes
 pub struct Options<'a> {
     pub theme: &'a Path,
@@ -1422,23 +1619,51 @@ pub fn run(rien: Rien, feed: Rien, options: Options) -> Result<()> {
 
     let mut terminal = ratatui::init();
     // Asks the terminal how it shows images before anything reads its input.
-    // Multiplexers don't answer, which would hold the first frame for 2 s and
-    // eat the keys typed meanwhile, so the cover comes as text blocks there.
-    let multiplexed = ["TMUX", "ZELLIJ", "STY", "HERDR_ENV"]
+    // A query nobody answers holds the first frame for 2 s and eats the first
+    // key typed after it, so the cover comes as text blocks where that would
+    // happen: in Zellij, screen and Herdr, and in tmux unless it passes the
+    // query on to a terminal (see tmux_passes_images) and answers in time.
+    // ratatui-image's pickers run `tmux set -p allow-passthrough on` in tmux,
+    // without a time limit; ytmpc puts the pane's own value back afterwards,
+    // even after a panic. When ytmpc can't read that value in time, it makes
+    // no picker: the covers come as text blocks built without one, so nothing
+    // runs tmux or changes the pane.
+    let in_tmux = std::env::var_os("TMUX").is_some();
+    let pane_own = in_tmux
+        .then(|| tmux(&["show", "-pv", "allow-passthrough"]))
+        .flatten();
+    let restore = PanePassthrough(pane_own.clone());
+    let multiplexed = ["ZELLIJ", "STY", "HERDR_ENV"]
         .iter()
-        .any(|name| std::env::var_os(name).is_some());
-    let picker = if multiplexed {
-        Picker::halfblocks()
+        .any(|name| std::env::var_os(name).is_some())
+        || (in_tmux && (pane_own.is_none() || !tmux_passes_images()));
+    let picker = if in_tmux && pane_own.is_none() {
+        None
+    } else if multiplexed {
+        Some(Picker::halfblocks())
     } else {
         let asking = QueryStdioOptions {
             terminal_background_color_osc: true,
             ..Default::default()
         };
-        Picker::from_query_stdio_with_options(asking).unwrap_or_else(|_| Picker::halfblocks())
+        Some(Picker::from_query_stdio_with_options(asking).unwrap_or_else(|_| Picker::halfblocks()))
+    };
+    drop(restore);
+    let cover_of = |image| match &picker {
+        Some(picker) => picker.new_resize_protocol(image),
+        // Text blocks the way Picker::halfblocks makes them
+        None => StatefulProtocol::new(
+            image,
+            FontSize::new(10, 20),
+            None,
+            StatefulProtocolType::Halfblocks(Halfblocks::default()),
+        ),
     };
     // The bundled colors are made for a dark background; a light one gets a
     // note, once
-    let light = light_background(picker.capabilities());
+    let light = picker
+        .as_ref()
+        .is_some_and(|picker| light_background(picker.capabilities()));
     let noted = options.state.join("light-terminal-noted");
     let note_light = light && theme.background == ratatui::style::Color::Reset && !noted.exists();
     if note_light {
@@ -1558,9 +1783,7 @@ pub fn run(rien: Rien, feed: Rien, options: Options) -> Result<()> {
                     app.say(format!("{}; trying again", reason.trim_end_matches('.')));
                 }
                 Ok(Event::Answer(job, answer)) => app.answer(job, answer, &jobs),
-                Ok(Event::Cover(image)) => {
-                    cover = image.map(|image| picker.new_resize_protocol(image))
-                }
+                Ok(Event::Cover(image)) => cover = image.map(cover_of),
                 Err(RecvTimeoutError::Timeout) => {}
                 Err(RecvTimeoutError::Disconnected) => return Ok(()),
             }
@@ -1570,7 +1793,7 @@ pub fn run(rien: Rien, feed: Rien, options: Options) -> Result<()> {
                 set_checked = Instant::now();
                 app.send(
                     &jobs,
-                    Job::Set,
+                    Job::SetCheck,
                     Method::Get,
                     "/api/v1/queue/items".into(),
                     None,
@@ -1922,7 +2145,7 @@ mod tests {
         // The next change waits for this one's answer
         app.answer(
             Job::Library(LibraryEdit::Unlike("aaaaaaaaaaa".into())),
-            Ok(Some(Value::String("Done".into()))),
+            Ok(Some(json!({ "say": "Done", "rated": [] }))),
             &jobs,
         );
         library_page(
@@ -1955,6 +2178,99 @@ mod tests {
             requests.try_recv().unwrap().job_edit(),
             Some(LibraryEdit::Undo)
         );
+    }
+
+    #[test]
+    fn f_likes_the_row_or_the_playing_song_and_takes_a_like_back() {
+        let (jobs, requests) = mpsc::channel::<Request>();
+        let mut app = app();
+        app.editing = false;
+        app.pages = vec![Page::new(
+            "x".into(),
+            vec![Row::Item(item("song", "a")), Row::Item(item("album", "B"))],
+            None,
+        )];
+        let f = KeyEvent::from(KeyCode::Char('f'));
+        let rate = |video_id: &str, title: &str, given: Option<&str>, row: Option<&str>| {
+            LibraryEdit::Rate {
+                video_id: video_id.into(),
+                title: title.into(),
+                given: given.map(str::to_owned),
+                account: None,
+                row: row.map(str::to_owned),
+            }
+        };
+        app.key(f, &jobs, 10);
+        assert_eq!(
+            requests.try_recv().unwrap().job_edit(),
+            Some(rate("a", "a", None, None))
+        );
+        // The next change waits for this one's answer
+        app.key(f, &jobs, 10);
+        assert!(requests.try_recv().is_err());
+        app.answer(
+            Job::Library(rate("a", "a", None, None)),
+            Ok(Some(json!({ "say": "Liked a", "rated": [["a", "LIKE"]] }))),
+            &jobs,
+        );
+        assert_eq!(app.message.as_ref().unwrap().0, "Liked a");
+        // The set read again keeps the site's older rating; this client's counts
+        let set = json!({ "items": [{
+            "type": "song", "id": "a", "title": "a", "subtitle": "", "artists": [],
+            "album": null, "duration": 60, "available": true, "like": "INDIFFERENT"
+        }] });
+        app.answer(Job::SetCheck, Ok(Some(set)), &jobs);
+        assert_eq!(app.like_of(&app.set[0]).as_deref(), Some("LIKE"));
+        app.key(f, &jobs, 10);
+        assert_eq!(
+            requests.try_recv().unwrap().job_edit(),
+            Some(rate("a", "a", Some("LIKE"), Some("INDIFFERENT")))
+        );
+        app.answer(
+            Job::Library(rate("a", "a", Some("LIKE"), None)),
+            Ok(Some(
+                json!({ "say": "Took the like from a", "rated": [["a", "INDIFFERENT"]] }),
+            )),
+            &jobs,
+        );
+        // An album row isn't a song: f likes the playing song, rated as its set row
+        app.pages[0].select(1);
+        app.feed(
+            &json!({ "type": "VIDEO_CHANGED", "song": { "videoId": "c", "title": "C" } }),
+            &jobs,
+        );
+        let mut disliked = item("song", "c");
+        disliked.like = Some("DISLIKE".into());
+        app.set.push(disliked);
+        app.key(f, &jobs, 10);
+        let sent: Vec<LibraryEdit> = requests.try_iter().filter_map(Request::job_edit).collect();
+        assert_eq!(sent, [rate("c", "C", None, Some("DISLIKE"))]);
+        // A row without a rating takes the set's row's for the same song
+        app.changing = false;
+        app.pages[0].rows.push(Row::Item(item("song", "c")));
+        app.pages[0].select(1);
+        app.key(f, &jobs, 10);
+        let sent: Vec<LibraryEdit> = requests.try_iter().filter_map(Request::job_edit).collect();
+        assert_eq!(sent, [rate("c", "c", None, Some("DISLIKE"))]);
+        // A change on another account drops the ratings given on the last one
+        app.changing = false;
+        app.rated_account = Some("aaaaaaaaaaaaaaaa".into());
+        app.answer(
+            Job::Library(LibraryEdit::Undo),
+            Ok(Some(
+                json!({ "say": "Took back: x", "rated": [], "account": "bbbbbbbbbbbbbbbb" }),
+            )),
+            &jobs,
+        );
+        assert!(app.rated.is_empty());
+        assert_eq!(app.rated_account.as_deref(), Some("bbbbbbbbbbbbbbbb"));
+        // The worker trusts a given rating only on the account it was given on
+        let (a, b) = (Some("aaaaaaaaaaaaaaaa"), Some("bbbbbbbbbbbbbbbb"));
+        let before = |account, now| rating_before(Some("LIKE"), account, Some("DISLIKE"), now);
+        assert_eq!(before(a, a).as_deref(), Some("LIKE"));
+        assert_eq!(before(a, b).as_deref(), Some("DISLIKE"));
+        assert_eq!(before(a, None).as_deref(), Some("DISLIKE"));
+        assert_eq!(before(None, None).as_deref(), Some("LIKE"));
     }
 
     impl Request {

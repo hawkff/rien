@@ -74,3 +74,10 @@ export const CreatePlaylistSchema = z.object({
 });
 
 export const CreatedPlaylistSchema = z.object({ id: z.string() });
+
+export const AccountSchema = z.object({
+  key: z.string().nullable().openapi({
+    description:
+      "A key for the signed-in account: the first 16 hex digits of the SHA-256 of the page's account ID, so it tells accounts apart without naming one. null when Rien is signed out or the page doesn't say.",
+  }),
+});

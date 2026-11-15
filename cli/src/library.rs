@@ -147,6 +147,15 @@ impl Call {
         let body = (!self.body.is_null()).then_some(&self.body);
         rien.request(method, &self.path, body)
     }
+
+    /// The song and the status a call rates it with
+    fn rating(&self) -> Option<(String, String)> {
+        if self.path != "/api/v1/library/rate" {
+            return None;
+        }
+        let text = |key: &str| self.body[key].as_str().map(str::to_owned);
+        Some((text("videoId")?, text("status")?))
+    }
 }
 
 /// A deleted playlist comes back as a new one with the same songs
@@ -163,6 +172,20 @@ pub struct Change {
     pub items: Vec<Item>,
     steps: Vec<(Call, Option<Call>)>,
     recreate: Option<Recreate>,
+    /// A snapshot of the library first; a rating's undo is exact without one
+    snapshot: bool,
+    /// A rating whose undo gives the song a status ytmpc guessed: not rated
+    guessed: bool,
+}
+
+impl Change {
+    /// The songs it rates, each with its new status
+    pub fn ratings(&self) -> Vec<(String, String)> {
+        self.steps
+            .iter()
+            .filter_map(|(call, _)| call.rating())
+            .collect()
+    }
 }
 
 /// One applied batch in the undo log
@@ -176,6 +199,22 @@ pub struct Batch {
     undo: Vec<Call>,
     #[serde(default)]
     recreate: Option<Recreate>,
+    /// The songs it rated, each with the status it gave; None for a step
+    /// that may not have gone through
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    rated: Vec<(String, Option<String>)>,
+    /// The key of the account Rien was signed in to, when it gave one
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    account: Option<String>,
+}
+
+/// What an applied change left: the library's snapshot before it, if any,
+/// and whether a rating's undo gives a song a guessed status
+pub struct Applied {
+    pub snapshot: Option<PathBuf>,
+    pub guessed: bool,
+    /// The key of the account Rien was signed in to, when it gave one
+    pub account: Option<String>,
 }
 
 fn log_path() -> PathBuf {
@@ -291,25 +330,26 @@ pub fn run(rien: &mut Rien, change: Change, apply: bool, as_json: bool) -> Resul
     if !as_json {
         eprintln!("Saving a snapshot of the library first…");
     }
-    let snapshot = commit(rien, &change)?;
+    let snapshot = commit(rien, &change)?.snapshot;
     if as_json {
         println!(
             "{}",
             json!({ "applied": true, "what": change.what, "changes": ids, "snapshot": snapshot })
         );
     } else {
-        say(&format!(
-            "Done. The library before it: {}. ytmpc undo takes it back.",
-            snapshot.display()
-        ));
+        let before = snapshot
+            .map(|file| format!(" The library before it: {}.", file.display()))
+            .unwrap_or_default();
+        say(&format!("Done.{before} ytmpc undo takes it back."));
     }
     Ok(())
 }
 
 /// Applies a change without a word on the terminal: a snapshot of the library
-/// first, then the calls in order, logging the undo of each one that went
-/// through. Gives the snapshot's file.
-pub fn commit(rien: &mut Rien, change: &Change) -> Result<PathBuf> {
+/// first (but for a rating), then the calls in order, logging the undo of each
+/// one that went through. A rating's undo comes from the log under the lock
+/// when ytmpc rated the song before.
+pub fn commit(rien: &mut Rien, change: &Change) -> Result<Applied> {
     // An empty change would log no batch, and undo would take back an older one
     if change.steps.is_empty() {
         bail!("Nothing to change");
@@ -317,8 +357,18 @@ pub fn commit(rien: &mut Rien, change: &Change) -> Result<PathBuf> {
     let _lock = lock()?;
     // A log that can't be read or written stops the change before anything changes
     let log = log_path();
-    write_log(&log, &read_log(&log)?)?;
-    let snapshot = write_export(&export(rien)?, None, "snapshots")?;
+    let batches = read_log(&log)?;
+    write_log(&log, &batches)?;
+    let account = account(rien);
+    // A rating's undo, a like's or a bulk unlike's, takes ytmpc's own newest
+    // rating of the song on this account over what the change found
+    let (steps, logged) = relogged(&change.steps, &batches, rien.address(), account.as_deref());
+    let guessed = change.guessed && !logged;
+    let snapshot = if change.snapshot {
+        Some(write_export(&export(rien)?, None, "snapshots")?)
+    } else {
+        None
+    };
     // The log learns of each call that went through before the next goes out
     let mut batch = Batch {
         at: now(),
@@ -326,8 +376,10 @@ pub fn commit(rien: &mut Rien, change: &Change) -> Result<PathBuf> {
         address: rien.address().to_owned(),
         undo: Vec::new(),
         recreate: None,
+        rated: Vec::new(),
+        account,
     };
-    for (index, (call, back)) in change.steps.iter().enumerate() {
+    for (index, (call, back)) in steps.iter().enumerate() {
         let sent = call.send(rien);
         // Rien says when a change may have gone through without an answer;
         // its undo is logged then too, to be used after a look
@@ -342,6 +394,10 @@ pub fn commit(rien: &mut Rien, change: &Change) -> Result<PathBuf> {
             let answer = sent.ok().flatten();
             let (back, refused) = taken(back.clone(), answer.as_ref());
             batch.undo.extend(back);
+            // A rating that may not have gone through leaves the song's unknown
+            if let Some((id, status)) = call.rating() {
+                batch.rated.push((id, (!uncertain).then_some(status)));
+            }
             if index + 1 == change.steps.len() {
                 batch.recreate = change.recreate.clone();
             }
@@ -368,7 +424,80 @@ pub fn commit(rien: &mut Rien, change: &Change) -> Result<PathBuf> {
             }));
         }
     }
-    Ok(snapshot)
+    Ok(Applied {
+        snapshot,
+        guessed,
+        account: batch.account,
+    })
+}
+
+/// The key of the account Rien is signed in to; None when it doesn't say, as
+/// a Rien without the route, or one signed out
+pub fn account(rien: &mut Rien) -> Option<String> {
+    rien.request(Method::Get, "/api/v1/account", None)
+        .ok()
+        .flatten()
+        .and_then(|answer| answer["key"].as_str().map(str::to_owned))
+}
+
+/// The status the newest batch still in the log gave a song, for this Rien
+/// and account: Some(None) when that step may not have gone through, or when
+/// a newer batch rated the song on an account Rien didn't name
+fn logged_rating(
+    batches: &[Batch],
+    address: &str,
+    account: &str,
+    video_id: &str,
+) -> Option<Option<String>> {
+    batches
+        .iter()
+        .rev()
+        .filter(|batch| batch.address == address)
+        .find_map(|batch| {
+            let status = batch
+                .rated
+                .iter()
+                .rev()
+                .find(|(id, _)| id == video_id)
+                .map(|(_, status)| status.clone())?;
+            match batch.account.as_deref() {
+                Some(key) if key == account => Some(status),
+                // Another account's ratings say nothing of this one's
+                Some(_) => None,
+                // It may have been this account
+                None => Some(None),
+            }
+        })
+}
+
+/// A rating's steps with each undo giving the song the status ytmpc's own
+/// newest batch in the log gave it, where it knows one; and whether any did.
+/// Without the account's key the log says nothing: another account at the
+/// same address may have written it.
+fn relogged(
+    steps: &[(Call, Option<Call>)],
+    batches: &[Batch],
+    address: &str,
+    account: Option<&str>,
+) -> (Vec<(Call, Option<Call>)>, bool) {
+    let Some(account) = account else {
+        return (steps.to_vec(), false);
+    };
+    let mut logged = false;
+    let steps = steps
+        .iter()
+        .map(|(call, back)| {
+            let mut back = back.clone();
+            if let (Some((id, _)), Some(back)) = (call.rating(), back.as_mut())
+                && let Some(Some(status)) = logged_rating(batches, address, account, &id)
+            {
+                back.body["status"] = json!(status);
+                logged = true;
+            }
+            (call.clone(), back)
+        })
+        .collect();
+    (steps, logged)
 }
 
 /// The undo of a call that went out, narrowed to the tokens the site took
@@ -429,7 +558,7 @@ pub fn undo(rien: &mut Rien, list: bool, as_json: bool) -> Result<()> {
         }
         return Ok(());
     }
-    let what = take_back(rien)?;
+    let (what, _) = take_back(rien)?;
     if as_json {
         println!("{}", json!({ "undone": what }));
     } else {
@@ -439,10 +568,19 @@ pub fn undo(rien: &mut Rien, list: bool, as_json: bool) -> Result<()> {
 }
 
 /// Takes back the last applied batch without a word on the terminal, and
-/// says what it was
-pub fn take_back(rien: &mut Rien) -> Result<String> {
+/// says what it was and the songs it rated again
+pub fn take_back(rien: &mut Rien) -> Result<(String, Vec<(String, String)>)> {
     let _lock = lock()?;
-    let path = log_path();
+    take_back_at(rien, &log_path(), account)
+}
+
+/// take_back on the log at `path`, asking Rien's account key with `account`
+fn take_back_at(
+    rien: &mut Rien,
+    path: &Path,
+    account: impl FnOnce(&mut Rien) -> Option<String>,
+) -> Result<(String, Vec<(String, String)>)> {
+    let path = path.to_owned();
     let mut batches = read_log(&path)?;
     let Some(mut batch) = batches.pop() else {
         bail!("Nothing to undo");
@@ -454,12 +592,43 @@ pub fn take_back(rien: &mut Rien) -> Result<String> {
             rien.address()
         );
     }
+    // A change made on one account is taken back only on that one; a batch
+    // without a key (from before keys, or an older Rien) goes on
+    if let Some(saved) = &batch.account {
+        match account(rien) {
+            None => bail!(
+                "Couldn't check which account Rien is signed in to; nothing changed. Try ytmpc undo again."
+            ),
+            Some(now) if now != *saved => bail!(
+                "The last change went to another account; sign in to it in Rien to take it back"
+            ),
+            Some(_) => {}
+        }
+    }
     // Each call that goes through leaves the log, so a second try goes on
     // where the first stopped; a log that can't be written stops it first
     replace_last(&path, batch.clone())?;
+    let mut rated = Vec::new();
     loop {
         if let Some(call) = batch.undo.first().cloned() {
-            let answer = call.send(rien)?;
+            let answer = match call.send(rien) {
+                Ok(answer) => answer,
+                Err(error) => {
+                    // A rating undo that may have gone through leaves the
+                    // song's rating unknown; the call stays for the next try
+                    if let Some((id, _)) = call.rating()
+                        && format!("{error:#}").contains("may have gone through")
+                    {
+                        for (rated, status) in &mut batch.rated {
+                            if *rated == id {
+                                *status = None;
+                            }
+                        }
+                        replace_last(&path, batch.clone())?;
+                    }
+                    return Err(error);
+                }
+            };
             // Tokens the site didn't take stay for the next try
             let flags: Vec<bool> = answer
                 .as_ref()
@@ -487,6 +656,11 @@ pub fn take_back(rien: &mut Rien) -> Result<String> {
                     count(flags.iter().filter(|took| !**took).count(), "item")
                 );
             }
+            if let Some((id, status)) = call.rating() {
+                // Taken back: the batch no longer rated the song
+                batch.rated.retain(|(rated, _)| *rated != id);
+                rated.push((id, status));
+            }
             batch.undo.remove(0);
         } else if let Some(recreate) = batch.recreate.take() {
             let (first, rest) = recreate.songs.split_at(recreate.songs.len().min(200));
@@ -513,7 +687,7 @@ pub fn take_back(rien: &mut Rien) -> Result<String> {
         replace_last(&path, batch.clone())?;
     }
     write_log(&path, &batches)?;
-    Ok(batch.what)
+    Ok((batch.what, rated))
 }
 
 fn token(item: &Value, key: &str) -> Option<String> {
@@ -573,6 +747,8 @@ pub fn remove_from_library(ids: &[String], songs: &[Value], albums: &[Value]) ->
         items,
         steps,
         recreate: None,
+        snapshot: true,
+        guessed: false,
     })
 }
 
@@ -601,7 +777,36 @@ pub fn unlike(ids: &[String], likes: &[Value]) -> Result<Change> {
         items,
         steps,
         recreate: None,
+        snapshot: true,
+        guessed: false,
     })
+}
+
+/// Likes a song, or takes its like away. Undo gives it back the status ytmpc
+/// last gave it (see commit), else `row`'s, the rating its row shows, else
+/// the opposite one: not rated after a like.
+pub fn rate_song(video_id: &str, title: &str, like: bool, row: Option<&str>) -> Change {
+    let (status, opposite, verb) = if like {
+        ("LIKE", "INDIFFERENT", "Like")
+    } else {
+        ("INDIFFERENT", "LIKE", "Unlike")
+    };
+    let item: Item = serde_json::from_value(json!({
+        "type": "song", "id": video_id, "title": title, "subtitle": "",
+        "artists": [], "album": null, "duration": null, "available": true
+    }))
+    .expect("a song item");
+    Change {
+        what: format!("{verb} {title}"),
+        items: vec![item],
+        steps: vec![(
+            rate(("videoId", video_id), status),
+            Some(rate(("videoId", video_id), row.unwrap_or(opposite))),
+        )],
+        recreate: None,
+        snapshot: false,
+        guessed: row.is_none(),
+    }
 }
 
 /// Removes songs from a playlist by slot, or every slot of a video ID
@@ -649,6 +854,8 @@ pub fn remove_from_playlist(
         items,
         steps,
         recreate: None,
+        snapshot: true,
+        guessed: false,
     })
 }
 
@@ -680,6 +887,8 @@ pub fn delete_playlist(playlist_id: &str, title: &str, tracks: &[Value]) -> Chan
             title: title.to_owned(),
             songs,
         }),
+        snapshot: true,
+        guessed: false,
     }
 }
 
@@ -896,6 +1105,120 @@ mod tests {
     }
 
     #[test]
+    fn a_second_like_undoes_to_the_first_on_the_same_account() {
+        let address = "127.0.0.1:26538";
+        let mine = Some("aaaaaaaaaaaaaaaa");
+        let batch = |rated: Vec<(String, Option<String>)>| Batch {
+            at: 1,
+            what: "Like Numb".into(),
+            address: address.into(),
+            undo: vec![rate(("videoId", "aaaaaaaaaaa"), "INDIFFERENT")],
+            recreate: None,
+            rated,
+            account: mine.map(str::to_owned),
+        };
+        let liked = batch(vec![("aaaaaaaaaaa".into(), Some("LIKE".into()))]);
+        // The set's row still shows the rating from before the first like
+        let second = rate_song("aaaaaaaaaaa", "Numb", true, Some("INDIFFERENT"));
+        let once = std::slice::from_ref(&liked);
+        let (steps, logged) = relogged(&second.steps, once, address, mine);
+        assert!(logged);
+        assert_eq!(steps[0].1.as_ref().unwrap().body["status"], "LIKE");
+        // A step that may not have gone through says nothing: the row's counts
+        let unsure = batch(vec![("aaaaaaaaaaa".into(), None)]);
+        let (steps, logged) = relogged(&second.steps, &[liked.clone(), unsure], address, mine);
+        assert!(!logged);
+        assert_eq!(steps[0].1.as_ref().unwrap().body["status"], "INDIFFERENT");
+        // Another account at the same address, a Rien that names no account,
+        // another Rien and other songs: the log says nothing
+        assert!(!relogged(&second.steps, once, address, Some("bbbbbbbbbbbbbbbb")).1);
+        assert!(!relogged(&second.steps, once, address, None).1);
+        assert!(!relogged(&second.steps, once, "127.0.0.1:1", mine).1);
+        // A newer rating on an account Rien didn't name hides the older one;
+        // another account's doesn't
+        let unnamed = Batch {
+            account: None,
+            ..liked.clone()
+        };
+        assert!(!relogged(&second.steps, &[liked.clone(), unnamed], address, mine).1);
+        let theirs = Batch {
+            account: Some("bbbbbbbbbbbbbbbb".into()),
+            ..liked.clone()
+        };
+        assert!(relogged(&second.steps, &[liked.clone(), theirs], address, mine).1);
+        let other = rate_song("bbbbbbbbbbb", "B", true, None);
+        assert!(!relogged(&other.steps, &[liked], address, mine).1);
+        // Without the log or a row, undo sets the song to not rated
+        assert!(other.guessed && !second.guessed);
+        assert_eq!(
+            other.steps[0].1.as_ref().unwrap().body["status"],
+            "INDIFFERENT"
+        );
+    }
+
+    #[test]
+    fn a_like_goes_at_once_and_undoes_to_the_status_before() {
+        let change = rate_song("aaaaaaaaaaa", "Numb", true, None);
+        assert_eq!(change.what, "Like Numb");
+        assert!(!change.snapshot);
+        assert_eq!(
+            change.steps,
+            vec![(
+                rate(("videoId", "aaaaaaaaaaa"), "LIKE"),
+                Some(rate(("videoId", "aaaaaaaaaaa"), "INDIFFERENT")),
+            )]
+        );
+        assert_eq!(
+            change.steps[0].0.body,
+            json!({ "status": "LIKE", "videoId": "aaaaaaaaaaa" })
+        );
+        assert_eq!(
+            change.ratings(),
+            vec![("aaaaaaaaaaa".to_owned(), "LIKE".to_owned())]
+        );
+        // A disliked song goes back to its dislike; a like taken away comes back
+        let undo = |change: Change| change.steps[0].1.clone().unwrap().body["status"].clone();
+        assert_eq!(
+            undo(rate_song("aaaaaaaaaaa", "Numb", true, Some("DISLIKE"))),
+            "DISLIKE"
+        );
+        assert_eq!(undo(rate_song("aaaaaaaaaaa", "Numb", false, None)), "LIKE");
+        // Other calls rate nothing
+        assert_eq!(
+            post("/api/v1/library/feedback", json!({ "tokens": ["t"] })).rating(),
+            None
+        );
+    }
+
+    #[test]
+    fn undo_needs_the_account_it_was_made_on() {
+        let dir = std::env::temp_dir().join(format!("ytmpc-undo-account-{}", std::process::id()));
+        let path = dir.join("undo.jsonl");
+        // Nothing answers at this address: a request that went out would fail otherwise
+        let mut rien = Rien::new("127.0.0.1:9".into(), dir.clone());
+        let batch = Batch {
+            at: 1,
+            what: "Like Numb".into(),
+            address: "127.0.0.1:9".into(),
+            undo: vec![rate(("videoId", "aaaaaaaaaaa"), "INDIFFERENT")],
+            recreate: None,
+            rated: vec![("aaaaaaaaaaa".into(), Some("LIKE".into()))],
+            account: Some("aaaaaaaaaaaaaaaa".into()),
+        };
+        push(&path, batch.clone()).unwrap();
+        let unread = take_back_at(&mut rien, &path, |_| None).unwrap_err();
+        assert!(
+            format!("{unread:#}").starts_with("Couldn't check which account"),
+            "{unread:#}"
+        );
+        let other = take_back_at(&mut rien, &path, |_| Some("bbbbbbbbbbbbbbbb".into()));
+        assert!(format!("{:#}", other.unwrap_err()).contains("another account"));
+        // The batch stays as it was, for another try
+        assert_eq!(read_log(&path).unwrap(), vec![batch]);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn one_ytmpc_at_a_time_changes_the_library() {
         let dir = std::env::temp_dir().join(format!("ytmpc-lock-{}", std::process::id()));
         let path = dir.join("undo.lock");
@@ -917,6 +1240,8 @@ mod tests {
             address: "127.0.0.1:26538".into(),
             undo: vec![post("/api/v1/library/feedback", json!({ "tokens": ["t"] }))],
             recreate: None,
+            rated: Vec::new(),
+            account: None,
         };
         push(&path, batch("first")).unwrap();
         push(&path, batch("second")).unwrap();

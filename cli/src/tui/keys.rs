@@ -41,12 +41,13 @@ pub enum Action {
     Saved,
     Library,
     Undo,
+    Like,
     CopyLink,
     Help,
 }
 
 /// Each action's name in config.toml and its line in the key list
-pub const ACTIONS: [(Action, &str, &str); 35] = [
+pub const ACTIONS: [(Action, &str, &str); 36] = [
     (Action::Quit, "quit", "quit"),
     (Action::Search, "search", "search"),
     (Action::Filter, "filter", "search filter"),
@@ -84,6 +85,11 @@ pub const ACTIONS: [(Action, &str, &str); 35] = [
     (Action::Saved, "saved", "saved sets"),
     (Action::Library, "library", "the library"),
     (Action::Undo, "undo", "take back a library change"),
+    (
+        Action::Like,
+        "like",
+        "like or unlike the row, or what plays",
+    ),
     (
         Action::CopyLink,
         "copy-link",
@@ -136,6 +142,7 @@ const DEFAULTS: &[(&str, Action)] = &[
     ("o", Action::Saved),
     ("b", Action::Library),
     ("u", Action::Undo),
+    ("f", Action::Like),
     ("y", Action::CopyLink),
     ("?", Action::Help),
 ];
@@ -345,5 +352,6 @@ mod tests {
             "{list:?}"
         );
         assert!(list.contains(&("g-g HOME".to_owned(), "top")), "{list:?}");
+        assert_eq!(keys.action("f"), Some(Action::Like));
     }
 }
