@@ -4,7 +4,11 @@ import type { Json } from './browse';
 import type { BrowserWindow } from 'electron';
 
 // A promise's value, or `fallback` when it takes longer than `ms`
-const within = async <T>(promise: Promise<T>, ms: number, fallback: T) => {
+export const within = async <T>(
+  promise: Promise<T>,
+  ms: number,
+  fallback: T,
+) => {
   let timer: NodeJS.Timeout | undefined;
   try {
     return await Promise.race([

@@ -10,6 +10,7 @@ import {
 
 import { API_VERSION } from '../api-version';
 import { type Json, parseQueue } from '../browse';
+import { within } from '../page';
 import {
   AddSongToQueueSchema,
   GoBackSchema,
@@ -26,6 +27,7 @@ import {
   SwitchRepeatSchema,
   type ResponseSongInfo,
 } from '../scheme';
+import { ErrorSchema } from '../scheme/browse';
 
 import type { APIServerConfig } from '../../config';
 import type { HonoApp } from '../types';
@@ -33,6 +35,32 @@ import type { SongInfo } from '@/providers/song-info';
 import type { BackendContext } from '@/types/contexts';
 import type { QueueResponse } from '@/types/music-player-desktop-internal';
 import type { Context } from 'hono';
+
+// What a route that asks the page answers when the page doesn't, as while it
+// loads
+const pageSilent = {
+  503: {
+    description: 'The page did not answer in time',
+    content: { 'application/json': { schema: ErrorSchema } },
+  },
+};
+const noAnswer = { error: 'The page did not answer in time; try again' };
+
+// The page's answer to a question over IPC, or undefined when none comes in
+// time. The answer comes wrapped: the page may answer undefined itself.
+const fromPage = <T>(channel: string, ask: () => void, ms = 10_000) =>
+  new Promise<{ answer: T } | undefined>((resolve) => {
+    const listener = (_: unknown, answer: T) => {
+      clearTimeout(timer);
+      resolve({ answer });
+    };
+    const timer = setTimeout(() => {
+      ipcMain.removeListener(channel, listener);
+      resolve(undefined);
+    }, ms);
+    ipcMain.once(channel, listener);
+    ask();
+  });
 
 const routes = {
   previous: createRoute({
@@ -211,6 +239,7 @@ const routes = {
           },
         },
       },
+      ...pageSilent,
     },
   }),
   shuffle: createRoute({
@@ -352,6 +381,7 @@ const routes = {
           },
         },
       },
+      ...pageSilent,
     },
   }),
   oldQueueInfo: createRoute({
@@ -372,6 +402,7 @@ const routes = {
       204: {
         description: 'No queue info',
       },
+      ...pageSilent,
     },
   }),
   oldSongInfo: createRoute({
@@ -431,6 +462,7 @@ const routes = {
       204: {
         description: 'No next song in queue',
       },
+      ...pageSilent,
     },
   }),
   songCover: createRoute({
@@ -461,8 +493,28 @@ const routes = {
         description: 'Success',
         content: { 'application/json': { schema: QueueItemsSchema } },
       },
+      ...pageSilent,
     },
   }),
+  playerState: createRoute({
+    method: 'get',
+    path: `/api/${API_VERSION}/player-state`,
+    summary: 'compare the player with the song info',
+    description:
+      "What the page's player itself plays, the queue's selected song and the page's video elements, next to the song info Rien keeps, to tell when they drift apart",
+    responses: {
+      200: {
+        description: 'Success',
+        content: {
+          'application/json': {
+            schema: z.object({ page: z.unknown(), song: z.unknown() }),
+          },
+        },
+      },
+      ...pageSilent,
+    },
+  }),
+
   queueInfo: createRoute({
     method: 'get',
     path: `/api/${API_VERSION}/queue`,
@@ -480,6 +532,7 @@ const routes = {
       204: {
         description: 'No queue info',
       },
+      ...pageSilent,
     },
   }),
   addSongToQueue: createRoute({
@@ -680,21 +733,12 @@ export const register = (
   });
 
   app.openapi(routes.getShuffleState, async (ctx) => {
-    const stateResponsePromise = new Promise<boolean>((resolve) => {
-      ipcMain.once(
-        'peard:get-shuffle-response',
-        (_, isShuffled: boolean | undefined) => {
-          return resolve(!!isShuffled);
-        },
-      );
-
-      controller.requestShuffleInformation();
-    });
-
-    const isShuffled = await stateResponsePromise;
-
-    ctx.status(200);
-    return ctx.json({ state: isShuffled });
+    const shuffle = await fromPage<boolean | undefined>(
+      'peard:get-shuffle-response',
+      () => controller.requestShuffleInformation(),
+    );
+    if (!shuffle) return ctx.json(noAnswer, 503);
+    return ctx.json({ state: !!shuffle.answer }, 200);
   });
 
   app.openapi(routes.shuffle, (ctx) => {
@@ -743,21 +787,12 @@ export const register = (
   });
 
   app.openapi(routes.getFullscreenState, async (ctx) => {
-    const stateResponsePromise = new Promise<boolean>((resolve) => {
-      ipcMain.once(
-        'peard:set-fullscreen',
-        (_, isFullscreen: boolean | undefined) => {
-          return resolve(!!isFullscreen);
-        },
-      );
-
-      controller.requestFullscreenInformation();
-    });
-
-    const fullscreen = await stateResponsePromise;
-
-    ctx.status(200);
-    return ctx.json({ state: fullscreen });
+    const fullscreen = await fromPage<boolean | undefined>(
+      'peard:set-fullscreen',
+      () => controller.requestFullscreenInformation(),
+    );
+    if (!fullscreen) return ctx.json(noAnswer, 503);
+    return ctx.json({ state: !!fullscreen.answer }, 200);
   });
 
   const songInfo = async (ctx: Context) => {
@@ -786,17 +821,48 @@ export const register = (
     return ctx.body(new Uint8Array(png), 200);
   });
 
+  // Read-only: what the page's player plays, beside the song info
+  const readPlayer = `(() => {
+    const player = document.querySelector('#movie_player');
+    const data = player?.getVideoData?.();
+    const queue = document.querySelector('#queue')?.queue?.store?.store?.getState?.().queue;
+    const song = (item) => item && (item.playlistPanelVideoRenderer ?? item.playlistPanelVideoWrapperRenderer?.primaryRenderer?.playlistPanelVideoRenderer);
+    const items = queue?.items ?? [];
+    const selected = items.findIndex((item) => song(item)?.selected);
+    return {
+      player: { videoId: data?.video_id ?? null, title: data?.title ?? null, time: player?.getCurrentTime?.() ?? null, duration: player?.getDuration?.() ?? null, state: player?.getPlayerState?.() ?? null, ad: !!player?.classList.contains('ad-showing') },
+      queue: { length: items.length, selected, selectedId: song(items[selected])?.videoId ?? null },
+      videos: [...document.querySelectorAll('video')].map((video) => ({ time: video.currentTime, duration: Number.isFinite(video.duration) ? video.duration : null, paused: video.paused, ended: video.ended, inPlayer: !!player?.contains(video) })),
+      path: location.pathname + location.search,
+    };
+  })()`;
+  app.openapi(routes.playerState, async (ctx) => {
+    const page: unknown = await within(
+      window.webContents.executeJavaScript(readPlayer).catch(() => null),
+      5_000,
+      null,
+    );
+    if (!page) return ctx.json(noAnswer, 503);
+    const info = await songInfoGetter();
+    const song = info && {
+      title: info.title,
+      videoId: info.videoId,
+      elapsedSeconds: info.elapsedSeconds,
+      songDuration: info.songDuration,
+      isPaused: info.isPaused,
+    };
+    return ctx.json({ page, song: song ?? null }, 200);
+  });
+
   // Queue
+  const askQueue = () =>
+    fromPage<QueueResponse | undefined>('peard:get-queue-response', () =>
+      controller.requestQueueInformation(),
+    );
   const queueInfo = async (ctx: Context) => {
-    const queueResponsePromise = new Promise<QueueResponse>((resolve) => {
-      ipcMain.once('peard:get-queue-response', (_, queue: QueueResponse) => {
-        return resolve(queue);
-      });
-
-      controller.requestQueueInformation();
-    });
-
-    const info = await queueResponsePromise;
+    const asked = await askQueue();
+    if (!asked) return ctx.json(noAnswer, 503);
+    const info = asked.answer;
 
     if (!info) {
       ctx.status(204);
@@ -810,26 +876,15 @@ export const register = (
   app.openapi(routes.queueInfo, queueInfo);
 
   app.openapi(routes.queueItems, async (ctx) => {
-    const queue = await new Promise<QueueResponse>((resolve) => {
-      ipcMain.once('peard:get-queue-response', (_, response: QueueResponse) =>
-        resolve(response),
-      );
-      controller.requestQueueInformation();
-    });
-    ctx.status(200);
-    return ctx.json(parseQueue((queue ?? {}) as Json));
+    const asked = await askQueue();
+    if (!asked) return ctx.json(noAnswer, 503);
+    return ctx.json(parseQueue((asked.answer ?? {}) as Json), 200);
   });
 
   app.openapi(routes.nextSongInfo, async (ctx) => {
-    const queueResponsePromise = new Promise<QueueResponse>((resolve) => {
-      ipcMain.once('peard:get-queue-response', (_, queue: QueueResponse) => {
-        return resolve(queue);
-      });
-
-      controller.requestQueueInformation();
-    });
-
-    const queue = await queueResponsePromise;
+    const asked = await askQueue();
+    if (!asked) return ctx.json(noAnswer, 503);
+    const queue = asked.answer;
 
     if (!queue?.items || queue.items.length === 0) {
       ctx.status(204);

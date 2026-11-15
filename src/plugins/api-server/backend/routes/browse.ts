@@ -204,15 +204,19 @@ export const register = (
   app.openapi(routes.library, async (ctx) => {
     const { kind } = ctx.req.valid('param');
     const { continuation } = ctx.req.valid('query');
-    // Unknown when the page doesn't answer in time; the request then goes on
-    if ((await pageSignedIn(window)) === false) {
-      return ctx.json({ error: 'Rien is not signed in' }, 409);
-    }
     const browseId = libraryPages[kind];
-    const answer = await ask(
+    // Asked at once, while Rien checks whether it is signed in, so that the two
+    // waits together stay under a client's 30 s; a known sign-out answers at
+    // once. Signed in is unknown when the page doesn't say in time; the answer
+    // then counts.
+    const asked = ask(
       '/browse',
       continuation ? { continuation } : { browseId },
     );
+    if ((await pageSignedIn(window)) === false) {
+      return ctx.json({ error: 'Rien is not signed in' }, 409);
+    }
+    const answer = await asked;
     if (!answer) return ctx.json(noAnswer, 503);
     if (kind === 'likes') {
       const { tracks, continuation: next } = parsePlaylist(browseId, answer);
