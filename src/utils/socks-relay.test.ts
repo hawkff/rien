@@ -147,7 +147,10 @@ test('the relay logs in to a SOCKS5 or an HTTP proxy for its clients', async () 
 });
 
 test('a proxy that closes or keeps quiet fails the tunnel instead of holding it', async () => {
-  const closing = net.createServer((socket) => socket.destroy());
+  // Reads the CONNECT first: closing on unread data can send a reset
+  const closing = net.createServer((socket) =>
+    socket.once('data', () => socket.end()),
+  );
   const quiet = net.createServer(() => {});
   const closingPort = await listen(closing);
   const quietPort = await listen(quiet);
