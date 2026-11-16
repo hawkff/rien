@@ -1,13 +1,13 @@
-/* #song-image shows only in Song mode, so Video mode stays untouched. Its
-   children are the cover and Ambient Mode's blurred copy of it; the box itself
-   covers the player's gray background. */
-body[hide-cover] #song-image.ytmusic-player {
+/* Song mode only, so Video mode stays untouched. #song-image's children are
+   the cover and Ambient Mode's blurred copy of it; the box itself covers the
+   player's gray background. */
+body[hide-cover][hide-cover-song] #song-image.ytmusic-player {
   background: var(--ytmusic-background, #030303);
 }
 
-body[hide-cover] #song-image.ytmusic-player > *,
+body[hide-cover][hide-cover-song] #song-image.ytmusic-player > *,
 /* The phone layout's backdrop: a blurred copy of the cover under a gradient. */
-body[hide-cover] .background-image.ytmusic-player-page {
+body[hide-cover][hide-cover-song] .background-image.ytmusic-player-page {
   visibility: hidden;
 }
 

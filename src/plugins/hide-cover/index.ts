@@ -26,8 +26,13 @@ const relayout = () =>
 
 const updateSongMode = () => {
   const songImage = document.querySelector('#song-image');
+  // The site's Video switch sets OMV_PREFERRED. Video Toggle's own switch can
+  // leave ATV_PREFERRED while it shows the video, so the cover box must show too.
   const isSongMode =
-    !!songImage && getComputedStyle(songImage).display !== 'none';
+    document.querySelector('ytmusic-player')?.getAttribute('playback-mode') !==
+      'OMV_PREFERRED' &&
+    !!songImage &&
+    getComputedStyle(songImage).display !== 'none';
   if (document.body.hasAttribute('hide-cover-song') === isSongMode) return;
   document.body.toggleAttribute('hide-cover-song', isSongMode);
   relayout();

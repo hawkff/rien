@@ -86,12 +86,39 @@ test('Hide Cover hides the cover in Song mode only, and the player keeps playing
           pageWidth: Math.round(box('#main-panel').width),
           switchShown: box('.video-switch-button')?.height > 0,
           coverShown: getComputedStyle(cover).visibility === 'visible',
+          // A box that is visible: Hidden hides the column but keeps its layout
+          videoShown:
+            box('#song-video video')?.height > 0 &&
+            getComputedStyle(document.querySelector('#song-video video'))
+              .visibility === 'visible',
           time: document.querySelector('#movie_player').getCurrentTime(),
         };
       });
     // A real click, so the switch has to be reachable on the strip
     const switchMode = () =>
       window.locator('.video-switch-button-checkbox').click();
+    // The player's mode decides Video mode, even where the page leaves the
+    // cover box displayed in it
+    const coverBoxStaysInVideoMode = async () => {
+      await window.evaluate(() => {
+        // Video as the site's switch sets it, whatever Video Toggle did before
+        document
+          .querySelector('ytmusic-player')
+          .setAttribute('playback-mode', 'OMV_PREFERRED');
+        document.querySelector('#song-image').style.display = 'block';
+      });
+      await expect
+        .poll(async () => {
+          const { song, column, coverShown, videoShown } = await page();
+          return { song, wide: column > 72, coverShown, videoShown };
+        })
+        .toEqual({
+          song: false,
+          wide: true,
+          coverShown: true,
+          videoShown: true,
+        });
+    };
 
     // Hidden: the column is a strip with the switch, the side panel takes the
     // width, and the song plays on
@@ -112,14 +139,21 @@ test('Hide Cover hides the cover in Song mode only, and the player keeps playing
     await switchMode();
     await expect
       .poll(async () => {
-        const { song, column, padding } = await page();
-        return { song, wide: column > 72, padding };
+        const { song, column, padding, coverShown, videoShown } = await page();
+        return { song, wide: column > 72, padding, coverShown, videoShown };
       })
-      .toEqual({ song: false, wide: true, padding: '0px' });
+      .toEqual({
+        song: false,
+        wide: true,
+        padding: '0px',
+        coverShown: true,
+        videoShown: true,
+      });
     const video = await page();
     await expect
       .poll(async () => (await page()).time)
       .toBeGreaterThan(video.time + 1);
+    await coverBoxStaysInVideoMode();
     await switchMode();
     await expect
       .poll(async () => {
@@ -128,7 +162,8 @@ test('Hide Cover hides the cover in Song mode only, and the player keeps playing
       })
       .toEqual({ song: true, column: 72 });
 
-    // Black keeps the column with the cover out of sight; off shows it again
+    // Black keeps the column with the cover out of sight, Video mode shows the
+    // video, and off shows the cover again
     const setConfig = (config) =>
       window.evaluate(
         (config) =>
@@ -142,6 +177,21 @@ test('Hide Cover hides the cover in Song mode only, and the player keeps playing
         return { wide: column > 72, coverShown };
       })
       .toEqual({ wide: true, coverShown: false });
+    await switchMode();
+    await expect
+      .poll(async () => {
+        const { song, coverShown, videoShown } = await page();
+        return { song, coverShown, videoShown };
+      })
+      .toEqual({ song: false, coverShown: true, videoShown: true });
+    await coverBoxStaysInVideoMode();
+    await switchMode();
+    await expect
+      .poll(async () => {
+        const { song, coverShown } = await page();
+        return { song, coverShown };
+      })
+      .toEqual({ song: true, coverShown: false });
     await setConfig({ enabled: false });
     await expect
       .poll(async () => {
