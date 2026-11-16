@@ -40,14 +40,15 @@ const isBlocked = (response: Response) =>
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Sends a request, and a second copy when it has no answer after `delay`.
- * Gives the first answer that isn't a refusal, or else a refusal, or the
- * error of the last copy to fail. The copy that loses stops.
+ * Sends a request, and a second copy when it has no answer after `delay` and
+ * is still `current`. Gives the first answer that isn't a refusal, or else a
+ * refusal, or the error of the last copy to fail. The copy that loses stops.
  */
 const sendTwice = (
   fetch: typeof window.fetch,
   request: Request,
   delay: number,
+  current: () => boolean,
 ) =>
   new Promise<Response>((resolve, reject) => {
     const running = new Set<AbortController>();
@@ -88,8 +89,11 @@ const sendTwice = (
       );
     };
     send();
+    // No copy once a newer request of the kind went out: the page would show
+    // its answer over the newer one's, such as an earlier tab's content in
+    // the tab now open
     const timer = setTimeout(() => {
-      if (!done) send();
+      if (!done && current()) send();
     }, delay);
   });
 
@@ -177,7 +181,7 @@ export const retryBlocked =
       for (let failures = 1; ; failures++) {
         try {
           return reads
-            ? await sendTwice(fetch, request, copyAfter)
+            ? await sendTwice(fetch, request, copyAfter, current)
             : await fetch(request.clone());
         } catch (error) {
           // Aborted by the page, or a newer request of the kind went out:

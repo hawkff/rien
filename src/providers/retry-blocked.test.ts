@@ -289,6 +289,18 @@ test('a read-only request without an answer in time gets a second copy, and the 
   expect(await response.text()).toBe('{}');
 });
 
+test('an older request gets no second copy once a newer one of its kind went out', async () => {
+  // The older request's first copy is refused late; the newer one answers
+  const { signals, fetch } = timed([200, blocked], [5, passes], [5, passes]);
+  const retrying = retryBlocked(fetch, wait, undefined, 50);
+  const older = retrying(`${api}/browse`, { method: 'POST', body: '1' });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const newer = await retrying(`${api}/browse`, { method: 'POST', body: '2' });
+  expect(newer.status).toBe(200);
+  expect((await older).status).toBe(403);
+  expect(signals).toHaveLength(2);
+});
+
 test('two refused copies count as one refusal, and the request tries again', async () => {
   waits.length = 0;
   const { signals, fetch } = timed([80, blocked], [10, blocked], [5, passes]);
