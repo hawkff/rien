@@ -17,8 +17,9 @@ export class LyricsGenius implements LyricProvider {
     });
 
     const response = await fetch(`${this.baseUrl}/api/search/song?${query}`);
+    // A refusal (such as a 403 browser check) is an error, not "no lyrics".
     if (!response.ok) {
-      return null;
+      throw new Error(`Genius refused the search (${response.status})`);
     }
 
     const data = (await response.json()) as LyricsGeniusSearch;

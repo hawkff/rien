@@ -23,7 +23,11 @@ export const menu = async (
             'plugins.synced-lyrics.menu.preferred-provider.none.tooltip',
           ),
           type: 'radio',
-          checked: config.preferredProvider === undefined,
+          // A saved provider that was removed since counts as none.
+          checked: !(
+            config.preferredProvider &&
+            providerNames.includes(config.preferredProvider)
+          ),
           click() {
             ctx.setConfig({ preferredProvider: undefined });
           },

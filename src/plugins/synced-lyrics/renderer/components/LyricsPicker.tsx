@@ -66,7 +66,8 @@ const providerBias = (p: ProviderName) =>
 
 const pickBestProvider = () => {
   const preferred = config()?.preferredProvider;
-  if (preferred) {
+  // A saved provider that was removed since counts as no preference.
+  if (preferred && providerNames.includes(preferred)) {
     const data = lyricsStore.lyrics[preferred].data;
     if (Array.isArray(data?.lines) || data?.lyrics) {
       return { provider: preferred, force: true };
