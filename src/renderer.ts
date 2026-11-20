@@ -20,6 +20,7 @@ import {
 } from './loader/renderer';
 import { cleanCopiedLinks } from './providers/clean-links';
 import { startingPages } from './providers/extracted-data';
+import { setupGuide } from './providers/guide';
 import {
   appStore,
   getLikeStatus,
@@ -362,6 +363,7 @@ async function onApiLoaded() {
     ),
   );
   addPlayerPageButton();
+  setupGuide();
 
   if (firstDataLoaded) {
     document.dispatchEvent(

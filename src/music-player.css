@@ -161,3 +161,37 @@ ytmusic-app-layout > ytmusic-miniplayer .ytMusicMiniPlayerProgressBar {
 ytmusic-app-layout[player-fullscreened] .player-page-button {
   display: none;
 }
+
+/* The collapsed guide lists the account's playlists below Library as covers.
+   The site renders these entries there but hides them. The bar is too narrow
+   for a scrollbar beside them; they scroll without one. */
+#mini-guide-renderer ytmusic-guide-section-renderer:not([is-primary]) {
+  display: flex;
+  padding-top: 8px;
+
+  #items {
+    scrollbar-width: none;
+  }
+}
+#mini-guide-renderer ytmusic-guide-entry-renderer:not([is-primary]) {
+  tp-yt-paper-item {
+    padding: 8px 0;
+  }
+  .title-column,
+  #play-button {
+    display: none;
+  }
+  tp-yt-paper-item::after {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 40px;
+    margin: 0 auto;
+    border-radius: 4px;
+    /* The playlist icon where the library has no cover */
+    background:
+      var(--guide-cover, none) center / cover no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M3 10h11v2H3zm0-4h11v2H3zm0 8h7v2H3zm13-1v8l6-4z'/%3E%3C/svg%3E")
+        center / 20px no-repeat rgb(255 255 255 / 10%);
+  }
+}

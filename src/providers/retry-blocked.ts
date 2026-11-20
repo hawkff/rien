@@ -25,9 +25,10 @@ const readOnly = new Set([
 ]);
 const api = '/\u0079\u006f\u0075\u0074\u0075\u0062\u0065i/v1/';
 /**
- * Marks the address of a read that the API server asks the page for. Such a
- * read answers its own caller, so it neither replaces nor is replaced by a
- * newer request of its kind. The mark never leaves the app.
+ * Marks the address of Rien's own reads through the page: those the API
+ * server asks for, and the guide's covers. Such a read answers its own caller,
+ * so it neither replaces nor is replaced by a newer request of its kind. The
+ * mark never leaves the app.
  */
 export const apiServerRead = 'rien-api-read';
 const apiUrl = (url: string | URL) => {
